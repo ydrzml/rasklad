@@ -1,0 +1,233 @@
+# Шаблоны планировки склада: из них строится план объекта на третьем шаге.
+#
+# Зачем они нужны. Движок считал объект как квадрат со стороной из корня площади, ворота
+# посередине нижней стороны, задания в случайной точке. От такой геометрии длина маршрута
+# зависит слабо, а она определяет производительность робота и размер парка. Шаблон дает
+# настоящие пропорции здания, зоны, проезды и ворота, и план из него можно править руками.
+#
+# Каждое значение записано так же, как в config/model.yaml: {v, src, date, trust}.
+# Оценки по общей шкале (docs/data-sources.md, «Оценка достоверности»).
+#
+# Важно про источники. Норматива на планировку склада нет. СП 57.13330 прямо говорит, что
+# размеры пролетов и шаг колонн определяются технологией, а не правилами. Все, что ниже, это
+# рыночная классификация складов и отраслевая практика, поэтому оценки тут D и C, а не S.
+
+constants:
+  column_grid_m:
+    v: 12
+    src: "Рыночная классификация складов: класс А, шаг колонн не менее 12 м. ibcrealestate.ru/blog/klassifikatsiya-skladskoy-nedvizhimosti-zachem-ona-nuzhna-i-kak-ustroena/, skladium.ru/rynok/sklad-a"
+    date: "2026-09"
+    trust: D
+  span_m:
+    v: 24
+    src: "Там же: расстояние между пролетами не менее 24 м"
+    date: "2026-09"
+    trust: D
+  area_per_dock_m2:
+    v: 1000
+    src: "Источники расходятся: одни ворота на 500 м2 (skladium.ru, moshol14.ru), одни на 800-1000 м2 (ibcrealestate.ru). Берем 1000: ворот меньше, очередь у ворот длиннее, окупаемость хуже"
+    date: "2026-09"
+    trust: E
+  dock_pitch_m:
+    v: 4
+    src: "Отраслевой разбор доковых зон: минимальный шаг фур 3,6 м, практические варианты 4 м и 8 м. newsklad.ru/news.php?news_id=1407, sitmag.ru/article/23019"
+    date: "2026-09"
+    trust: D
+  dock_zone_depth_m:
+    v: 12
+    src: "Источника нет. Берем один пролет колонн: буфер приемки и отгрузки обычно занимает крайний пролет"
+    trust: F
+  rack_depth_m:
+    v: 1.1
+    src: "Глубина фронтального паллетного стеллажа 1000-1100 мм. profstellag.ru/stati/razmery-stellazhej.html"
+    date: "2026-09"
+    trust: C
+  rack_bay_m:
+    v: 2.7
+    src: "Секция на три европаллеты 800x1200: длина балки 2700 мм. profstellag.ru/stati/razmery-stellazhej.html"
+    date: "2026-09"
+    trust: C
+  aisle_forklift_m:
+    v: 3.5
+    src: "Вилочный противовесный погрузчик: проезд не менее 3,5 м. sitmag.ru/article/9580-frontalnye-gruzovye-stellaji, promberg.ru/kak-podobrat-palletnye-stellazhi-pod-tehniku-shtabeler-richtrak-pogruzchik"
+    date: "2026-09"
+    trust: D
+  aisle_reach_truck_m:
+    v: 3.0
+    src: "Ричтрак: рекомендуемая ширина проезда уменьшается до 3 м (2,5-3,0 м). Те же источники"
+    date: "2026-09"
+    trust: D
+  aisle_main_m:
+    v: 4.5
+    src: "Главные проезды склада 1,5-4,5 м, берем верх диапазона: по главному проезду идет встречное движение. sitmag.ru/article/10158-kak-splanirovat-skladskie-zony"
+    date: "2026-09"
+    trust: D
+  aisle_robot_zone_m:
+    v: 1.2
+    src: "Робозона без людей: проход по каталожному минимуму робота (Ronavi H1500 750 мм) с запасом. Запас наш"
+    trust: F
+  block_run_m:
+    v: 30
+    src: "Источника нет. Длина ряда стеллажей между поперечными проездами: при большей длине робот едет в обход слишком далеко"
+    trust: F
+  rack_top_below_ceiling_m:
+    v: 2.0
+    src: "Источника нет. Насколько верхний ярус стеллажа ниже потолка: над ним еще паллета с грузом и зазор до потолка. Допущение команды, человек меняет высоту яруса на плане"
+    trust: F
+  rack_row_double_m:
+    v: 2.3
+    src: "Две рамы фронтального стеллажа спиной к спине: глубина рамы 1000-1100 мм (profstellag.ru/stati/razmery-stellazhej.html) и зазор между рядами не меньше 100 мм (skladoiskatel.ru/stellazhi-dlya-sklada/, у RMI тоже около 0,1 м: damotech.com/blog/recommended-clearances-between-pallet-racks-and-building-components)"
+    date: "2026-09"
+    trust: D
+  pallet_tier_m:
+    v: 1.7
+    src: "Прямой цифры шага яруса у производителей нет. Оценка: груз с поддоном до 1,5 м, зазор над грузом 0,1 м (skladoiskatel.ru/stellazhi-dlya-sklada/), балка 0,1-0,15 м. У стеллажа 4,5 м на три яруса первый ярус до 1,5 м (gortorgsnab.ru)"
+    date: "2026-09"
+    trust: E
+  useful_area_share:
+    v: 0.45
+    src: "Коэффициент полезного использования площади 0,3-0,6, берем середину. sitmag.ru/article/10158-kak-splanirovat-skladskie-zony"
+    date: "2026-09"
+    trust: D
+
+# Ворота делим между приемкой и отгрузкой поровну: как они распределены на конкретном объекте,
+# мы не знаем, а перекос в любую сторону надо было бы чем-то обосновать.
+#
+# aspect это длинная сторона здания к короткой. Длинная сторона лежит вдоль оси x, то есть
+# вдоль листа в редакторе: южная и северная стены длинные, западная и восточная короткие.
+
+# Проходы под людей мы не сужаем. Робот проезжает и в 0,75 м, но пока в зоне работают люди
+# и погрузчики, ширина проезда остается погрузчичьей. Узкие проходы есть только в робозоне,
+# куда люди не заходят: это отдельный шаблон.
+
+templates:
+- id: through
+  name: "Сквозной"
+  about: "Приемка с одной длинной стены, отгрузка с противоположной, хранение между ними."
+  fits: "Большой поток и разные машины на приход и отход: встречного движения нет."
+  aspect: {v: 1.5, src: "Источника нет. Пропорция типового здания под сквозной поток: приемка и отгрузка на длинных стенах, поэтому здание вытянуто", trust: F}
+  aisle: aisle_reach_truck_m
+  racks: along_flow
+  docks:
+  - {wall: south, kind: receiving}
+  - {wall: north, kind: shipping}
+  buffers:
+  - {wall: south, kind: receiving}
+  - {wall: north, kind: shipping}
+  chargers: {wall: west}
+
+- id: corner
+  name: "Г-образный"
+  about: "Приемка и отгрузка на соседних стенах, поток поворачивает внутри здания."
+  fits: "Здание с воротами на две стороны и разведенные приход с отходом."
+  aspect: {v: 1.2, src: "Источника нет. Г-образный поток разворачивается внутри, поэтому здание ближе к квадрату", trust: F}
+  aisle: aisle_reach_truck_m
+  racks: along_flow
+  docks:
+  - {wall: south, kind: receiving}
+  - {wall: east, kind: shipping}
+  buffers:
+  - {wall: south, kind: receiving}
+  - {wall: east, kind: shipping}
+  chargers: {wall: west}
+
+- id: one_side
+  name: "С одной стороны"
+  about: "Приемка и отгрузка на одной стене, общая доковая зона, поток разворачивается буквой П."
+  fits: "Арендованный блок с воротами на одну сторону: так устроено большинство складов класса А."
+  aspect: {v: 1.4, src: "Источника нет. Арендованный блок класса А: ворота на короткой стене, здание вытянуто вглубь", trust: F}
+  aisle: aisle_forklift_m
+  racks: across_flow
+  docks:
+  - {wall: west, kind: receiving}
+  - {wall: west, kind: shipping}
+  buffers:
+  - {wall: west, kind: both}
+  chargers: {wall: east}
+
+- id: robot_zone
+  name: "Робозона, товар к человеку"
+  about: "Плотная сетка мобильных стеллажей без людей внутри, станции комплектации вдоль стены."
+  fits: "Штучный отбор: робот везет стеллаж к человеку, а не человек идет к стеллажу."
+  aspect: {v: 1.0, src: "Источника нет. Робозона режется на квадрат: при равных сторонах средний путь стеллажа к станции короче", trust: F}
+  aisle: aisle_robot_zone_m
+  racks: grid
+  rack_type: pods
+  docks:
+  - {wall: south, kind: both}
+  buffers:
+  - {wall: south, kind: both}
+  stations: {wall: north}
+  chargers: {wall: west}
+
+# Типы стеллажей. Тип подставляет в зону хранения толщину ряда, проезд, длину ряда до
+# поперечного проезда и шаг яруса, а человек эти числа правит в окне зоны. Строка вместо
+# числа это ссылка на константу выше: проезд погрузчика или главный проезд у типов общие.
+#
+# row_m это толщина одного ряда поперек проезда, block_rows сколько рядов стоят вплотную
+# до следующего проезда. robot_inside говорит, заезжает ли робот в блок: в набивной и мобильный
+# стеллаж он берет груз только с торца или из одного открытого прохода, и такие решения мы
+# переводим в «требует проверки». people: false значит, что людей в зоне нет и проезд можно
+# сузить под робота.
+
+rack_types:
+- id: front
+  name: "Фронтальный"
+  about: "Доступ к каждой паллете из проезда. Два ряда стоят спиной к спине."
+  robot_inside: true
+  people: true
+  row_m: rack_row_double_m
+  block_rows: {v: 1, src: "У фронтального стеллажа к каждой паллете свой проезд: между проездами один двойной ряд. metech.ru/blog/info/frontalnye-palletnye-stellazhi/", date: "2026-09", trust: C}
+  aisle_m: aisle_reach_truck_m
+  run_m: block_run_m
+  cross_m: aisle_main_m
+  tier_m: pallet_tier_m
+
+- id: drive_in
+  name: "Набивной"
+  about: "Сплошной блок каналов, погрузчик заезжает внутрь с торца. Последним пришел, первым ушел."
+  robot_inside: false
+  people: true
+  row_m: {v: 13.5, src: "Канал на 11 паллет в глубину (mecalux.com/warehouse-racking-and-shelving/drive-in-racking), на каждую паллету 1,2 м и еще 25 мм. Обычно при доступе с одной стороны 10-15 паллет: comitas.ru/articles/glubinnye-stellazhi-maksimalnaya-plotnost-khraneniya-na-sklade/", date: "2026-09", trust: D}
+  block_rows: {v: 1, src: "Блок набивного стеллажа сплошной: каналы внутри него, проездов между рядами нет. metech.ru/blog/info/nabivnye-stellazhi-tipa-drive-in/", date: "2026-09", trust: C}
+  aisle_m: aisle_forklift_m
+  run_m: block_run_m
+  cross_m: aisle_main_m
+  tier_m: pallet_tier_m
+
+- id: mobile
+  name: "Мобильный"
+  about: "Ряды на подвижных основаниях сдвигаются, в блоке открыт один проход."
+  robot_inside: false
+  people: true
+  row_m: rack_row_double_m
+  block_rows: {v: 7, src: "Склад Nufri: 38 оснований в трех блоках, самый маленький блок 7 оснований, в каждом блоке открыт один проход. mecalux.com/case-studies/example-mobile-pallet-racking-movirack-nufri-spain. Это пример одного склада, типового числа нет", date: "2026-09", trust: D}
+  aisle_m: aisle_forklift_m
+  run_m: block_run_m
+  cross_m: aisle_main_m
+  tier_m: pallet_tier_m
+
+- id: shelf
+  name: "Полочный"
+  about: "Низкие полки для штучного отбора руками. Человек с тележкой или небольшой робот."
+  robot_inside: true
+  people: true
+  row_m: {v: 1.0, src: "Две полки спиной к спине по 0,5 м: типовая глубина полки 400-600 мм. uralsklad.com/polochnye-stellazhi", date: "2026-09", trust: C}
+  block_rows: {v: 1, src: "Полочные стеллажи ставят рядами с проходом к каждому. stellmart.ru/normy-i-klassifikatsii/rasstoyanie-mezhdu-skladskimi-stellazhami/", date: "2026-09", trust: D}
+  aisle_m: {v: 1.2, src: "Проход между полочными стеллажами 1,2 м, при ручном отборе не меньше 1,0 м. stellmart.ru/normy-i-klassifikatsii/rasstoyanie-mezhdu-skladskimi-stellazhami/", date: "2026-09", trust: D}
+  run_m: block_run_m
+  cross_m: aisle_main_m
+  tier_m: {v: 0.45, src: "Шага полки не нашли. Берем типовую высоту стеллажа 2,2 м (каталоги продавцов, uralsklad.com/polochnye-stellazhi) на пять полок", trust: F}
+
+- id: pods
+  name: "Стеллажи для робота"
+  about: "Робот подъезжает под стеллаж и везет его к станции. Людей в зоне нет."
+  robot_inside: true
+  people: false
+  row_m: {v: 1.0, src: "Основание стеллажа Kiva 1 на 1 м: allaboutlean.com/amazon-kiva-storage-strategies/. У Geek+ P500R груз 880-1020 мм: vertiflex.eu/our-solutions/robots/robotics-shelf-to-person-solution", date: "2026-09", trust: D}
+  block_rows: {v: 3, src: "Стеллажи Kiva ставят блоками 3 на 6, 3 на 7, 4 на 6 и 4 на 7, между блоками проезды. allaboutlean.com/amazon-kiva-storage-strategies/", date: "2026-09", trust: D}
+  aisle_m: aisle_robot_zone_m
+  run_m: {v: 6, src: "Там же: блок в длину 6-7 стеллажей по 1 м", date: "2026-09", trust: D}
+  cross_m: aisle_robot_zone_m
+  tier_m: {v: 2.4, src: "Высота стеллажа Kiva 1,8-2,4 м (allaboutlean.com/amazon-kiva-storage-strategies/). Ярус один: робот везет стеллаж целиком и ничего не поднимает", date: "2026-09", trust: D}
+  tiers: {v: 1, src: "Робот поднимает стеллаж над полом и везет целиком: ярусов подъема нет, до верхней полки достает человек на станции. geekplus.com/technology-detail-page/p-series", date: "2026-09", trust: D}

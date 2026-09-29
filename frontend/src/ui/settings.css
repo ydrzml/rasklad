@@ -1,0 +1,83 @@
+/* Окно настроек (settings.tsx): строка на настройку, справа метка "скоро" */
+.u-dialog.u-settings {
+  width: 100%;
+  max-width: min(520px, calc(100vw - 32px));
+}
+
+.u-settings-list {
+  list-style: none;
+  margin: var(--s-3) 0 0;
+  padding: 0;
+}
+
+.u-settings-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 12px 0;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.u-settings-list li > span {
+  display: grid;
+  gap: 2px;
+}
+
+.u-settings-list strong {
+  font-weight: 500;
+}
+
+.u-settings-list li > span > span {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+/* Строка темы: выключатель в три положения под названием, иначе на телефоне он не влезал рядом */
+.u-settings-list li.u-settings-wide {
+  flex-wrap: wrap;
+}
+
+/* Три положения темы кнопками того же вида, что фильтры над списком (.u-pill) */
+.u-settings-theme {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+}
+
+.u-settings-theme label {
+  position: relative;
+  cursor: pointer;
+}
+
+.u-settings-theme input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.u-settings-theme label > span {
+  display: inline-block;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  box-shadow: var(--hair);
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--ink-soft);
+}
+
+.u-settings-theme input:checked + span {
+  background: var(--blue-tint);
+  box-shadow: var(--hair-blue);
+  color: var(--blue);
+}
+
+.u-settings-theme input:focus-visible + span {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}

@@ -1,0 +1,12 @@
+# Стенд в интернете: Caddy сам получает и продлевает сертификат https для адреса из SITE_ADDRESS
+# и пускает на сайт только по логину и паролю. Так фото, цены и каталог организатора не видны
+# посторонним: организатор разрешил показывать свои файлы только закрыто.
+{$SITE_ADDRESS} {
+	basic_auth {
+		{$SITE_USER} {$SITE_PASSWORD_HASH}
+	}
+	encode zstd gzip
+	# Браузер запоминает, что сайт только по https, и сам не идет на http
+	header Strict-Transport-Security "max-age=31536000"
+	reverse_proxy frontend:80
+}

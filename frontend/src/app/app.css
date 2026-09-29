@@ -1,0 +1,386 @@
+/* Старые экраны: параметры, подбор решения и экономика. Их переводим на набор из src/ui
+   по мере переделки, а пока правила живут здесь и не выходят за пределы своих блоков. */
+
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px 16px 96px;
+}
+
+.page h2 {
+  font-size: 17px;
+  margin: 24px 0 8px;
+}
+
+.steps {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.step {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.step-active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: var(--paper);
+  font: inherit;
+  cursor: pointer;
+}
+
+.card-active {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.card-soon {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.field-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.field-input {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.field input {
+  flex: 1;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.trust {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 6px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: help;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.source {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.unit {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.warn {
+  color: var(--warn);
+  font-size: 13px;
+}
+
+table.compare,
+table.sources {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 14px;
+}
+
+table.compare th,
+table.compare td,
+table.sources td {
+  border-bottom: 1px solid var(--line);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+table.compare th {
+  background: var(--bg-soft);
+}
+
+table.compare td + td,
+table.compare th + th {
+  text-align: right;
+}
+
+.verdicts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.verdict {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.verdict ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+details summary {
+  margin: 16px 0 4px;
+  cursor: pointer;
+}
+
+.page footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.page footer button {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: 6px;
+  padding: 9px 18px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-blue);
+}
+
+h3 {
+  font-size: 15px;
+  margin: 20px 0 4px;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.badge {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.ok {
+  font-size: 13px;
+}
+
+.factors {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.card button {
+  margin-top: 4px;
+  align-self: flex-start;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: 6px;
+  padding: 7px 14px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+.filters input[type="search"] {
+  min-width: 260px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.filters label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.compare-block {
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 4px 12px 12px;
+  margin: 12px 0;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Шаг 1: карточки объектов и список задач с галочками. */
+.count {
+  font-size: 13px;
+}
+
+.tasks {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.task {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.task:has(input:checked) {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.task-soon {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.task-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Шаги на одной странице: пройденный свернут в строку, текущий раскрыт, будущий приглушен. */
+.step-block {
+  border-bottom: 1px solid var(--line);
+  padding: 16px 0;
+}
+
+.step-block:last-child {
+  border-bottom: none;
+}
+
+.step-block h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.step-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.step-no {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  font-size: 13px;
+  flex: none;
+}
+
+.step-block-current .step-no {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.step-block-done .step-no {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.step-block-locked {
+  opacity: 0.45;
+}
+
+.step-summary {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}

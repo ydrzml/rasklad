@@ -1,0 +1,254 @@
+/* Экран входа: одна плита по центру на клетчатом полу, как на лендинге */
+.g-page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  padding: 0 16px 16px;
+  background:
+    linear-gradient(color-mix(in srgb, var(--blue) 6%, transparent) 1px, transparent 1px) 0 0 / 100% 28px,
+    linear-gradient(90deg, color-mix(in srgb, var(--blue) 6%, transparent) 1px, transparent 1px) 0 0 / 28px 100%,
+    var(--sheet);
+}
+
+/* Шапка: знак слева, «На главную» справа. Ссылка стоит наверху, а не под формой:
+   под формой на ноутбуке ее не видно без прокрутки */
+.g-head {
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 14px 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.g-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+/* Сверху держим место под 07: он стоит над формой. safe center не дает форме уехать
+   под шапку, когда окно ниже формы, тогда страница просто прокручивается */
+.g-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: safe center;
+  padding-top: 76px;
+}
+
+.g-panel {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  box-sizing: border-box;
+  padding: 24px 28px 22px;
+  border-radius: var(--r-xl);
+  background: var(--paper);
+  box-shadow: var(--hair), var(--lift-high);
+}
+
+/* 07 стоит колесами на верхнем крае формы и встречает */
+.g-robot {
+  position: absolute;
+  width: 150px;
+  right: 18px;
+  top: -96px;
+  overflow: visible;
+}
+
+/* Поле пароля с кнопкой-глазом внутри */
+.g-pass {
+  position: relative;
+  display: flex;
+}
+
+.g-pass input {
+  flex: 1;
+  min-width: 0;
+  padding-right: 52px;
+}
+
+.g-eye {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.g-eye:hover {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  color: var(--ink);
+}
+
+.g-eye:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+.g-tabs {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: var(--r-pill);
+  background: var(--sheet);
+  box-shadow: var(--hair);
+}
+
+.g-tabs button {
+  font: inherit;
+  font-size: 14px;
+  border: none;
+  border-radius: var(--r-pill);
+  padding: 8px 16px;
+  min-height: 36px;
+  cursor: pointer;
+  background: none;
+  color: var(--ink-soft);
+}
+
+.g-tabs button[aria-pressed="true"] {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--hair);
+}
+
+.g-panel h1 {
+  margin: 16px 0 6px;
+  font-size: 26px;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  font-weight: 700;
+  text-wrap: balance;
+}
+
+.g-lead {
+  margin: 0 0 12px;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
+.g-panel form {
+  display: flex;
+  flex-direction: column;
+}
+
+.g-panel label {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 8px 0 5px;
+}
+
+.g-panel input {
+  font: inherit;
+  font-size: 16px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: var(--r-md);
+  background: var(--sheet);
+  box-shadow: var(--edge);
+  color: var(--ink);
+}
+
+.g-panel input::placeholder {
+  color: var(--ink-faint);
+  opacity: 1;
+}
+
+.g-panel input:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+.g-hint {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* Согласие на обработку почты при регистрации: галочка и строка со ссылкой рядом */
+.g-panel .g-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 12px 0 0;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.g-panel .g-consent input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--blue);
+}
+
+.g-consent a {
+  color: var(--blue);
+}
+
+.g-error {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--signal-tint);
+  color: var(--signal-press);
+  font-size: 14px;
+}
+
+.g-submit {
+  margin-top: 18px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  border: none;
+  border-radius: var(--r-pill);
+  min-height: 46px;
+  cursor: pointer;
+  background: var(--blue);
+  color: var(--on-blue);
+  transition: background var(--slow) var(--ease);
+}
+
+.g-submit:hover:not(:disabled) {
+  background: var(--blue-press);
+}
+
+.g-submit:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+@media (max-width: 480px) {
+  .g-panel {
+    padding: 22px 18px;
+  }
+  .g-robot {
+    width: 118px;
+    top: -76px;
+  }
+  .g-main {
+    padding-top: 68px;
+  }
+}

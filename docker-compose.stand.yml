@@ -1,0 +1,46 @@
+# Запуск стенда в интернете поверх обычного docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.stand.yml up -d --build
+# Что меняется: перед сайтом встает Caddy с https и паролем на весь сайт, демо-вход без пароля
+# выключен, cookie только по https, без своих паролей и ключа стенд не запустится. Как поднять: docs/stand.md
+services:
+  db:
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в .env}
+
+  backend:
+    restart: unless-stopped
+    environment:
+      SESSION_SECRET: ${SESSION_SECRET:?задайте SESSION_SECRET в .env}
+      # Не из .env: даже если туда скопировали настройки для своего компьютера, на стенде будет так
+      COOKIE_SECURE: "true"
+      DEMO_LOGIN: "false"
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:?задайте DEMO_USER_PASSWORD в .env}
+      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:?задайте DEMO_ADMIN_PASSWORD в .env}
+
+  frontend:
+    restart: unless-stopped
+    # Снаружи сайт открыт только через Caddy
+    ports: !reset []
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    depends_on:
+      - frontend
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?задайте SITE_ADDRESS в .env, например stand.example.ru}
+      SITE_USER: ${SITE_USER:?задайте SITE_USER в .env}
+      SITE_PASSWORD_HASH: ${SITE_PASSWORD_HASH:?задайте SITE_PASSWORD_HASH в .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./stand/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:

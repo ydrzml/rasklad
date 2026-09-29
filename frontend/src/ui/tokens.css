@@ -1,0 +1,294 @@
+/* Значения оформления в одном месте. Меняем здесь, а не по компонентам.
+   Направление записано в docs/design.md: белый интерфейс, расчетные данные на синьке.
+
+   Темная тема (docs/design.md, "Темная тема"): светлые цвета ниже, темные переопределяют их
+   на корне. Чертежи остаются светлыми: светлый лист на темной странице. Для этого те же светлые
+   значения объявлены заново на самом чертеже, и все, что внутри, берет их, а не темные с корня.
+   Производные токены (тени, волосяные линии, старые имена) стоят в том же блоке, чтобы на чертеже
+   они пересчитывались от светлых цветов. */
+:root,
+.u-light,
+.u-board,
+.u-grid-bg,
+.u-shift-stage,
+.l-sheet,
+.l-board,
+.l-draw,
+.l-photo,
+.la-sheet,
+.u-scheme,
+.u-example > svg,
+.u-avatar {
+  color-scheme: light;
+
+  /* Цвет */
+  --ink: #0d141b;
+  --ink-soft: #55636f;
+  --ink-faint: #66737f;
+  --ink-press: #1b2733;
+  --paper: #ffffff;
+  --paper-cool: #fbfdff;
+  --sheet: #f6f8fa;
+  --blue: #0b4fa8;
+  --blue-press: #093f87;
+  --blue-tint: #eff5fd;
+  --blue-deep: #0c2c53;
+  --blue-line: #1e4f8e;
+  --warn: #b3541e;
+  --blue-pale: #dce9f8;
+
+  /* Текст на заливке: на синей кнопке, на темной кнопке, на синьке подвала */
+  --on-blue: #ffffff;
+  --on-ink: #ffffff;
+  --on-deep: #eaf1fa;
+
+  /* Темно-синий текст: на светлой кнопке и на метках оценки */
+  --ink-deep: #0c2c53;
+
+  /* Светлая кнопка: действия второго ряда на плите, как выгрузка файлов */
+  --btn-light: #ffffff;
+
+  /* Белый, который не меняется с темой: текст на синьке подвала и на сигнальных кружках */
+  --white: #ffffff;
+
+  /* Цвет теней и затемнения под окнами. В темной теме тень остается темной, а не светлеет с --ink */
+  --shadow: #0d141b;
+
+  /* Сигнал: главная кнопка, огни роботов и проблемные места на схеме. Больше нигде,
+     иначе глаз дергается на каждую точку. Текстовый оттенок темнее, чтобы белый текст читался */
+  --signal: #e0512b;
+  --signal-text: #c9431f;
+  --signal-press: #b23a1a;
+  --signal-tint: #fdeee8;
+  --route: #4a86cf;
+
+  /* Уровни пола и высоты на плане: одна синяя гамма от светлого к темному, без желтого */
+  --lvl-0: #f7fafe;
+  --lvl-1: #dce9f8;
+  --lvl-2: #bdd5f0;
+  --lvl-3: #98bde6;
+  --lvl-4: #6f9fd8;
+  --lvl-5: #4a82c6;
+
+  /* Ворота по назначению: приемка и отгрузка. Общие ворота остаются белыми с темной рамкой */
+  --dock-in: #1d6f8c;
+  --dock-out: #a4501f;
+
+  /* Действия робота в прогоне смены. Проверены на различимость при нарушениях цветового зрения.
+     Без задания нейтральный серый: это не действие, а его отсутствие */
+  --act-move: #0b4fa8;
+  --act-load: #8a5cc4;
+  --act-charge: #138a6b;
+  --act-wait: #d0452f;
+  --act-idle: #b8c2cc;
+
+  /* Сценарии экономики: как сейчас, покупка, аренда. Один цвет на сценарий во всех блоках шага.
+     Как сейчас серый: это точка отсчета, а не третий вариант. Проверены на различимость */
+  --sc-now: #8795a1;
+  --sc-buy: #0b4fa8;
+  --sc-rent: #138a6b;
+
+  /* Место под объектом на плане: свободно, объект встанет, или занято, и он вернется назад */
+  --go: #1f7a4d;
+  --stop: #c0392b;
+
+  /* Тепло на полу фона лендинга: клетки, где проезжали роботы */
+  --floor-heat: #2468c8;
+
+  /* Режим скорости в строке режимов */
+  --mode-speed: #7a6a45;
+
+  /* Линии и тени: волосяная линия вместо серой рамки, тени мягкие */
+  --hair: inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent);
+  --hair-blue: inset 0 0 0 1px color-mix(in srgb, var(--blue) 45%, transparent);
+
+  /* Рамка поля ввода. На светлом та же волосяная линия, на темном своя, 3 к 1 к фону:
+     волосяная линия там почти не видна, и поле сливается с плитой */
+  --edge: var(--hair);
+
+  /* Галочка закрытого списка. Картинка не понимает var(), поэтому цвет вписан в нее: --ink-soft */
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5l3 3 3-3' stroke='%2355636f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --lift:
+    0 1px 2px color-mix(in srgb, var(--shadow) 4%, transparent),
+    0 18px 40px -22px color-mix(in srgb, var(--shadow) 22%, transparent);
+  --lift-high:
+    0 2px 4px color-mix(in srgb, var(--shadow) 5%, transparent),
+    0 28px 60px -26px color-mix(in srgb, var(--shadow) 28%, transparent);
+
+  /* Старые имена: чтобы не переписывать разом экраны, сделанные до дизайна */
+  --muted: var(--ink-soft);
+  --line: #dde3ea;
+  --accent: var(--blue);
+  --bg-soft: var(--sheet);
+}
+
+/* Чертеж на темной странице: текст внутри него темный, как на светлой */
+:where(.u-light, .u-board, .u-grid-bg, .u-shift-stage, .l-sheet, .l-board, .l-draw, .l-photo, .la-sheet, .u-scheme) {
+  color: var(--ink);
+}
+
+/* Темные значения. Два одинаковых блока: выбор в настройках (data-theme на html) и "как в системе",
+   когда data-theme нет. Меняем оба сразу. Фон сине-серый, как в Discord, а не черный. Контраст
+   сниженный (docs/decisions.md, "Темная тема: мягче контраст"): основной текст не белый, около 10 к 1
+   к фону, вторичный и ссылки от 4,5 к 1, рамка поля 3 к 1. Главная кнопка синяя, светлее, чем на белом,
+   с темным текстом: так и кнопка, и синие ссылки держат 4,5 к 1. Сигнал тот же, только светлее.
+   Уровни пола, ворота и действия робота не меняем: они живут на светлом чертеже,
+   и легенда рядом с ним должна совпадать с листом */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #d8dce3;
+  --ink-soft: #b0b7c2;
+  --ink-faint: #a3aab5;
+  --ink-press: #c6ccd5;
+  --paper: #333843;
+  --paper-cool: #383d49;
+  --sheet: #2b2f38;
+  --blue: #88afec;
+  --blue-press: #9dbcee;
+  --blue-tint: #323d55;
+  --blue-deep: #22262e;
+  --blue-line: #97b4dc;
+  --warn: #e3a57c;
+  --blue-pale: #3b4862;
+  --on-blue: #1e222a;
+  --on-ink: #2b2f38;
+  --on-deep: #d8dce3;
+  --btn-light: #3f4552;
+  --ink-deep: #d8dce3;
+  --shadow: #000000;
+  --signal-text: #ef9a84;
+  --signal-press: #f0a38e;
+  --signal-tint: #473a3b;
+  --route: #7fa8df;
+  --sc-now: #97a3b0;
+  --sc-buy: #88afec;
+  --sc-rent: #62bb98;
+  --go: #72c29d;
+  --stop: #f09c91;
+  --mode-speed: #b9ab85;
+  --floor-heat: #5b93dc;
+  --line: #474d5a;
+  --edge-line: #8a919d;
+  --edge: inset 0 0 0 1px var(--edge-line);
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5l3 3 3-3' stroke='%23b0b7c2' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --ink: #d8dce3;
+    --ink-soft: #b0b7c2;
+    --ink-faint: #a3aab5;
+    --ink-press: #c6ccd5;
+    --paper: #333843;
+    --paper-cool: #383d49;
+    --sheet: #2b2f38;
+    --blue: #88afec;
+    --blue-press: #9dbcee;
+    --blue-tint: #323d55;
+    --blue-deep: #22262e;
+    --blue-line: #97b4dc;
+    --warn: #e3a57c;
+    --blue-pale: #3b4862;
+    --on-blue: #1e222a;
+    --on-ink: #2b2f38;
+    --on-deep: #d8dce3;
+    --btn-light: #3f4552;
+    --ink-deep: #d8dce3;
+    --shadow: #000000;
+    --signal-text: #ef9a84;
+    --signal-press: #f0a38e;
+    --signal-tint: #473a3b;
+    --route: #7fa8df;
+    --sc-now: #97a3b0;
+    --sc-buy: #88afec;
+    --sc-rent: #62bb98;
+    --go: #72c29d;
+    --stop: #f09c91;
+    --mode-speed: #b9ab85;
+    --floor-heat: #5b93dc;
+    --line: #474d5a;
+    --edge-line: #8a919d;
+    --edge: inset 0 0 0 1px var(--edge-line);
+    --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5l3 3 3-3' stroke='%23b0b7c2' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  }
+}
+
+/* Светлый чертеж на темной странице чуть приглушен, чтобы белый лист не слепил */
+:root[data-theme="dark"]
+  :is(.u-light, .u-board, .u-grid-bg, .u-shift-stage, .l-sheet, .l-board, .l-draw, .l-photo, .la-sheet, .u-scheme) {
+  --paper: #eef1f5;
+  --sheet: #e5e9ee;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme])
+    :is(.u-light, .u-board, .u-grid-bg, .u-shift-stage, .l-sheet, .l-board, .l-draw, .l-photo, .la-sheet, .u-scheme) {
+    --paper: #eef1f5;
+    --sheet: #e5e9ee;
+  }
+}
+
+:root {
+  /* Скругления */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 20px;
+  --r-xl: 26px;
+  --r-pill: 999px;
+
+  /* Отступы */
+  --s-1: 6px;
+  --s-2: 10px;
+  --s-3: 16px;
+  --s-4: 22px;
+  --s-5: 32px;
+  --s-6: 48px;
+  --s-7: 68px;
+
+  /* Движение: одна кривая на весь интерфейс */
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --fast: 320ms;
+  --slow: 450ms;
+
+  /* Шрифты: текст и числа Onest, JetBrains Mono для чертежей и лендинга, оба лежат в проекте
+     (fonts.css). У чисел цифры одной ширины (.mono), чтобы столбцы стояли ровно. Запасные на случай,
+     если файл не загрузился: у моноширинного Consolas, а не Courier с засечками */
+  --font: Onest, "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", Consolas, "Cascadia Mono", Menlo, "DejaVu Sans Mono", monospace;
+
+  font-family: var(--font);
+  color: var(--ink);
+}
+
+body {
+  margin: 0;
+  background: var(--sheet);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Числа, посчитанные сервером, обычным шрифтом с цифрами одной ширины: столбцы ровные.
+   Моноширинный рябил в таблицах на шаге 5 (docs/decisions.md). На чертежах числа
+   остаются моноширинными, это их чертежный вид */
+.mono {
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+}
+
+:where(.u-board, .u-shift-stage, .u-scheme, .l-sheet, .l-board, .l-draw, .la-sheet) .mono {
+  font-family: var(--mono);
+}
+
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+  }
+}

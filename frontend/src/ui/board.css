@@ -1,0 +1,2995 @@
+/* Чертежная доска и редактор плана. Цвета, тени и отступы только из tokens.css. */
+
+/* Стартовый экран шага: три пути к плану плитами, от быстрого к точному */
+.u-start {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--s-3);
+  align-items: stretch;
+}
+
+.u-start-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-4) var(--s-4) var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.u-start-card h3 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+
+.u-start-card > p:not(.u-start-note) {
+  margin: 0 0 var(--s-1);
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+/* Схемы потока картинками: четыре кнопки с чертежом и названием */
+.u-schemes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--s-2);
+}
+
+.u-scheme {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--sheet);
+  box-shadow: var(--hair);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow var(--fast) var(--ease);
+}
+
+/* пометка под названием схемы, когда выбран отбор: что пойдет по ней, а что по робозоне */
+.u-scheme-note {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+
+.u-scheme:hover,
+.u-scheme:focus-visible {
+  box-shadow: var(--hair-blue);
+  outline: none;
+}
+
+.u-sketch {
+  width: 100%;
+  height: 58px;
+  fill: none;
+  stroke: var(--blue-deep);
+  stroke-width: 2;
+}
+
+.u-sketch .u-sketch-row {
+  fill: var(--blue-line);
+  fill-opacity: 0.35;
+  stroke: none;
+}
+
+.u-sketch .u-sketch-station {
+  fill: var(--blue);
+  stroke: none;
+}
+
+.u-sketch .u-sketch-gate {
+  fill: var(--paper);
+  stroke: var(--blue-deep);
+  stroke-width: 1.5;
+}
+
+/* Анкета внутри плиты: поля столбиком, кнопка внизу справа */
+.u-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.u-form .u-frow {
+  grid-template-columns: minmax(0, 1fr) 150px;
+}
+
+.u-own-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.u-wall-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  min-height: 32px;
+}
+
+.u-wall-count {
+  width: 88px;
+  padding: 4px 10px;
+}
+
+.u-wall-count input {
+  font-size: 15px;
+}
+
+.u-form-go {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--s-2);
+}
+
+/* Место для картинки плана: бросить сюда или щелкнуть. Внутри пример того, что на ней должно быть */
+.u-drop {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: 150px;
+  margin-top: var(--s-2);
+  padding: var(--s-3);
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--sheet);
+  outline: 1.5px dashed color-mix(in srgb, var(--blue) 35%, transparent);
+  outline-offset: -1.5px;
+  color: var(--ink);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    background var(--fast) var(--ease),
+    outline-color var(--fast) var(--ease);
+}
+
+.u-drop:hover,
+.u-drop:focus-visible,
+.u-drop.is-over {
+  background: var(--blue-tint);
+  outline-color: var(--blue);
+}
+
+.u-drop svg {
+  width: 96px;
+  height: 61px;
+  fill: none;
+  stroke: var(--blue-deep);
+  stroke-width: 2;
+}
+
+.u-drop .u-example-row {
+  fill: var(--blue-line);
+  fill-opacity: 0.35;
+  stroke: none;
+}
+
+.u-drop .u-example-dock {
+  stroke: var(--sheet);
+  stroke-width: 4;
+}
+
+.u-drop-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 280px;
+  font-size: 14px;
+}
+
+.u-drop-text > span {
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* Метка пути над названием плиты: от быстрого к точному */
+.u-start-tag {
+  color: var(--blue);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+}
+
+/* Анкета и фото растягиваются на всю плиту, кнопки внизу стоят на одной линии */
+.u-start-card > .u-form {
+  flex: 1;
+}
+
+.u-start-card .u-form-go {
+  margin-top: auto;
+}
+
+.u-start-note {
+  margin: auto 0 0;
+  padding-top: var(--s-2);
+  color: var(--ink-faint);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* Три колонки: инструменты, лист, панель слоя. Лист забирает все, что осталось, и по высоте
+   занимает экран целиком: шапка чертежа сверху, строка под листом и полоса действия снизу.
+   Остальное подстраивается под лист: колонки по бокам не выше него и листаются внутри себя. */
+.u-draft {
+  --sheet-h: max(400px, calc(100vh - 212px));
+  display: grid;
+  grid-template-columns: 206px minmax(0, 1fr) 244px;
+  gap: var(--s-3);
+  align-items: start;
+  position: relative;
+}
+
+.u-draft > .u-tools,
+.u-draft > .u-side {
+  max-height: calc(var(--sheet-h) + 38px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+/* Лист и переключатель вида на нем. Вид стоит мелко в левом нижнем углу листа */
+.u-draft-main {
+  position: relative;
+  min-width: 0;
+}
+
+.u-draft-views {
+  position: absolute;
+  z-index: 2;
+  top: calc(var(--sheet-h) - 48px);
+  left: var(--s-2);
+}
+
+/* Лист на весь экран: та же раскладка из трех колонок поверх страницы, лист по высоте окна */
+.u-draft.is-full {
+  --sheet-h: calc(100vh - 2 * var(--s-3) - 38px);
+  align-content: start;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  padding: var(--s-3);
+  overflow: auto;
+  background: var(--sheet);
+}
+
+body.u-no-scroll {
+  overflow: hidden;
+}
+
+/* Главные числа плана в левом верхнем углу листа, как счетчики в игре */
+.u-hud {
+  position: absolute;
+  top: var(--s-2);
+  left: var(--s-2);
+  display: flex;
+  gap: var(--s-3);
+  padding: 6px var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--paper);
+  box-shadow: var(--lift);
+  pointer-events: none;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.u-hud-num {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.u-hud-num b {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Доска. Высоту держим так, чтобы на 1366 на 768 лист, числа и полоса действия помещались
+   на экран после небольшой прокрутки. Меню и окна лежат поверх нее в координатах экрана. */
+.u-board {
+  position: relative;
+  min-width: 0;
+  border-radius: var(--r-lg);
+  background: var(--sheet);
+  box-shadow: var(--hair);
+  overflow: hidden;
+}
+
+.u-board > svg {
+  display: block;
+  width: 100%;
+  height: var(--sheet-h, 470px);
+  touch-action: none;
+  outline: none;
+  user-select: none;
+}
+
+.u-board canvas.u-view3d {
+  display: block;
+  width: 100%;
+  height: var(--sheet-h, 470px);
+  cursor: grab;
+  touch-action: none;
+  outline: none;
+}
+
+.u-board canvas.u-view3d:active {
+  cursor: grabbing;
+}
+
+.u-board > svg:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--blue);
+}
+
+.u-lot {
+  fill: var(--paper);
+}
+
+.u-lot-grid {
+  fill: none;
+  stroke: color-mix(in srgb, var(--blue) 7%, transparent);
+}
+
+.u-lot-grid.is-major {
+  stroke: color-mix(in srgb, var(--blue) 16%, transparent);
+}
+
+.u-board-ctl {
+  position: absolute;
+  top: var(--s-2);
+  right: var(--s-2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--r-md);
+  background: var(--paper);
+  box-shadow: var(--lift);
+}
+
+/* Строка под листом: слева подсказка режима, справа где мышь. Подсказка не лежит на самом
+   листе, иначе закрывает ворота у южной стены. */
+.u-board-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2) var(--s-3);
+  min-height: 38px;
+  padding: 6px var(--s-3);
+  background: var(--paper);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 6%, transparent);
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+/* Подсказка слева переносится внутри себя, строка с координатами справа не уходит вниз */
+.u-board-status > .u-board-hint {
+  flex: 1 1 auto;
+}
+
+.u-board-where {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.u-board-where > span + span {
+  margin-left: var(--s-3);
+}
+
+/* Кнопка-значок: 32 точки, но поле нажатия добираем отступом панели вокруг */
+.u-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition:
+    background var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.u-icon:hover {
+  background: var(--sheet);
+  color: var(--ink);
+}
+
+.u-icon.is-on {
+  background: var(--blue-tint);
+  color: var(--blue);
+}
+
+/* Вещи на плане. Когда объект отпустили, он доезжает до своей клетки, а не прыгает. */
+.u-thing {
+  transition: transform 180ms var(--ease);
+}
+
+.u-thing.is-held {
+  transition: none;
+}
+
+.u-thing [data-id] {
+  cursor: move;
+}
+
+/* Под мышью объект и секция обводятся: видно, что их можно взять, как в строительных играх */
+.u-thing:hover > g > :first-child,
+.u-section:hover {
+  stroke: var(--blue);
+  stroke-width: 1.5;
+}
+
+.u-editor {
+  position: relative;
+  min-width: 0;
+}
+
+/* Что нарисовано на листе. Классы, а не цвета в разметке: оформление правится здесь. */
+.u-wall {
+  fill: none;
+  stroke: var(--blue-deep);
+  stroke-linecap: square;
+  pointer-events: none;
+}
+
+.u-step {
+  fill: none;
+  stroke: var(--blue-line);
+  pointer-events: none;
+}
+
+/* Ворота рисуем разрывом в стене: светлый проем и темные косяки по краям. Толщина в точках
+   экрана, а не в метрах, иначе издалека метровая створка пряталась под линией стены. */
+.u-dock {
+  fill: var(--paper);
+  stroke: var(--blue-deep);
+  vector-effect: non-scaling-stroke;
+}
+
+/* Ворота по назначению: приемка холодная, отгрузка теплая, общие белые с темной рамкой */
+.u-dock.is-in {
+  fill: var(--dock-in);
+  stroke: var(--dock-in);
+}
+
+.u-dock.is-out {
+  fill: var(--dock-out);
+  stroke: var(--dock-out);
+}
+
+.u-dock-mark {
+  fill: var(--blue-deep);
+}
+
+.u-racks {
+  fill: color-mix(in srgb, var(--blue) 5%, transparent);
+  stroke: var(--blue-line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Ячейки стеллажа по метру, как на складских картах: издалека ряд сливается в полосу */
+.u-rack-cells {
+  fill: var(--blue-line);
+  opacity: 0.3;
+}
+
+/* Линия движения: разметка на полу, полоса и шевроны по ходу */
+.u-flow {
+  fill: var(--blue-tint);
+  fill-opacity: 0.85;
+  stroke: var(--blue);
+  stroke-width: 1;
+  stroke-opacity: 0.35;
+  vector-effect: non-scaling-stroke;
+}
+
+.u-flow-marks {
+  fill: none;
+  stroke: var(--blue);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.u-rack-seam {
+  fill: none;
+  stroke: var(--paper);
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+/* Проезд через зону хранения: светлая полоса, стеллажей под ней нет. Полупрозрачная, чтобы
+   в слое «далеко от ворот» под ней был виден цвет пути */
+.u-aisle {
+  fill: color-mix(in srgb, var(--paper) 55%, transparent);
+  stroke: var(--blue-line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Слой «далеко от ворот»: одна синяя, гуще с расстоянием, до чего не доехать красным.
+   Легкое размытие сглаживает зубцы ступеней на клетках в метр. Радиус в единицах листа. */
+.u-route-layer {
+  filter: blur(0.6px);
+  pointer-events: none;
+}
+
+.u-route {
+  fill: var(--lvl-5);
+  pointer-events: none;
+}
+
+.u-route.is-lost {
+  fill: var(--stop);
+  opacity: 0.3;
+}
+
+.u-buffer {
+  fill: color-mix(in srgb, var(--blue) 9%, transparent);
+  stroke: var(--blue);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.u-charge {
+  fill: color-mix(in srgb, var(--go) 9%, transparent);
+  stroke: var(--go);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.u-station {
+  fill: var(--blue-tint);
+  stroke: var(--blue);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.u-blocked {
+  fill: color-mix(in srgb, var(--ink) 12%, transparent);
+  stroke: var(--ink-soft);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Закрытая зона: место на полу без стен, робот туда не заезжает. Штриховка, а не заливка стены */
+.u-nogo {
+  fill: url(#u-nogo-hatch);
+  stroke: var(--stop);
+  stroke-width: 1.2;
+  stroke-opacity: 0.7;
+  vector-effect: non-scaling-stroke;
+}
+
+.u-ramp {
+  fill: var(--paper);
+  stroke: var(--blue-line);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.u-ramp-marks {
+  fill: none;
+  stroke: var(--blue-line);
+}
+
+.u-tag {
+  fill: var(--ink-soft);
+  font-family: var(--font);
+  pointer-events: none;
+}
+
+.u-size {
+  fill: var(--blue);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 0.35em;
+  pointer-events: none;
+}
+
+.u-size.is-bad {
+  fill: var(--stop);
+}
+
+.u-paint {
+  opacity: 0.8;
+  stroke: var(--go);
+  pointer-events: none;
+}
+
+.u-paint.is-erase {
+  fill: color-mix(in srgb, var(--stop) 12%, transparent);
+  stroke: var(--stop);
+}
+
+.u-ghost {
+  fill: color-mix(in srgb, var(--go) 6%, transparent);
+  stroke: var(--go);
+  pointer-events: none;
+}
+
+.u-ghost.is-bad {
+  fill: color-mix(in srgb, var(--stop) 8%, transparent);
+  stroke: var(--stop);
+}
+
+.u-guide {
+  stroke: var(--blue);
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+/* Размер, который набирают цифрами, в подписи выбранного объекта */
+.u-typing {
+  fill: var(--blue);
+  font-weight: 600;
+}
+
+/* Край прилип к линии на картинке плана: сама линия подсвечена сплошной полосой */
+.u-guide.is-photo {
+  stroke-width: 6px;
+  stroke-opacity: 0.55;
+  stroke-dasharray: none;
+  stroke-linecap: round;
+}
+
+.u-picked {
+  fill: none;
+  stroke: var(--blue);
+}
+
+/* общая рамка вокруг нескольких выбранных: тоньше и пунктиром, чтобы не спорить с рамками вещей */
+.u-picked.is-many {
+  stroke-opacity: 0.6;
+}
+
+/* рамка выбора, которую тянут по пустому месту */
+.u-marquee {
+  fill: color-mix(in srgb, var(--blue) 8%, transparent);
+  stroke: var(--blue);
+}
+
+.u-handle {
+  fill: var(--paper);
+  stroke: var(--blue);
+}
+
+.u-handle.is-on {
+  fill: var(--blue);
+}
+
+/* Клетка под курсором на листе. Только rect: .u-cell есть и у ячеек таблицы в ui.css,
+   без этого все таблицы набора становились почти прозрачными */
+rect.u-cell {
+  fill: var(--blue);
+  opacity: 0.14;
+  pointer-events: none;
+}
+
+/* Точки масштаба подложки */
+/* Углы здания на исходной картинке: картинка целиком, контур и четыре точки */
+.u-corners > svg {
+  cursor: default;
+}
+
+.u-corners-shape {
+  fill: color-mix(in srgb, var(--blue) 8%, transparent);
+  stroke: var(--blue);
+  stroke-linejoin: round;
+}
+
+.u-corners-side {
+  fill: var(--blue);
+  font-family: var(--mono);
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--sheet);
+  stroke-width: 4px;
+}
+
+.u-corners-dot {
+  stroke: var(--blue);
+  cursor: grab;
+}
+
+.u-corners-dot.is-held {
+  cursor: grabbing;
+}
+
+.u-corners-ring {
+  fill: color-mix(in srgb, var(--paper) 55%, transparent);
+}
+
+.u-corners-dot.is-held .u-corners-ring,
+.u-corners-dot:hover .u-corners-ring {
+  fill: color-mix(in srgb, var(--blue) 15%, transparent);
+}
+
+.u-side input[type="range"] {
+  width: 100%;
+  accent-color: var(--blue);
+}
+
+.u-dim path {
+  fill: none;
+  stroke: var(--blue-line);
+  stroke-width: 1;
+}
+
+.u-dim text {
+  fill: var(--blue-line);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Меню по правой кнопке */
+.u-menu {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: 6px;
+  border-radius: var(--r-md);
+  background: var(--paper);
+  box-shadow: var(--hair), var(--lift-high);
+}
+
+.u-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-height: 36px;
+  padding: 0 var(--s-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.u-menu button:hover,
+.u-menu button:focus-visible {
+  background: var(--blue-tint);
+  outline: none;
+}
+
+.u-menu button.is-danger {
+  color: var(--stop);
+}
+
+.u-menu kbd,
+.u-tool kbd {
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+
+.u-menu-line {
+  height: 1px;
+  margin: 4px 6px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+/* Панелька действий над выбранным объектом */
+.u-actions {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--r-md);
+  background: var(--paper);
+  box-shadow: var(--hair), var(--lift-high);
+  transform: translate(-50%, -100%);
+  white-space: nowrap;
+  animation: u-window-in var(--fast) var(--ease);
+}
+
+.u-actions button {
+  min-height: 34px;
+  padding: 0 var(--s-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.u-actions button:hover,
+.u-actions button:focus-visible {
+  background: var(--blue-tint);
+  color: var(--blue);
+  outline: none;
+}
+
+.u-actions button.is-danger {
+  color: var(--stop);
+}
+
+.u-actions-line {
+  width: 1px;
+  height: 20px;
+  margin: 0 2px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.u-board-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-width: 0;
+  max-width: 100%;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.u-board-hint.is-next b {
+  color: var(--blue);
+}
+
+.u-board-hint b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.u-board-hint-x,
+.u-board-hint.is-off {
+  display: grid;
+  place-items: center;
+  flex: none;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-faint);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.u-board-hint-x:hover,
+.u-board-hint.is-off:hover {
+  background: var(--sheet);
+  color: var(--ink);
+}
+
+/* Секции здания: в режиме «Здание» их видно контуром, остальное приглушено */
+.u-section {
+  fill: transparent;
+  stroke: var(--blue-line);
+  stroke-width: 1;
+  stroke-dasharray: 5 4;
+  vector-effect: non-scaling-stroke;
+  cursor: move;
+}
+
+.u-section.is-hole {
+  fill: color-mix(in srgb, var(--ink) 4%, transparent);
+  stroke: var(--ink-soft);
+}
+
+.u-muted {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* Окно свойств рядом с объектом */
+.u-window {
+  position: absolute;
+  z-index: 4;
+  width: 300px;
+  padding: var(--s-3);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair), var(--lift-high);
+  animation: u-window-in var(--fast) var(--ease);
+}
+
+/* Окно в колонке справа: встает на место легенды, пока объект открыт */
+.u-window.is-docked {
+  position: static;
+  width: auto;
+  padding: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.u-window.is-docked .u-window-body .u-frow {
+  grid-template-columns: minmax(0, 1fr) 96px;
+  gap: var(--s-2);
+}
+
+/* Пара полей в узкой колонке: подпись сверху, поля во всю ширину, подсказка в той же строке */
+.u-window.is-docked .u-window-body .u-frow.is-pair {
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+
+.u-window.is-docked .u-frow.is-pair .u-frow-hint {
+  display: inline;
+  margin-left: 6px;
+}
+
+.u-window.is-docked .u-window-body .u-frow-hint {
+  font-size: 12px;
+}
+
+/* Описание типа стеллажа под выбором целиком: что это за стеллаж и кто в нем работает */
+.u-window-note.is-kind {
+  margin: 2px 0 var(--s-2);
+}
+
+.u-window.is-docked .u-window-body .u-frow-name {
+  font-size: 13px;
+}
+
+.u-window.is-docked .u-window-foot {
+  flex-wrap: wrap;
+}
+
+.u-side:has(> .u-window) > :not(.u-window) {
+  display: none;
+}
+
+/* Колонка с окном не выше листа со строкой под ним: числа под чертежом не уезжают вниз */
+.u-side:has(> .u-window) {
+  max-height: calc(var(--sheet-h, 470px) + 38px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.u-window.is-docked .u-window-body .u-frow {
+  padding: 3px 0;
+}
+
+@keyframes u-window-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.u-window-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -4px -4px 0 0;
+}
+
+.u-window-head h3 {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+.u-window-note {
+  margin: 4px 0 var(--s-2);
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.u-window-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.u-window-body .u-frow {
+  padding: 5px 0;
+  grid-template-columns: minmax(0, 1fr) 112px;
+}
+
+.u-window-body .u-frow-name {
+  font-size: 14px;
+}
+
+.u-window-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+/* Панель инструментов слева */
+.u-tools {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+/* зазор в шапке блока между режимами редактора и видом листа */
+.u-aside-gap {
+  width: var(--s-3);
+}
+
+.u-tool-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.u-tool-group > .u-cap {
+  margin: 0 0 2px var(--s-2);
+}
+
+.u-tool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 4px var(--s-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--fast) var(--ease);
+}
+
+.u-tool:hover {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* инструмент, о котором говорит подсказка «дальше»: тонкая синяя рамка, без мигания */
+.u-tool.is-next {
+  box-shadow: inset 0 0 0 1.5px var(--blue-line);
+  color: var(--ink);
+}
+
+.u-tool.is-on {
+  background: var(--blue-tint);
+  color: var(--blue);
+}
+
+/* название в одну строку: «Линия движения» в две строки делала колонку выше листа на 768 */
+.u-tool-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13.5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.u-tool-glyph {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 6px;
+  background: var(--paper);
+  box-shadow: var(--hair);
+  color: var(--blue-line);
+}
+
+.u-tool.is-on .u-tool-glyph {
+  box-shadow: var(--hair-blue);
+}
+
+/* Панель справа: уровни пола и что показываем цветом */
+.u-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.u-side h3 {
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.u-side p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.u-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.u-legend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 36px;
+  padding: 0 var(--s-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+}
+
+button.u-legend-row {
+  cursor: pointer;
+}
+
+button.u-legend-row:hover {
+  background: var(--sheet);
+}
+
+.u-legend-row.is-on {
+  background: var(--blue-tint);
+  box-shadow: var(--hair-blue);
+}
+
+/* Шкала цветом одной полосой: ступени слева направо, подписи по краям */
+.u-scale {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 var(--s-2);
+}
+
+.u-scale-bar {
+  display: flex;
+  height: 14px;
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: var(--hair);
+}
+
+.u-scale-bar span {
+  flex: 1;
+  background: var(--lvl-5);
+}
+
+.u-scale-ends {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.u-swatch {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 5px;
+  box-shadow: var(--hair);
+}
+
+.u-legend-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding: 5px 0;
+  line-height: 1.3;
+}
+
+.u-legend-value {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+/* Числа, которые двигает чертеж. Стоят прямо под листом: видно, что поменялось. */
+.u-meters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+.u-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.u-meter-line {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.u-meter b {
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.u-meter-unit {
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+/* На сколько число сдвинулось от последней правки: появляется и гаснет */
+.u-delta {
+  margin-left: auto;
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  animation: u-delta 2.4s var(--ease) forwards;
+}
+
+.u-delta.is-good {
+  background: color-mix(in srgb, var(--go) 10%, transparent);
+  color: var(--go);
+}
+
+.u-delta.is-bad {
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  color: var(--warn);
+}
+
+.u-delta.is-plain {
+  background: var(--blue-tint);
+  color: var(--blue);
+}
+
+@keyframes u-delta {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  12%,
+  75% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 1180px) {
+  .u-draft {
+    grid-template-columns: 176px minmax(0, 1fr) 216px;
+  }
+}
+
+/* На узком экране чертить нельзя: лист остается, чтобы посмотреть, инструменты уходят.
+   Лист отпускает касание: иначе палец двигал бы стеллажи вместо прокрутки страницы. */
+@media (max-width: 880px) {
+  .u-draft {
+    --sheet-h: 320px;
+    grid-template-columns: 1fr;
+  }
+
+  .u-draft .u-tools {
+    display: none;
+  }
+
+  .u-draft > .u-side {
+    max-height: none;
+  }
+
+  .u-hud {
+    flex-wrap: wrap;
+    gap: 2px var(--s-2);
+    right: var(--s-2);
+  }
+
+  .u-board > svg,
+  .u-board canvas.u-view3d {
+    touch-action: auto;
+  }
+
+  .u-board .u-thing,
+  .u-board-ctl {
+    pointer-events: none;
+  }
+
+  .u-board-ctl {
+    display: none;
+  }
+}
+
+/* Только что поставленный объект чуть пружинит. Двигаем только масштаб и прозрачность. */
+.u-pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: u-pop 320ms var(--ease);
+}
+
+@keyframes u-pop {
+  from {
+    opacity: 0.4;
+    transform: scale(0.94);
+  }
+}
+
+/* Картинка плана после подгонки на миг проявляется целиком и уходит в полупрозрачность:
+   видно, что ее линии легли на стены */
+.u-underlay {
+  animation: u-underlay 1400ms var(--ease);
+}
+
+@keyframes u-underlay {
+  from,
+  35% {
+    opacity: 1;
+  }
+}
+
+/* Места у стеллажей, до которых робот не доедет: красным прямо на плане */
+.u-lost {
+  fill: var(--stop);
+  opacity: 0.55;
+  pointer-events: none;
+  animation: u-lost 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes u-lost {
+  to {
+    opacity: 0.2;
+  }
+}
+
+/* Проверки плана под числами */
+.u-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-3);
+  margin: var(--s-3) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.u-checks li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--ink-soft);
+}
+
+.u-checks li.is-bad {
+  flex-basis: 100%;
+  color: var(--ink);
+}
+
+.u-checks-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--go) 12%, transparent);
+  color: var(--go);
+}
+
+.u-checks li.is-bad .u-checks-mark {
+  background: color-mix(in srgb, var(--stop) 12%, transparent);
+  color: var(--stop);
+}
+
+.u-checks-name {
+  display: block;
+}
+
+.u-checks li.is-bad .u-checks-name {
+  font-weight: 500;
+}
+
+.u-checks-detail {
+  display: block;
+  color: var(--ink-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u-pop,
+  .u-underlay,
+  .u-lost {
+    animation: none;
+  }
+}
+
+/* --- Проигрыватель смены ------------------------------------------------------------- */
+
+/* Слой с роботами и тепловой картой поверх листа: мышь проходит сквозь него к листу */
+.u-shift-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.u-board-ctl,
+.u-hud {
+  z-index: 1;
+}
+
+.u-player {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+}
+
+.u-player-time {
+  min-width: 108px;
+  font-size: 15px;
+}
+
+.u-player-of {
+  color: var(--ink-faint);
+}
+
+.u-player-speeds {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--r-pill);
+  background: var(--sheet);
+  box-shadow: var(--hair);
+}
+
+.u-player-speed {
+  min-height: 32px;
+  padding: 0 var(--s-2);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-soft);
+  font: 500 13px var(--mono);
+  cursor: pointer;
+  transition:
+    background var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.u-player-speed.is-on {
+  background: var(--paper);
+  color: var(--blue);
+  box-shadow: var(--hair-blue);
+}
+
+.u-timeline {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: var(--s-2);
+  align-items: start;
+}
+
+.u-timeline-names {
+  display: grid;
+  grid-template-rows: 26px 40px;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.u-timeline-names span {
+  align-self: center;
+}
+
+.u-timeline-track {
+  position: relative;
+  padding-bottom: 18px;
+}
+
+.u-timeline-track svg {
+  display: block;
+  width: 100%;
+  height: 76px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.u-timeline-demand {
+  fill: var(--lvl-2);
+}
+
+.u-timeline-rule {
+  stroke: color-mix(in srgb, var(--ink) 8%, transparent);
+  vector-effect: non-scaling-stroke;
+}
+
+.u-timeline-busy {
+  fill: var(--blue);
+  fill-opacity: 0.18;
+  stroke: var(--blue);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.u-timeline-queue {
+  fill: var(--act-wait);
+}
+
+.u-timeline-hour {
+  stroke: color-mix(in srgb, var(--ink) 6%, transparent);
+  vector-effect: non-scaling-stroke;
+}
+
+.u-timeline-hover {
+  stroke: var(--ink-faint);
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.u-timeline-head {
+  stroke: var(--ink);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.u-timeline-hours {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 16px;
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+
+.u-timeline-hours span {
+  position: absolute;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.u-timeline-hours span:first-child {
+  transform: none;
+}
+
+.u-timeline-hours span:last-child {
+  transform: translateX(-100%);
+}
+
+.u-timeline-tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  display: flex;
+  gap: var(--s-2);
+  padding: 6px var(--s-2);
+  border-radius: var(--r-sm);
+  background: var(--paper);
+  box-shadow: var(--lift-high);
+  font-size: 12px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.u-timeline-tip .is-queue {
+  color: var(--act-wait);
+}
+
+.u-curve {
+  margin: 0;
+}
+
+.u-curve svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.u-curve-axis {
+  stroke: color-mix(in srgb, var(--ink) 14%, transparent);
+}
+
+.u-curve-line {
+  fill: none;
+  stroke: var(--blue);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.u-curve-demand {
+  stroke: var(--ink-soft);
+  stroke-dasharray: 4 3;
+}
+
+.u-curve-mark {
+  fill: var(--blue);
+}
+
+.u-curve-fleet {
+  stroke: var(--ink);
+  stroke-opacity: 0.25;
+}
+
+.u-curve-dot {
+  fill: var(--blue);
+  stroke: var(--paper);
+  stroke-width: 2;
+}
+
+.u-curve-hover {
+  stroke: var(--ink-faint);
+  stroke-dasharray: 3 3;
+}
+
+.u-curve-hover-dot {
+  fill: var(--paper);
+  stroke: var(--blue);
+  stroke-width: 2;
+}
+
+.u-curve-note,
+.u-curve-tick {
+  fill: var(--ink-soft);
+  font: 11px var(--mono);
+}
+
+.u-curve-tick.is-fleet {
+  fill: var(--ink);
+  font-weight: 600;
+}
+
+.u-curve-cap {
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.u-curve-axes {
+  display: block;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.u-curve-cap b {
+  color: var(--ink);
+}
+
+/* Партитура: строка на робота, смена слева направо */
+.u-score {
+  position: relative;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair);
+  overflow: hidden;
+}
+
+.u-score canvas {
+  display: block;
+  width: 100%;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+/* Смена на плане на шаге экономики: лист с плеером слева, итоги и кривая справа */
+.u-shift {
+  --sheet-h: clamp(340px, calc(100vh - 420px), 560px);
+  margin-top: var(--s-6);
+}
+
+/* Плитки задач у смены: своя строка под заголовком блока, переносятся, когда узко */
+.u-shift-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin: calc(-1 * var(--s-2)) 0 var(--s-3);
+}
+
+.u-shift-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--s-3);
+  align-items: start;
+}
+
+.u-shift-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.u-shift-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-4);
+}
+
+.u-shift-paint {
+  display: flex;
+  gap: var(--s-1);
+  margin-left: auto;
+}
+
+/* что сейчас показано на плане, строкой под переключателем */
+.u-shift-paint-note {
+  margin: 0;
+  text-align: right;
+}
+
+.u-shift-stage {
+  transition: opacity var(--fast) var(--ease);
+}
+
+/* пока считается новый прогон, старый остается на экране приглушенным */
+.u-shift-stage.is-stale {
+  opacity: 0.55;
+}
+
+.u-shift-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--s-3);
+  min-height: calc(var(--sheet-h) + 38px);
+  padding: var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.u-shift-player {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.u-shift-player .u-legend {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 2px var(--s-3);
+  margin-left: auto;
+}
+
+.u-shift-heat {
+  min-width: 220px;
+  margin-left: auto;
+}
+
+.u-shift-side h3 {
+  margin: 0;
+}
+
+/* Итоги смены списком: подпись слева, число справа. Плитки в узкой колонке ломали подписи */
+.u-facts {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.u-fact {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding: 6px 0;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.u-fact dt {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.u-fact dd {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.u-fact b {
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.u-shift-note {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+@media (max-width: 1100px) {
+  .u-shift-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .u-shift-paint {
+    margin-left: 0;
+  }
+
+  .u-shift-paint-note {
+    text-align: left;
+  }
+
+  .u-shift-player .u-legend,
+  .u-shift-heat {
+    margin-left: 0;
+  }
+
+  .u-timeline {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .u-timeline-names {
+    display: none;
+  }
+
+  /* подписи через час: на узкой шкале восемь подписей налезали друг на друга */
+  .u-timeline-hours span:nth-child(even) {
+    display: none;
+  }
+}
+
+/* Пересчет идет: прежние цифры на месте, приглушены, чтобы экран не мигал */
+.u-stale {
+  opacity: 0.6;
+  transition: opacity var(--fast) var(--ease);
+}
+
+/* Под итогами смены: путь назад к плану, если прогон показал очередь или длинные рейсы */
+.u-shift-plan {
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.u-shift-plan .u-shift-note {
+  margin-top: 0;
+}
+
+.u-score-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--s-2) var(--s-4);
+  padding: var(--s-3) var(--s-3) var(--s-1);
+}
+
+.u-score-lead {
+  flex: 1 1 360px;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.u-score-head .u-legend {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 2px var(--s-3);
+}
+
+.u-score-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: var(--s-2) var(--s-3) 0 calc(var(--s-3) + 18px);
+  font-size: 14px;
+}
+
+.u-score-facts b {
+  color: var(--ink);
+}
+
+.u-score-more {
+  padding: var(--s-2) var(--s-3) var(--s-3);
+}
+
+/* Откуда план одной строкой: что за план, его размер и рядом "начать заново". Не крупный
+   заголовок блока: при нем сам текст выходит мелко и далеко от ссылки */
+.u-origin {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 var(--s-1);
+  margin: 0 0 var(--s-3);
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+
+.u-origin .mono {
+  color: var(--ink);
+}
+
+.u-origin-sep {
+  color: var(--ink-faint);
+}
+
+.u-origin .u-btn {
+  font-size: 15px;
+}
+
+/* Кнопки в колонке справа одного размера и по центру: колонка узкая, три подписи в ряд
+   не влезали, поэтому каждая кнопка во всю ширину колонки */
+.u-side .u-bar.is-even {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-1);
+}
+
+.u-side .u-bar.is-even .u-btn {
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+}
+
+/* Ряды, которые встанут по протяжке: видно каждый ряд и проезды между ними */
+.u-ghost-row {
+  fill: color-mix(in srgb, var(--blue-line) 18%, transparent);
+  stroke: var(--blue-line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+/* Контур здания, который обводят по щелчкам */
+.u-trace {
+  fill: none;
+  stroke: var(--blue);
+  stroke-linejoin: round;
+  stroke-dasharray: 6 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.u-trace-dot {
+  fill: var(--paper);
+  stroke: var(--blue);
+  pointer-events: none;
+}
+
+.u-trace-dot.is-first {
+  fill: var(--blue-tint);
+}
+
+polygon.u-section {
+  fill: transparent;
+}
+
+/* Сторона контура на фото: широкая невидимая полоса, по щелчку на нее встает новая точка */
+.u-corners-edge {
+  stroke: transparent;
+  cursor: copy;
+}
+
+.u-corners-up {
+  stroke: var(--blue);
+  fill: none;
+  pointer-events: none;
+}
+
+.u-corners-head {
+  fill: var(--blue);
+}
+
+/* --- Шаг 3: шапка чертежа, режимы, проверки, обучение --------------------------------- */
+
+/* Над чертежом одной строкой: заголовок, откуда план, и крупные кнопки справа */
+.u-plan-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-3);
+  scroll-margin-top: var(--s-3);
+}
+
+.u-plan-head h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.u-plan-head p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--s-2);
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.u-plan-head p .mono {
+  margin-left: -4px;
+  color: var(--ink);
+}
+
+.u-plan-head .u-spacer {
+  margin-left: auto;
+}
+
+/* Предупреждение над чертежом с действием справа */
+.u-plan-warn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-3);
+}
+
+.u-plan-warn > .u-alert {
+  flex: 1 1 420px;
+}
+
+/* Плашка на два-три положения: выбранное белое на подложке, как переключатель в настройках */
+/* Половины поровну, но не уже подписи: в узкой колонке "Обстановка" не влезала в половину,
+   и выбранная плашка упиралась в край подложки */
+.u-modes {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+}
+
+.u-modes button {
+  flex: 1 1 0;
+  min-width: max-content;
+  min-height: 36px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition:
+    background var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.u-modes button:hover {
+  color: var(--ink);
+}
+
+.u-modes button.is-on {
+  background: var(--paper);
+  box-shadow:
+    var(--hair),
+    0 1px 2px color-mix(in srgb, var(--ink) 6%, transparent);
+  color: var(--blue);
+  font-weight: 500;
+}
+
+.u-modes button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+/* на листе: мелко и на белой подложке, чтобы не спорить с чертежом */
+.u-modes.is-small {
+  display: inline-flex;
+  background: var(--paper);
+  box-shadow: var(--lift);
+}
+
+.u-modes.is-small button {
+  min-height: 30px;
+  padding: 2px 12px;
+  font-size: 12.5px;
+}
+
+.u-modes.is-small button.is-on {
+  background: var(--blue-tint);
+  box-shadow: none;
+}
+
+.u-draft > .u-tools > * {
+  flex-shrink: 0;
+}
+
+.u-side .u-modes button {
+  padding: 4px 6px;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.u-modes-note {
+  margin: -2px 0 var(--s-1) var(--s-2);
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+/* Клавиша инструмента нарисована клавишей и стоит первой */
+.u-tool kbd.u-hotkey {
+  display: grid;
+  place-items: center;
+  flex: none;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border-radius: 5px;
+  background: var(--paper);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent),
+    inset 0 -1.5px 0 color-mix(in srgb, var(--ink) 12%, transparent);
+  color: var(--ink-faint);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.u-tool.is-on kbd.u-hotkey {
+  color: var(--blue);
+}
+
+/* Проверки на самом листе, рядом с числами: нажатие ведет к списку под листом */
+.u-hud-check {
+  align-self: center;
+  flex: none;
+  padding: 2px 10px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--go) 10%, transparent);
+  color: var(--go);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.u-hud-check.is-bad {
+  background: color-mix(in srgb, var(--stop) 10%, transparent);
+  color: var(--stop);
+}
+
+/* Числа и проверки под листом */
+.u-plan-foot {
+  scroll-margin-bottom: 96px;
+}
+
+.u-checks-box {
+  margin-top: var(--s-2);
+  padding: var(--s-2) var(--s-3) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.u-checks-box.is-bad {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--stop) 35%, transparent);
+}
+
+.u-checks-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin: 0;
+  font-size: 14px;
+}
+
+.u-checks-head b {
+  font-weight: 600;
+}
+
+.u-checks-head .mono {
+  color: var(--go);
+  font-size: 12px;
+}
+
+.is-bad .u-checks-head .mono {
+  color: var(--stop);
+}
+
+.u-checks-box .u-checks {
+  margin-top: var(--s-2);
+  font-size: 13.5px;
+}
+
+.u-checks-box .u-checks li.is-ok {
+  color: var(--ink);
+}
+
+/* Обучение: все затемнено, кроме подсвеченной части, рядом карточка с текстом */
+.u-tour {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+
+.u-tour-hole,
+.u-tour-dim {
+  position: fixed;
+  border-radius: var(--r-lg);
+  box-shadow: 0 0 0 200vmax color-mix(in srgb, var(--shadow) 48%, transparent);
+  pointer-events: none;
+  transition:
+    left var(--slow) var(--ease),
+    top var(--slow) var(--ease),
+    width var(--slow) var(--ease),
+    height var(--slow) var(--ease);
+}
+
+.u-tour-hole {
+  outline: 2px solid var(--paper);
+}
+
+.u-tour-dim {
+  inset: 50%;
+}
+
+.u-tour-card {
+  position: fixed;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  width: min(400px, calc(100vw - 32px));
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--lift-high);
+  animation: u-window-in var(--fast) var(--ease);
+}
+
+.u-tour-card h3 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+
+.u-tour-card p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Подсказка перечислением: каждый пункт с новой строки */
+.u-tour-line {
+  display: block;
+}
+
+.u-tour-line + .u-tour-line {
+  margin-top: 6px;
+}
+
+.u-tour-count {
+  color: var(--blue);
+  font-size: 11.5px;
+}
+
+.u-tour-dots {
+  display: flex;
+  gap: 5px;
+  margin-top: var(--s-1);
+}
+
+.u-tour-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 14%, transparent);
+}
+
+.u-tour-dots span.is-on {
+  width: 18px;
+  border-radius: var(--r-pill);
+  background: var(--blue);
+}
+
+.u-tour-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1);
+  margin-top: var(--s-2);
+}
+
+/* Кнопки не сжимаются и не упираются в край: если в строку не встали, "Назад" и "Дальше"
+   уходят на следующую строку вместе и стоят справа. В 360 точек "Больше не показывать", "Назад"
+   и "Теперь попробуйте" не входили */
+.u-tour-foot .u-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.u-tour-go {
+  display: flex;
+  gap: var(--s-1);
+  margin-left: auto;
+}
+
+.u-tour-foot .u-btn-link {
+  padding-left: 0;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u-tour-hole,
+  .u-tour-card {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* Карточка инструмента справа от колонки инструментов, поверх края листа */
+.u-toolcard {
+  position: absolute;
+  z-index: 6;
+  left: calc(206px + var(--s-2));
+  display: flex;
+  flex-direction: column;
+  width: min(360px, calc(100vw - 32px));
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair), var(--lift-high);
+  overflow: hidden;
+  animation: u-window-in var(--fast) var(--ease);
+}
+
+.u-toolcard-scene {
+  background: var(--sheet);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+/* сценка не выше, чем была при ширине 320: карточка стала шире, а в экран 768 точек она влезала впритык */
+.u-toolcard-scene .u-demo {
+  max-height: 180px;
+}
+
+.u-toolcard-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-1);
+  padding: var(--s-2) var(--s-3) var(--s-3);
+}
+
+.u-toolcard-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  margin-right: -8px;
+}
+
+.u-toolcard-head h3 {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+.u-toolcard-head .u-spacer {
+  margin-left: auto;
+}
+
+.u-toolcard kbd.u-hotkey {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border-radius: 5px;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent),
+    inset 0 -1.5px 0 color-mix(in srgb, var(--ink) 12%, transparent);
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+
+.u-toolcard p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.u-toolcard p.u-toolcard-more {
+  font-size: 13px;
+}
+
+.u-toolcard-more b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.u-toolcard .u-btn-link {
+  padding-left: 0;
+  font-size: 13px;
+}
+
+@media (max-width: 1180px) {
+  .u-toolcard {
+    left: calc(176px + var(--s-2));
+  }
+}
+
+/* Сценки в карточках: цикл 3,6 секунды на всех, двигаются только сдвиг и прозрачность.
+   Курсор едет от --x0 --y0 к --x1 --y1, рамка растет за ним, потом появляется поставленное */
+.u-demo {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.u-demo * {
+  animation-duration: 3.6s;
+  animation-timing-function: var(--ease);
+  animation-iteration-count: infinite;
+}
+
+.u-demo-floor {
+  fill: var(--lvl-0);
+}
+
+.u-demo-wall {
+  fill: none;
+  stroke: var(--blue-deep);
+  stroke-width: 2.5;
+}
+
+.u-demo-floor.u-demo-wall {
+  fill: var(--lvl-0);
+}
+
+.u-demo-rack {
+  fill: var(--lvl-2);
+}
+
+.u-demo-row {
+  fill: var(--lvl-3);
+  stroke: var(--blue-line);
+  stroke-width: 0.8;
+}
+
+.u-demo-line {
+  fill: none;
+  stroke: var(--blue-deep);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.u-demo-gate-box {
+  fill: var(--paper);
+  stroke: var(--blue-deep);
+  stroke-width: 1.6;
+}
+
+.u-demo-buffer {
+  fill: color-mix(in srgb, var(--blue) 8%, transparent);
+  stroke: var(--blue-line);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 3;
+}
+
+.u-demo-room {
+  fill: var(--paper);
+  stroke: var(--blue-deep);
+  stroke-width: 2;
+}
+
+.u-demo-hatch {
+  fill: none;
+  stroke: var(--blue-line);
+  stroke-width: 1;
+  opacity: 0.6;
+}
+
+.u-demo-nogo {
+  fill: color-mix(in srgb, var(--stop) 6%, transparent);
+  stroke: var(--stop);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 3;
+}
+
+.u-demo-nogo-x {
+  fill: none;
+  stroke: var(--stop);
+  stroke-width: 1;
+  opacity: 0.5;
+}
+
+.u-demo-high {
+  fill: var(--lvl-2);
+}
+
+.u-demo-step {
+  fill: none;
+  stroke: var(--blue-line);
+  stroke-width: 1.4;
+  stroke-dasharray: 5 3;
+}
+
+.u-demo-ramp {
+  fill: var(--lvl-1);
+  stroke: var(--blue-deep);
+  stroke-width: 1.4;
+}
+
+.u-demo-lane {
+  fill: color-mix(in srgb, var(--blue) 12%, transparent);
+}
+
+.u-demo-station {
+  fill: var(--paper);
+  stroke: var(--blue);
+  stroke-width: 1.8;
+}
+
+.u-demo-dot {
+  fill: var(--paper);
+  stroke: var(--blue);
+  stroke-width: 2;
+}
+
+.u-demo-cut {
+  fill: var(--paper);
+}
+
+/* пола нет: пустое место косой штриховкой, как на чертеже */
+.u-demo-cut-lines {
+  fill: none;
+  stroke: color-mix(in srgb, var(--ink) 14%, transparent);
+  stroke-width: 1;
+}
+
+.u-demo-frame {
+  fill: color-mix(in srgb, var(--blue) 6%, transparent);
+  stroke: var(--blue);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 3;
+  transform-box: fill-box;
+  transform-origin: 0 0;
+  animation-name: u-demo-grow;
+}
+
+.u-demo-cursor {
+  fill: var(--ink);
+  stroke: var(--paper);
+  stroke-width: 1;
+  animation-name: u-demo-move;
+}
+
+.u-demo-show {
+  opacity: 0;
+  animation-name: u-demo-show;
+}
+
+.u-demo-show.is-early {
+  animation-name: u-demo-early;
+}
+
+.u-demo-hide {
+  animation-name: u-demo-hide;
+}
+
+@keyframes u-demo-move {
+  0%,
+  8% {
+    opacity: 1;
+    transform: translate(var(--x0), var(--y0));
+  }
+  45%,
+  80% {
+    opacity: 1;
+    transform: translate(var(--x1), var(--y1));
+  }
+  92%,
+  100% {
+    opacity: 0;
+    transform: translate(var(--x1), var(--y1));
+  }
+}
+
+@keyframes u-demo-grow {
+  0%,
+  8% {
+    opacity: 1;
+    transform: scale(0.02);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  60%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+@keyframes u-demo-show {
+  0%,
+  48% {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  58%,
+  90% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes u-demo-early {
+  0%,
+  12% {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  18%,
+  88% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes u-demo-hide {
+  0%,
+  48% {
+    opacity: 1;
+  }
+  56%,
+  92% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Без движения сценка стоит на последнем кадре: все уже поставлено */
+@media (prefers-reduced-motion: reduce) {
+  .u-demo *,
+  .u-toolcard {
+    animation: none;
+  }
+
+  .u-demo-show {
+    opacity: 1;
+  }
+
+  .u-demo-hide,
+  .u-demo-cursor,
+  .u-demo-frame {
+    opacity: 0;
+  }
+}
+
+/* Подписи в колонке справа: что за блок, одной строкой */
+.u-side-note {
+  margin: -8px 0 0;
+}
+
+.u-side-cap {
+  margin: 0 0 -8px;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+/* Практика после обучения: экран не затемнен, лист под карточкой работает */
+.u-tour.is-practice {
+  pointer-events: none;
+}
+
+.u-tour.is-practice .u-tour-card {
+  pointer-events: auto;
+}
+
+.u-tour-dots span.is-practice {
+  background: var(--lvl-2);
+}
+
+/* Кнопки обучения: подпись ровно по центру, у кнопки набора она сидела выше середины */
+.u-tour-foot .u-btn {
+  justify-content: center;
+  line-height: 1.2;
+}
+
+/* шаг практики сделан: "Дальше" мягко пульсирует кольцом */
+.u-tour-foot .u-btn.is-ready {
+  animation: u-ready 1.8s var(--ease) infinite;
+}
+
+@keyframes u-ready {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--blue) 35%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--blue) 0%, transparent);
+  }
+}
+
+/* инструмент, который ждет шаг обучения: синяя рамка с мягкой пульсацией */
+.u-tool.is-pulse {
+  animation: u-pulse 1.8s var(--ease) infinite;
+}
+
+@keyframes u-pulse {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 1.5px var(--blue),
+      0 0 0 0 color-mix(in srgb, var(--blue) 30%, transparent);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 1.5px var(--blue),
+      0 0 0 5px color-mix(in srgb, var(--blue) 0%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u-tour-foot .u-btn.is-ready,
+  .u-tool.is-pulse {
+    animation: none;
+  }
+}
+
+.u-tour-foot kbd.u-hotkey {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--paper) 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--paper) 35%, transparent);
+  color: var(--paper);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+/* Обучение: сценка в карточке шага и выбор пути */
+.u-tour-scene {
+  margin: calc(-1 * var(--s-3)) calc(-1 * var(--s-3)) var(--s-1) calc(-1 * var(--s-4));
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  background: var(--sheet);
+  overflow: hidden;
+}
+
+.u-tour-scene .u-demo {
+  max-height: 170px;
+}
+
+.u-tour-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin-top: var(--s-2);
+}
+
+.u-tour-choices button {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--sheet);
+  box-shadow: var(--hair);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow var(--fast) var(--ease);
+}
+
+.u-tour-choices button:first-child {
+  background: var(--blue-tint);
+  box-shadow: var(--hair-blue);
+}
+
+.u-tour-choices button:hover,
+.u-tour-choices button:focus-visible {
+  box-shadow: inset 0 0 0 1.5px var(--blue);
+  outline: none;
+}
+
+.u-tour-choices button > span:first-child {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.u-tour-choices b {
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.u-tour-choices span span {
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.u-tour-choices .mono {
+  flex: none;
+  color: var(--blue);
+  font-size: 11.5px;
+}
+
+.u-demo-label {
+  fill: var(--blue-deep);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.u-demo-show.is-late {
+  animation-name: u-demo-late;
+}
+
+@keyframes u-demo-late {
+  0%,
+  66% {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  74%,
+  92% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Практика: карточку сворачивают в плашку в углу листа */
+.u-tour-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.u-tour-fold {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  margin-right: -6px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.u-tour-fold:hover,
+.u-tour-fold:focus-visible {
+  background: var(--sheet);
+  color: var(--ink);
+  outline: none;
+}
+
+.u-tour-pill-at {
+  position: fixed;
+  pointer-events: auto;
+}
+
+.u-tour-pill {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  box-sizing: border-box;
+  width: 280px;
+  min-height: 44px;
+  padding: 6px var(--s-3);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  box-shadow: var(--hair), var(--lift-high);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  pointer-events: auto;
+  animation: u-window-in var(--fast) var(--ease);
+}
+
+.u-tour-pill .mono {
+  flex: none;
+  color: var(--blue);
+  font-size: 11.5px;
+}
+
+.u-tour-pill b {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.u-tour-pill svg {
+  flex: none;
+  color: var(--ink-soft);
+}
+
+/* начало практики: лист вспыхивает рамкой, "вот ваш план" */
+.u-flash {
+  border-radius: var(--r-lg);
+  animation: u-flash 1.6s var(--ease);
+}
+
+@keyframes u-flash {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--blue) 0%, transparent);
+  }
+  25%,
+  60% {
+    box-shadow: 0 0 0 4px var(--blue);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u-flash {
+    animation: none;
+    box-shadow: 0 0 0 3px var(--blue);
+  }
+}

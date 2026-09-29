@@ -1,0 +1,232 @@
+# Нормативы, которые администратор видит и правит в админке (раздел "Нормативы").
+#
+# Сами значения с источниками лежат в config/model.yaml, этот файл только говорит, какие из них
+# открыты, в каком разделе стоят, какие у них жесткие границы и что они меняют в расчете.
+# Правка администратора хранится в базе поверх model.yaml, файл модели она не трогает.
+#
+# path     путь к значению в model.yaml. Звездочка заменяет объект, задачу или строку штата:
+#          новые значения по тому же шаблону появятся в админке сами
+# name     название, если оно отличается от названия в отчете (app/reports/names.py)
+# min, max жесткие границы: за ними значение не принимаем. Мягкие границы датасета, за которыми
+#          только предупреждаем, берутся из config/parameters.yaml
+# whole    только целое число
+# effect   что поменяется в расчете, одной фразой для администратора
+#
+# Что не открыто и почему (подробно в docs/decisions.md, раздел про нормативы в админке):
+# - engine.* кроме доли парка в строю: это то, как мы моделируем, прогон смены сверен с ними;
+# - параметры роботов: это карточка решения, цена правится в каталоге;
+# - subsidies.*: условия программ еще не заполнены;
+# - economics.payback_bands_years: границы задает ТЗ, п. 3.5.7;
+# - подбор оператора, ровность пола и ширина главного проезда: расчет их пока не читает.
+
+groups:
+  - id: payroll
+    name: "Зарплата и взносы"
+    norms:
+      - path: economics.payroll.insurance_rate
+        min: 0
+        max: 1
+        effect: "Стоимость ставки: к окладу прибавляются взносы. Дороже люди, больше экономия от роботов и дороже операторы"
+      - path: economics.payroll.insurance_rate_above_limit
+        min: 0
+        max: 1
+        effect: "Взносы с части оклада выше предельной базы: важно для высоких окладов"
+      - path: economics.payroll.insurance_base_limit_rub
+        min: 0
+        max: 100000000
+        effect: "До какой суммы в год взносы идут по основному тарифу, выше по сниженному"
+      - path: economics.payroll.injury_insurance_rate
+        min: 0
+        max: 0.1
+        effect: "Прибавляется к взносам на каждую ставку"
+      - path: economics.payroll.workwear_rub_year
+        min: 0
+        max: 1000000
+        effect: "Прибавляется к стоимости каждой ставки в год"
+      - path: economics.payroll.turnover_rate
+        min: 0
+        max: 1
+        effect: "Вместе с затратами на найм дает расход на замену ушедших людей в стоимости ставки"
+      - path: economics.payroll.hire_cost_months
+        min: 0
+        max: 24
+        effect: "Сколько окладов стоит найм одного человека взамен ушедшего. Работает вместе с текучестью"
+
+  - id: time
+    name: "Рабочее время"
+    norms:
+      - path: economics.annual_work_hours
+        min: 1000
+        max: 2500
+        effect: "Сколько ставок нужно на один пост: часы работы объекта делятся на эти часы. Меньше часов, больше людей"
+      - path: facilities.*.schedule.shifts
+        min: 1
+        max: 3
+        whole: true
+        effect: "Значение по умолчанию на шаге параметров. Часы работы объекта: люди, операторы, расход энергии"
+      - path: facilities.*.schedule.shift_hours
+        min: 1
+        max: 24
+        effect: "Значение по умолчанию на шаге параметров. Часы работы объекта: люди, операторы, расход энергии"
+      - path: facilities.*.schedule.days_per_year
+        min: 1
+        max: 366
+        whole: true
+        effect: "Значение по умолчанию на шаге параметров. Часы работы объекта в году"
+      - path: facilities.*.staff_loss_share
+        min: 0
+        max: 1
+        effect: "Значение по умолчанию. Прибавка к нормативной численности на отпуска и больничные: больше ставок на пост"
+
+  - id: money
+    name: "Деньги и цены"
+    norms:
+      - path: economics.discount_rate
+        min: 0
+        max: 1
+        effect: "Приведенная стоимость и дисконтированная окупаемость. Выше ставка, дальше окупаемость"
+      - path: economics.inflation
+        min: 0
+        max: 1
+        effect: "Рост расходов на обслуживание роботов и связь по годам"
+      - path: economics.wage_growth
+        min: 0
+        max: 1
+        effect: "Рост стоимости людей и операторов по годам. Быстрее растут зарплаты, выгоднее роботы"
+      - path: economics.energy_price_growth
+        min: 0
+        max: 1
+        effect: "Рост расхода на электроэнергию роботов по годам"
+      - path: economics.energy_price_rub_kwh
+        min: 0.1
+        max: 100
+        effect: "Расход на зарядку роботов: мощность * часы работы * тариф"
+      - path: economics.horizon_years
+        min: 1
+        max: 30
+        whole: true
+        effect: "На сколько лет считаем совокупную стоимость владения и сравниваем сценарии"
+
+  - id: reserves
+    name: "Резервы и запас"
+    norms:
+      - path: economics.capex_reserve_share
+        min: 0
+        max: 1
+        effect: "Прибавка к вложениям на непредвиденное"
+      - path: economics.peak_reserve_share
+        min: 0
+        max: 1
+        effect: "Запас сверх пикового спроса, на который подбирается парк. Больше запас, больше роботов"
+      - path: facilities.*.peak_factor
+        min: 1
+        max: 5
+        effect: "Значение по умолчанию. Во сколько раз пиковый час больше среднего: по пику считается парк"
+      - path: engine.simulation.availability
+        name: "Доля парка в строю после ТО и поломок"
+        min: 0.8
+        max: 1
+        effect: "Сколько роботов из купленных работает в смене. Меньше доля, больше роботов покупаем на тот же объем"
+
+  - id: facility
+    name: "Объект по умолчанию"
+    norms:
+      - path: facilities.*.active_area_m2
+        min: 100
+        max: 1000000
+        effect: "Значение по умолчанию на шаге параметров. От площади зависят маршрут робота и размер плана"
+      - path: facilities.*.constraints.aisle_width_mm
+        min: 500
+        max: 10000
+        effect: "Значение по умолчанию. Подбор отсекает решения, которым нужен проезд шире"
+      - path: facilities.*.constraints.ceiling_m
+        min: 2
+        max: 60
+        effect: "Значение по умолчанию. От потолка зависит верхний ярус стеллажей на плане"
+      - path: facilities.*.slotted_by_turnover
+        min: 0
+        max: 1
+        whole: true
+        effect: "Значение по умолчанию: разложен ли товар по ходовости. Если да, роботы чаще ездят недалеко"
+      - path: facilities.*.fast_share
+        min: 0
+        max: 1
+        effect: "Работает, когда товар разложен по ходовости: какая часть мест у ворот"
+      - path: facilities.*.fast_picks_share
+        min: 0
+        max: 1
+        effect: "Работает, когда товар разложен по ходовости: какая часть отборов приходится на ходовой товар"
+      - path: facilities.*.min_operator_posts
+        min: 0
+        max: 50
+        whole: true
+        effect: "Сколько операторов в смене нужно при любом парке, даже самом маленьком"
+      - path: facilities.*.operator_salary_premium
+        min: 0
+        max: 2
+        effect: "На какую долю ставка оператора роботов дороже ставки той роли, из которой его переучили"
+      - path: facilities.*.staff.*.headcount
+        min: 0
+        max: 100000
+        whole: true
+        effect: "Штат по умолчанию на шаге персонала: сколько людей работает до роботов"
+      - path: facilities.*.staff.*.salary_month
+        min: 0
+        max: 10000000
+        effect: "Оклад по умолчанию на шаге персонала: сколько стоят люди, которых заменяют роботы"
+
+  - id: tasks
+    name: "Задачи объекта"
+    norms:
+      - path: facilities.*.operations.*.volume_per_day
+        min: 0
+        max: 10000000
+        effect: "Значение по умолчанию на шаге параметров. Объем задачи: от него зависят парк и люди"
+      - path: facilities.*.operations.*.automatable_share
+        min: 0
+        max: 1
+        effect: "Какая часть объема достается роботам, остальное делают люди"
+      - path: facilities.*.operations.*.productivity_before
+        min: 1
+        max: 10000
+        effect: "Выработка человека без роботов: сколько людей нужно на объем сейчас"
+      - path: facilities.*.operations.*.productivity_after
+        min: 1
+        max: 10000
+        effect: "Выработка человека вместе с роботами: сколько людей останется после роботизации"
+      - path: facilities.*.operations.*.ops_per_trip
+        min: 1
+        max: 100
+        effect: "Сколько операций робот делает за рейс. Больше операций, меньше рейсов и роботов"
+      - path: facilities.*.operations.*.load_kg
+        min: 0
+        max: 100000
+        effect: "Вес груза: подбор отсекает решения с меньшей грузоподъемностью"
+
+  - id: implementation
+    name: "Внедрение"
+    norms:
+      - path: facilities.*.implementation.integration_rub
+        min: 0
+        max: 10000000000
+        effect: "Разовые вложения в связь роботов с WMS при покупке и аренде"
+      - path: facilities.*.implementation.infrastructure_rub
+        min: 0
+        max: 10000000000
+        effect: "Разовые вложения в подготовку объекта"
+      - path: facilities.*.implementation.retraining_rub_per_person
+        min: 0
+        max: 10000000
+        effect: "Разовые затраты на переобучение каждого, кто становится оператором"
+      - path: facilities.*.implementation.communications_rub_year
+        min: 0
+        max: 1000000000
+        effect: "Расход на связь и сеть в год, растет с инфляцией"
+      - path: facilities.*.operations.*.implementation.integration_rub
+        min: 0
+        max: 10000000000
+        effect: "Разовые вложения в интеграцию под эту задачу"
+      - path: facilities.*.operations.*.implementation.infrastructure_rub
+        min: 0
+        max: 10000000000
+        effect: "Разовые вложения в инфраструктуру под эту задачу"

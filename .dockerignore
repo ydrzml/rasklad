@@ -1,0 +1,12 @@
+.git
+**/node_modules
+**/dist
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+.env
+# Из характеристик в образ нужны только итог и источники: ими заполняется каталог при первом запуске
+data/specs/*.py
+data/specs/requirements.txt
+data/specs/README.md
+data/specs/catalog_marks.csv

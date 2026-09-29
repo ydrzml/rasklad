@@ -1,0 +1,775 @@
+/* Раскладка кабинета. Цвета, тени и скругления берем из набора (tokens.css, ui.css),
+   здесь только расположение того, что в наборе уже есть. */
+
+.c-row a.u-btn {
+  text-decoration: none;
+}
+
+.c-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+.c-gap {
+  flex: 1;
+}
+
+.c-said {
+  margin: 0 0 var(--s-3);
+}
+
+/* Над списком одной строкой: поиск и порядок слева, новая папка и новый расчет справа.
+   Отделена от групп воздухом, чтобы поиск не читался частью таблицы */
+.c-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-bottom: var(--s-5);
+}
+
+/* Незаконченный расчет над списком: воздух до поиска, иначе плита и поиск шли вплотную */
+.u-notice + section > .c-top {
+  margin-top: var(--s-5);
+}
+
+.c-find {
+  flex: 0 1 380px;
+  min-width: 220px;
+}
+
+.c-find .u-search {
+  width: 100%;
+}
+
+/* Название проекта нажимается и раскрывает подробности под строкой. Синее, как ссылка,
+   чтобы было видно, что оно нажимается */
+.c-name {
+  all: unset;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--blue);
+  overflow-wrap: anywhere;
+}
+
+.c-name:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Объект и число сохранений мелко под названием */
+.c-about {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+/* Цифры и дата одной строкой под названием: только на узком экране */
+.c-meta {
+  display: none;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+/* Почему кнопка «Открыть в расчете» пока выключена */
+.c-soon {
+  color: var(--ink-soft);
+  font-size: 13px;
+  max-width: 260px;
+  text-align: right;
+}
+
+.c-name:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.c-details {
+  padding: var(--s-2) 0 var(--s-3);
+}
+
+.c-details > .c-row {
+  margin-top: 0;
+  margin-bottom: var(--s-4);
+}
+
+.c-rename {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: 1;
+  max-width: 640px;
+}
+
+.c-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: var(--s-5);
+  align-items: start;
+}
+
+/* Ячейка таблицы растягивает содержимое по ширине: метке это не нужно */
+.c-details .u-badge {
+  align-self: flex-start;
+}
+
+.c-nowrap {
+  white-space: nowrap;
+}
+
+/* Подпись к числу в строке таблицы. На широком экране ее заменяет шапка колонки,
+   на узком строка складывается в карточку и шапки не видно */
+.c-label {
+  display: none;
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+.c-sub {
+  margin: 0 0 var(--s-2);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.c-faint {
+  color: var(--ink-faint);
+}
+
+.c-files {
+  list-style: none;
+  margin: 0 0 var(--s-3);
+  padding: 0;
+}
+
+.c-files li {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) 0;
+  font-size: 14px;
+}
+
+.c-files a {
+  color: var(--blue);
+  overflow-wrap: anywhere;
+}
+
+.c-files .mono {
+  font-size: 12px;
+}
+
+.c-files .u-btn-link {
+  margin-left: auto;
+}
+
+/* Поле выбора файла спрятано, нажимается подпись в виде кнопки из набора */
+.c-upload {
+  position: relative;
+}
+
+.c-upload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.c-upload:has(input:focus-visible) {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+
+.c-upload.is-busy {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.c-hint {
+  margin: var(--s-2) 0 0;
+  font-size: 13px;
+}
+
+@media (max-width: 1080px) {
+  .c-cols {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 880px) {
+  .c-label {
+    display: inline;
+  }
+
+  .c-meta {
+    display: block;
+  }
+
+  /* В строке проекта остаются галочка, название со строкой объекта и кнопка «Подробнее».
+     Только у строк самого списка: история сохранений внутри подробностей тоже таблица */
+  .c-list > .u-sheet > .u-sheet-row > .u-cell:nth-child(3),
+  .c-list > .u-sheet > .u-sheet-row > .u-cell:nth-child(4),
+  .c-list > .u-sheet > .u-sheet-row > .u-cell:nth-child(5),
+  .c-list > .u-sheet > .u-sheet-row > .u-cell:nth-child(6) {
+    display: none;
+  }
+
+  .c-list > .u-sheet > .u-sheet-row {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+  }
+
+  .c-list > .u-sheet > .u-sheet-row > .u-sheet-notes {
+    grid-column: 1 / -1;
+  }
+
+  .c-soon {
+    text-align: left;
+  }
+}
+
+/* У 06 в картинке много места под зарядку и «z»: чтобы сам робот был не меньше, чем на 404, рисуем шире */
+.u-empty.is-apart .u-empty-robot svg.c-sleeper {
+  width: 400px;
+}
+
+@media (max-width: 880px) {
+  .u-empty.is-apart .u-empty-robot svg.c-sleeper {
+    width: 300px;
+  }
+}
+
+/* Аккаунт под списком проектов: удаление спрятано в раскрывающийся блок */
+.c-account {
+  margin-top: var(--s-6);
+}
+
+/* Кнопки в карточке незаконченного расчета */
+.c-draft {
+  display: flex;
+  margin-top: var(--s-3);
+}
+
+/* Ссылка назад на сравнении и в профиле */
+.c-back {
+  display: inline-block;
+  margin: var(--s-3) 0 0;
+  color: var(--blue);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.c-back:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Группа проектов: папка или "Без папки". Заголовок у всех одного размера, значков нет.
+   Пока над группой тянут проект, ее таблица обведена синим */
+.c-group {
+  margin-bottom: var(--s-5);
+  border-radius: var(--r-lg);
+}
+
+.c-group-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  min-height: 44px;
+  margin-bottom: var(--s-2);
+}
+
+.c-group-head h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.c-group-count {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.c-group-empty {
+  margin: 0;
+  padding: var(--s-4);
+  border: 1px dashed color-mix(in srgb, var(--ink) 18%, transparent);
+  border-radius: var(--r-lg);
+  color: var(--ink-soft);
+  font-size: 14px;
+  text-align: center;
+}
+
+.c-group.is-over .u-sheet,
+.c-group.is-over .c-group-empty {
+  background: var(--blue-tint);
+  box-shadow: var(--hair-blue);
+}
+
+.c-group.is-over .c-group-empty {
+  border-color: var(--blue);
+}
+
+/* Название с подписями одним блоком. Сам проект тянут за всю строку (SheetRow с onDragStart) */
+.c-drag {
+  display: block;
+}
+
+.c-new-folder {
+  flex: 0 1 520px;
+}
+
+/* Галочка в первой колонке без подписи */
+.c-list .u-check {
+  min-height: 24px;
+}
+
+.c-move .u-select {
+  min-width: 200px;
+}
+
+/* Сравнение: колонка подписей и по колонке на проект. Шире экрана таблица прокручивается сама,
+   страница остается на месте */
+.c-diff-line {
+  margin: 0 0 var(--s-3);
+  font-size: 15px;
+}
+
+.c-diff-line b {
+  font-weight: 600;
+}
+
+.c-horizon {
+  margin-left: auto;
+  font-size: 13px;
+}
+
+/* Рамка вокруг прокрутки: тень у правого края, пока таблица не долистана до конца */
+.c-compare-frame {
+  position: relative;
+}
+
+.c-compare-frame::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 36px;
+  border-radius: 0 var(--r-lg) var(--r-lg) 0;
+  background: linear-gradient(to left, color-mix(in srgb, var(--shadow) 14%, transparent), transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--fast) var(--ease);
+}
+
+.c-compare-frame.is-more::after {
+  opacity: 1;
+}
+
+.c-compare-swipe {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 var(--s-2);
+  color: var(--blue);
+  font-size: 14px;
+}
+
+.c-compare-swipe span {
+  font-size: 18px;
+}
+
+.c-compare-scroll {
+  overflow-x: auto;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair), var(--lift);
+}
+
+.c-compare {
+  width: 100%;
+  min-width: calc(220px + var(--n) * 190px);
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.c-compare-corner {
+  width: 240px;
+}
+
+.c-compare th,
+.c-compare td {
+  padding: 10px var(--s-3);
+  text-align: left;
+  vertical-align: top;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.c-compare tbody th {
+  font-weight: 400;
+  color: var(--ink);
+}
+
+.c-compare thead th {
+  vertical-align: bottom;
+  padding-top: var(--s-3);
+  box-shadow: none;
+}
+
+.c-compare thead th a {
+  display: block;
+  color: var(--blue);
+  font-weight: 600;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.c-compare thead th a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.c-compare-meta {
+  display: block;
+  margin: 4px 0 6px;
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.c-compare thead a.c-compare-drop {
+  display: inline;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+/* Подпись первой колонки прилипает слева, когда таблица шире экрана */
+.c-compare th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--paper);
+}
+
+.c-compare-block th {
+  padding-top: var(--s-4);
+  font-size: 16px;
+  font-weight: 600 !important;
+  box-shadow: none;
+}
+
+/* Строка-заголовок блока во всю ширину таблицы: прилипает не ячейка, а ее текст, иначе он уезжал при прокрутке вбок */
+.c-compare .c-compare-block th {
+  position: static;
+}
+
+.c-compare-block-name {
+  position: sticky;
+  left: var(--s-3);
+}
+
+.c-compare-group {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--ink-faint);
+  font-family: var(--font);
+  font-size: 13px;
+}
+
+.c-compare td > .mono {
+  display: block;
+}
+
+.c-compare-delta {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.c-compare td .u-badge {
+  margin-top: 4px;
+}
+
+/* Строка, где проекты расходятся, на голубом. Колонка отсчета чуть темнее, чтобы ее было видно */
+.c-compare tr.is-diff td,
+.c-compare tr.is-diff th {
+  background: var(--blue-tint);
+}
+
+.c-compare td.is-base,
+.c-compare thead th.is-base {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--ink) 6%, transparent),
+    inset 1px 0 0 color-mix(in srgb, var(--blue) 18%, transparent),
+    inset -1px 0 0 color-mix(in srgb, var(--blue) 18%, transparent);
+}
+
+/* Окно копии: шире окна подтверждения, поля параметров строками */
+.u-dialog.c-variant {
+  max-width: min(620px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  width: 100%;
+  overflow-y: auto;
+}
+
+.c-why {
+  display: grid;
+  gap: var(--s-2);
+  margin: var(--s-3) 0;
+}
+
+.c-why-one {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: var(--s-2);
+  align-items: start;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  box-shadow: var(--hair);
+  cursor: pointer;
+}
+
+.c-why-one:has(input:checked) {
+  background: var(--blue-tint);
+  box-shadow: var(--hair-blue);
+}
+
+.c-why-one input {
+  margin: 3px 0 0;
+  accent-color: var(--blue);
+}
+
+.c-why-one strong {
+  display: block;
+  font-weight: 600;
+}
+
+.c-why-one span span {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.c-variant-fields .u-frow {
+  grid-template-columns: minmax(0, 1fr) 180px;
+}
+
+.c-variant-staff {
+  padding-top: var(--s-2);
+}
+
+.c-variant-staff .u-alert {
+  margin-bottom: var(--s-1);
+}
+
+.c-variant-name {
+  display: grid;
+  gap: 6px;
+  margin-top: var(--s-3);
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.c-variant-note {
+  margin-top: var(--s-3) !important;
+  font-size: 14px;
+}
+
+.c-variant-note a {
+  color: var(--blue);
+}
+
+/* Профиль: слева главное на одной плите (кто вы), справа без плит почта, пароль и удаление.
+   Колонки начинаются на одной линии, части справа разделены волосяной линией, поля парами */
+.c-profile {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: var(--s-6);
+  align-items: start;
+}
+
+.c-profile-main {
+  display: grid;
+  gap: var(--s-3);
+  padding: var(--s-5);
+  border-radius: var(--r-xl);
+  background: var(--paper);
+  box-shadow: var(--hair), var(--lift);
+}
+
+.c-profile-side {
+  display: grid;
+  min-width: 0;
+}
+
+.c-part {
+  display: grid;
+  gap: var(--s-3);
+  padding: var(--s-5) 0;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.c-part:first-child {
+  padding-top: var(--s-2);
+}
+
+.c-part h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.c-part-now {
+  margin: calc(-1 * var(--s-2)) 0 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.c-part-now .mono {
+  color: var(--ink);
+}
+
+.c-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--s-3);
+}
+
+.c-profile-end {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  padding-top: var(--s-4);
+  font-size: 14px;
+}
+
+.c-profile .u-search,
+.c-dialog-field .u-search {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.c-dialog-field {
+  margin-top: var(--s-3);
+}
+
+/* Кто вы: цветной кружок с буквой, имя крупно, компания и почта под ним */
+.c-who {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding-bottom: var(--s-3);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.c-who .u-avatar {
+  flex: none;
+}
+
+.c-who > span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.c-who strong {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.c-who span span {
+  color: var(--ink-soft);
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.c-field {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.c-field input:disabled {
+  opacity: 0.6;
+}
+
+@media (max-width: 880px) {
+  .c-profile {
+    grid-template-columns: 1fr;
+    gap: var(--s-3);
+  }
+
+  .c-pair {
+    grid-template-columns: 1fr;
+  }
+
+  .c-profile-main {
+    padding: var(--s-4);
+  }
+
+  .c-who strong {
+    font-size: 22px;
+  }
+
+  /* размер кружка задан в разметке, на узком экране его уменьшаем, чтобы почта вставала в строку */
+  .c-who .u-avatar {
+    width: 56px !important;
+    height: 56px !important;
+    font-size: 24px !important;
+  }
+
+  /* подписи узкой колонкой, на проект 150 точек: на экране 375 видно подписи и два проекта */
+  .c-compare {
+    min-width: calc(110px + var(--n) * 150px);
+  }
+
+  .c-compare-corner {
+    width: 110px;
+  }
+
+  .c-compare thead th a {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 14px;
+  }
+
+  .c-compare th,
+  .c-compare td {
+    padding: 8px 10px;
+  }
+
+  .c-horizon {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+}
+
+@media print {
+  .u-header,
+  .c-back,
+  .u-toolbar,
+  .c-row {
+    display: none;
+  }
+
+  .c-compare-scroll {
+    overflow: visible;
+    box-shadow: none;
+  }
+}

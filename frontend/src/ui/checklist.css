@@ -1,0 +1,241 @@
+/* Список дел: переделать, проверить, готово. Цвета из tokens.css: красный это то, что мешает
+   роботу, синий это то, что надо проверить на месте, зеленый готово. Желтого нет */
+.u-todo {
+  padding: var(--s-2) var(--s-4) var(--s-3);
+}
+
+.u-todo-counts {
+  display: grid;
+  grid-template-columns: repeat(3, auto) minmax(0, 1fr);
+  align-items: end;
+  gap: var(--s-5);
+  margin: 0;
+  padding: var(--s-2) 0 var(--s-3);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.u-todo-counts dt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.u-todo-counts dd {
+  margin: 2px 0 0;
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.u-todo-counts .is-redo:not(.is-zero) dd {
+  color: var(--stop);
+}
+
+.u-todo-counts .u-todo-costhead {
+  justify-self: end;
+  text-align: right;
+}
+
+.u-todo-costhead dt {
+  justify-content: flex-end;
+  font-family: var(--font);
+  font-size: 13px;
+}
+
+.u-todo-costhead dd {
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.u-todo-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.u-todo-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) minmax(160px, 260px);
+  gap: var(--s-3);
+  padding: 14px 0;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.u-todo-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: 50%;
+}
+
+.is-redo .u-todo-mark {
+  background: color-mix(in srgb, var(--stop) 12%, transparent);
+  color: var(--stop);
+}
+
+.is-check .u-todo-mark {
+  background: var(--blue-tint);
+  color: var(--blue);
+}
+
+.is-ready .u-todo-mark,
+.u-todo-ready summary .u-todo-mark {
+  background: color-mix(in srgb, var(--go) 12%, transparent);
+  color: var(--go);
+}
+
+.u-todo-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.u-todo-title strong {
+  font-weight: 500;
+  font-size: 16px;
+}
+
+.u-todo-word {
+  font-family: var(--font);
+  font-size: 13px;
+}
+
+.is-redo .u-todo-word {
+  color: var(--stop);
+}
+
+.is-check .u-todo-word {
+  color: var(--blue);
+}
+
+.is-ready .u-todo-word {
+  color: var(--go);
+}
+
+.u-todo-tag {
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.u-todo-body p {
+  /* у смешанного парка слова каждого робота своей строкой */
+  white-space: pre-line;
+  margin: 4px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.u-todo-body small {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-faint);
+  overflow-wrap: anywhere;
+}
+
+.u-todo-body a {
+  color: var(--blue);
+}
+
+/* отдельная ссылка на источник нужна только на телефоне, где основание обрезано */
+.u-todo-src {
+  display: none;
+  margin: 2px 0 0 30px;
+  font-size: 13px;
+}
+
+.u-todo-body small .u-trust {
+  flex: none;
+}
+
+.u-todo-cost {
+  text-align: right;
+  line-height: 1.45;
+}
+
+.u-todo-cost .mono {
+  display: block;
+  font-size: 16px;
+}
+
+.u-todo-cost small {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.u-todo-ready summary {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: 14px 0;
+  cursor: pointer;
+  list-style: none;
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+
+.u-todo-ready summary::-webkit-details-marker {
+  display: none;
+}
+
+.u-todo-ready[open] summary {
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.u-todo-foot {
+  padding-top: var(--s-3);
+}
+
+@media (max-width: 760px) {
+  .u-todo {
+    padding: var(--s-2) var(--s-3) var(--s-3);
+  }
+
+  .u-todo-counts {
+    grid-template-columns: repeat(3, auto);
+    gap: var(--s-4);
+  }
+
+  .u-todo-counts .u-todo-costhead {
+    display: none;
+  }
+
+  .u-todo-row {
+    grid-template-columns: 22px minmax(0, 1fr);
+  }
+
+  /* на телефоне основание в две строки: источник открывается ссылкой */
+  .u-todo-basis {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+
+  .u-todo-title strong {
+    flex-basis: 100%;
+  }
+
+  .u-todo-src {
+    display: inline-block;
+  }
+
+  .u-todo-cost {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .u-todo-cost:empty {
+    display: none;
+  }
+}

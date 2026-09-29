@@ -1,0 +1,147 @@
+/* Второй вариант лендинга: блоки ниже первого экрана берут стили старого (landing.css),
+   здесь только первый экран и то, в чем варианты расходятся. Значения из tokens.css */
+
+/* поля страницы как у шапки набора, иначе край шапки и край текста не совпадали */
+.la-page {
+  --gutter: var(--s-5);
+}
+
+/* правило .l-page a { color: inherit } перекрасило бы белый текст синей кнопки */
+.la-page a.u-btn-primary {
+  color: var(--on-blue);
+  text-decoration: none;
+}
+
+.la-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--s-6);
+  align-items: center;
+  padding-top: clamp(24px, 5vh, 56px);
+}
+
+.la-hero h1 {
+  margin: 0;
+  font-size: clamp(38px, min(4.4vw, 8vh), 64px);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  font-weight: 600;
+  max-inline-size: 15ch;
+  text-wrap: balance;
+}
+
+.la-hero h1 span {
+  color: var(--blue);
+}
+
+.la-lead {
+  margin-top: var(--s-4) !important;
+  font-size: 18px;
+  color: var(--ink-soft);
+  max-inline-size: 42ch;
+}
+
+.la-go {
+  margin-top: var(--s-5);
+  min-height: 52px;
+  font-size: 17px;
+}
+
+.la-note {
+  margin-top: var(--s-3) !important;
+  font-size: 14px;
+  color: var(--ink-faint);
+}
+
+/* Чертеж легче заголовка: тонкие линии, светлый лист */
+/* склад чуть меньше колонки: он доказывает заголовок, а не спорит с ним */
+.la-scene {
+  position: relative;
+  justify-self: end;
+  width: min(100%, 540px);
+  margin: 0 var(--s-4) var(--s-5) 0;
+}
+
+.la-sheet {
+  border-radius: var(--r-xl);
+  padding: var(--s-3) var(--s-4) var(--s-4);
+  background:
+    linear-gradient(color-mix(in srgb, var(--blue) 6%, transparent) 1px, transparent 1px) 0 0 / 100% 20px,
+    linear-gradient(90deg, color-mix(in srgb, var(--blue) 6%, transparent) 1px, transparent 1px) 0 0 / 20px 100%,
+    var(--paper);
+  box-shadow: var(--hair), var(--lift);
+}
+
+.la-sheet svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+/* 07 выглядывает из-под листа слева, как на старом первом экране */
+.la-07 {
+  position: absolute;
+  width: 130px;
+  left: -26px;
+  bottom: -40px;
+  overflow: visible;
+}
+
+/* метка на месте прежнего оранжевого: цвет «ждет в очереди» из прогона смены */
+.la-page .la-hot {
+  background: var(--act-wait);
+}
+
+@media (max-width: 999px) {
+  .la-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .la-scene {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 640px) {
+  .la-page {
+    --gutter: var(--s-3);
+  }
+
+  .la-lead {
+    font-size: 16px;
+  }
+
+  .la-go {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .la-sheet {
+    padding: var(--s-2) var(--s-2) var(--s-3);
+  }
+
+  /* две подписи над листом в узкую строку не влезают */
+  .la-sheet .l-sheet-top span:last-child {
+    display: none;
+  }
+
+  .la-scene {
+    margin-right: 0;
+  }
+
+  .la-07 {
+    width: 96px;
+    left: -8px;
+    bottom: -8px;
+  }
+}
+
+/* Шапка прилипает к верху при прокрутке. Полоса над плашкой залита цветом пола и растворяется
+   книзу: иначе в зазоре над ней проезжают текст и роботы страницы */
+.la-head {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: linear-gradient(var(--sheet) 18px, color-mix(in srgb, var(--sheet) 0%, transparent));
+}

@@ -1,0 +1,19 @@
+/* Раздел "Нормативы": то, чего нет в общих стилях админки */
+.a-lead {
+  margin: 0 0 var(--s-3);
+  max-inline-size: 90ch;
+}
+
+/* Длинный источник и пояснение в строке таблицы: две строки, целиком в карточке правки */
+.a-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* Код норматива длинный и без пробелов: переносим по точкам, чтобы не распирал колонку */
+.a-code {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}

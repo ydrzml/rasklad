@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+
+# Окружение и секреты
+.env
+.env.*
+!.env.example
+
+# Данные организатора. Каталог организатора в репозитории не хранится, администратор
+# загружает выгрузку через админку
+*.xlsx
+catalog_export*.csv
+photos/
+!data/catalog/photos/
+
+# Системное
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Выгрузка описания API и кеш сборки
+frontend/openapi.json
+frontend/tsconfig.tsbuildinfo
+frontend/public/mockups/
+
+# Служебные папки сборки сервера
+*.egg-info/
+backend/build/

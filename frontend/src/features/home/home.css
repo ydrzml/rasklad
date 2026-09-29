@@ -1,0 +1,543 @@
+.h-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: var(--s-5);
+  align-items: start;
+}
+
+.h-list,
+.h-news {
+  list-style: none;
+  margin: 0;
+  padding: 6px 22px;
+}
+
+.h-list li,
+.h-news li {
+  display: grid;
+  gap: var(--s-3);
+  align-items: center;
+  padding: 14px 0;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.h-list li:last-child,
+.h-news li:last-child {
+  box-shadow: none;
+}
+
+.h-list li {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.h-list-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.h-news li {
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: start;
+  font-size: 15px;
+}
+
+.h-date,
+.h-faint {
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+.h-text {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-soft);
+}
+
+/* Админ: цифры сверху и быстрые ссылки */
+.h-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.h-todo li {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.h-count {
+  font-size: 22px;
+  color: var(--blue);
+}
+
+@media (max-width: 900px) {
+  .h-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .h-list,
+  .h-news {
+    padding: 4px 16px;
+  }
+}
+
+/* Вариант 2: сцена как на лендинге */
+.h-scene {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  padding-bottom: var(--s-7);
+}
+
+.h-last {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: var(--s-5);
+  padding: 18px 22px;
+  max-inline-size: 520px;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair), var(--lift);
+}
+
+.h-last-name {
+  font-size: 17px;
+}
+
+.h-last-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
+  padding: 6px 0;
+}
+
+.h-last-figures > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.h-last-figures i {
+  font-style: normal;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.h-last-figures b {
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.h-last-go {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.h-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-4);
+}
+
+.h-news-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 14px 18px;
+  border-radius: var(--r-xl);
+  background: var(--paper);
+  box-shadow: var(--hair), var(--lift);
+}
+
+.h-news-card .u-card-photo {
+  background:
+    linear-gradient(color-mix(in srgb, var(--blue) 6%, transparent) 1px, transparent 1px) 0 0 / 100% 16px,
+    linear-gradient(90deg, color-mix(in srgb, var(--blue) 6%, transparent) 1px, transparent 1px) 0 0 / 16px 100%,
+    var(--paper-cool);
+}
+
+.h-news-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.h-news-card h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.h-news-card p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+@media (max-width: 1100px) {
+  .h-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  /* на телефоне новости листаются вбок: столбиком четыре карточки занимали три экрана */
+  .h-cards {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 78%;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: var(--s-2);
+  }
+
+  .h-cards > * {
+    scroll-snap-align: start;
+  }
+
+  .h-last-figures b {
+    font-size: 17px;
+  }
+}
+
+/* на странице лендинга ссылки красятся под текст, а ссылка-кнопка должна остаться синей */
+.la-page a.u-btn-link {
+  color: var(--blue);
+}
+
+/* колонки стоят рядом, отступ набора между блоками подряд им не нужен: заголовки на одной линии */
+.h-grid > section + section {
+  margin-top: 0;
+}
+
+/* Вариант 4: заголовок скромнее лендинга, это не второй лендинг */
+.h-studio h1 {
+  font-size: clamp(30px, min(3vw, 6vh), 44px);
+}
+
+.h-studio .la-lead {
+  font-size: 17px;
+}
+
+.h-sheet-name {
+  max-inline-size: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.h-scene-news .h-cards {
+  margin-top: var(--s-3);
+}
+
+/* Админ в том же духе: дела на листе, 12 проверяет из-под листа */
+.h-four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+:is(.la-sheet, .h-sheet) .h-todo {
+  padding: 0;
+}
+
+.h-todo-link {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.h-todo-link:hover b {
+  color: var(--blue);
+}
+
+.h-links-panel {
+  padding: 20px 22px;
+}
+
+@media (max-width: 640px) {
+  .h-four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Первый экран по общей сетке: две колонки одной высоты, верх листа на уровне заголовка,
+   низ на уровне нижней карточки. Лист тянется, чертеж внутри по центру */
+.h-studio {
+  align-items: stretch;
+}
+
+.h-studio.is-alone {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.h-studio-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.h-studio-left .h-last {
+  align-self: stretch;
+  max-inline-size: none;
+  margin-top: auto;
+}
+
+.h-studio-left .la-go {
+  margin-bottom: var(--s-5);
+}
+
+.h-studio .h-stretch {
+  display: flex;
+  width: 100%;
+  margin: 0;
+  justify-self: stretch;
+}
+
+.h-stretch :is(.la-sheet, .h-sheet) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.h-stretch .la-sheet svg {
+  flex: 1;
+  max-height: 440px;
+  margin: auto 0;
+}
+
+/* Админ: слева белый блок без миллиметровки, справа лист дел той же высоты */
+.h-white {
+  padding: var(--s-5);
+  border-radius: var(--r-xl);
+  background: var(--paper);
+  box-shadow: var(--hair), var(--lift);
+}
+
+.h-last.is-flat {
+  padding: var(--s-3) 0 0;
+  border-radius: 0;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+/* 12 стоит на листе в правом нижнем углу и разглядывает список: на любой ширине внутри листа */
+.h-peek :is(.la-sheet, .h-sheet) {
+  position: relative;
+  padding-bottom: 136px;
+}
+
+/* правило листа растягивает svg во всю ширину, у робота свой размер */
+.h-peek :is(.la-sheet, .h-sheet) .h-12 {
+  position: absolute;
+  right: 22px;
+  bottom: 14px;
+  width: 78px;
+}
+
+@media (max-width: 640px) {
+  .h-white {
+    padding: var(--s-4);
+  }
+}
+
+/* одна сетка на всю страницу админа: нижние колонки делятся так же, как первый экран */
+.h-grid.h-even {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--s-6);
+}
+
+@media (max-width: 999px) {
+  .h-grid.h-even {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Графики админа по дням: одна величина, один синий, подпись числом у пика и у сегодня */
+.h-charts {
+  align-items: stretch;
+}
+
+.h-chart-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-4);
+}
+
+.h-chart {
+  margin: 0;
+  padding: 18px 22px;
+}
+
+.h-chart figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 15px;
+}
+
+.h-chart-plot {
+  position: relative;
+  margin-top: var(--s-2);
+}
+
+.h-chart-plot {
+  min-height: 116px;
+}
+
+.h-chart-plot svg {
+  display: block;
+  overflow: visible;
+}
+
+.h-chart-base {
+  stroke: color-mix(in srgb, var(--ink) 14%, transparent);
+  stroke-width: 1;
+}
+
+.h-chart-bar {
+  fill: var(--blue);
+  opacity: 0.85;
+}
+
+.h-chart-bar.is-hover {
+  opacity: 1;
+}
+
+.h-chart-value,
+.h-chart-axis {
+  font-family: var(--font);
+  font-size: 11px;
+  fill: var(--ink-soft);
+}
+
+.h-chart-tip {
+  position: absolute;
+  top: -6px;
+  transform: translate(-50%, -100%);
+  padding: 4px 8px;
+  border-radius: var(--r-sm);
+  background: var(--ink);
+  color: var(--on-ink);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Ссылки админки узкой полосой между первым экраном и графиками */
+.h-strip-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+@media (max-width: 640px) {
+  .h-chart-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* три ссылки переносятся на вторую строку: прокрутка вбок без подсказки выглядела обрезанной */
+  .h-strip-links .u-btn {
+    flex: none;
+  }
+}
+
+/* Как мы считаем: компактные плитки со ссылками на разделы методики */
+.h-how-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+
+.h-how-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 15px;
+}
+
+.h-how-tile:hover {
+  box-shadow: var(--hair-blue), var(--lift);
+}
+
+.h-how-tile.is-wide {
+  grid-column: span 2;
+}
+
+.h-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  font-size: 13px;
+}
+
+.h-steps li::before {
+  counter-increment: step;
+  content: "0" counter(step) " ";
+  color: var(--blue);
+}
+
+.h-trust-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.h-trust-row > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.h-trust-row i {
+  font-style: normal;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 900px) {
+  .h-how-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .h-how-tile.is-wide {
+    grid-column: auto;
+  }
+}
+
+/* Лист дел администратора: вид как у листа чертежа, но цвета из токенов страницы.
+   Лист чертежа в темной теме остается светлым, а список дел темнеет вместе со всем */
+.h-sheet {
+  border-radius: var(--r-xl);
+  padding: var(--s-3) var(--s-4) var(--s-4);
+  background:
+    linear-gradient(color-mix(in srgb, var(--blue) 6%, transparent) 1px, transparent 1px) 0 0 / 100% 20px,
+    linear-gradient(90deg, color-mix(in srgb, var(--blue) 6%, transparent) 1px, transparent 1px) 0 0 / 20px 100%,
+    var(--paper);
+  box-shadow: var(--hair), var(--lift);
+}
+
+@media (max-width: 640px) {
+  .h-sheet {
+    padding: var(--s-2) var(--s-2) var(--s-3);
+  }
+
+  .h-sheet .l-sheet-top span:last-child {
+    display: none;
+  }
+}
+
+/* Подписи над блоками главных: строчными и крупнее, как на шаге 5. На листе с планом свои */
+.h-scene .l-label:not(.l-sheet-top *) {
+  font-family: var(--font);
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+}

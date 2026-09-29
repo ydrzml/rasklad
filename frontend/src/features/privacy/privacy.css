@@ -1,0 +1,21 @@
+/* Страница "Какие данные храним": обычный текст в одну колонку, строка не длиннее 70 знаков */
+.pv-body {
+  max-width: 70ch;
+  padding: var(--s-4) var(--s-5);
+}
+
+.pv-body section + section {
+  margin-top: var(--s-5);
+}
+
+.pv-body h2 {
+  margin: 0 0 var(--s-2);
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+
+.pv-body p {
+  margin: 0 0 var(--s-2);
+  color: var(--ink-soft);
+  line-height: 1.55;
+}

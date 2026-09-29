@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 150" width="100%" height="100%">
+  <g fill="none" stroke="#1e4f8e">
+    <line x1="15" y1="7" x2="405" y2="7" stroke-width="1" />
+    <line x1="15" y1="4" x2="15" y2="10" stroke-width="1" />
+    <line x1="210" y1="4" x2="210" y2="10" stroke-width="1" />
+    <line x1="405" y1="4" x2="405" y2="10" stroke-width="1" />
+    <line x1="13" y1="9" x2="17" y2="5" stroke-width="1" />
+    <line x1="208" y1="9" x2="212" y2="5" stroke-width="1" />
+    <line x1="403" y1="9" x2="407" y2="5" stroke-width="1" />
+    <line x1="7" y1="15" x2="7" y2="135" stroke-width="1" />
+    <line x1="4" y1="15" x2="10" y2="15" stroke-width="1" />
+    <line x1="4" y1="75" x2="10" y2="75" stroke-width="1" />
+    <line x1="4" y1="135" x2="10" y2="135" stroke-width="1" />
+    <line x1="5" y1="17" x2="9" y2="13" stroke-width="1" />
+    <line x1="5" y1="137" x2="9" y2="133" stroke-width="1" />
+    <rect x="15" y="15" width="390" height="120" stroke-width="1.4" />
+    <rect x="18" y="18" width="384" height="114" stroke-width="1" />
+    <path d="M10,15 H22 M15,10 V22 M398,15 H410 M405,10 V22 M10,135 H22 M15,128 V140 M398,135 H410 M405,128 V140" stroke-width="1" />
+    <line x1="45" y1="135" x2="85" y2="135" stroke-width="1.4" />
+    <line x1="45" y1="138" x2="85" y2="138" stroke-width="1.4" />
+    <line x1="45" y1="132" x2="45" y2="141" stroke-width="1.2" />
+    <line x1="85" y1="132" x2="85" y2="141" stroke-width="1.2" />
+    <path d="M48,135 V138 M54,135 V138 M60,135 V138 M66,135 V138 M72,135 V138 M78,135 V138" stroke-width="1" />
+    <line x1="105" y1="135" x2="145" y2="135" stroke-width="1.4" />
+    <line x1="105" y1="138" x2="145" y2="138" stroke-width="1.4" />
+    <line x1="105" y1="132" x2="105" y2="141" stroke-width="1.2" />
+    <line x1="145" y1="132" x2="145" y2="141" stroke-width="1.2" />
+    <path d="M108,135 V138 M114,135 V138 M120,135 V138 M126,135 V138 M132,135 V138 M138,135 V138" stroke-width="1" />
+    <line x1="275" y1="135" x2="315" y2="135" stroke-width="1.4" />
+    <line x1="275" y1="138" x2="315" y2="138" stroke-width="1.4" />
+    <line x1="275" y1="132" x2="275" y2="141" stroke-width="1.2" />
+    <line x1="315" y1="132" x2="315" y2="141" stroke-width="1.2" />
+    <path d="M278,135 V138 M284,135 V138 M290,135 V138 M296,135 V138 M302,135 V138 M308,135 V138" stroke-width="1" />
+    <line x1="335" y1="135" x2="375" y2="135" stroke-width="1.4" />
+    <line x1="335" y1="138" x2="375" y2="138" stroke-width="1.4" />
+    <line x1="335" y1="132" x2="335" y2="141" stroke-width="1.2" />
+    <line x1="375" y1="132" x2="375" y2="141" stroke-width="1.2" />
+    <path d="M338,135 V138 M344,135 V138 M350,135 V138 M356,135 V138 M362,135 V138 M368,135 V138" stroke-width="1" />
+    <rect x="35" y="26" width="135" height="84" stroke-dasharray="4,2" stroke-width="1" />
+    <rect x="38" y="29" width="129" height="11" stroke-width="1.2" />
+    <rect x="38" y="43" width="129" height="11" stroke-width="1.2" />
+    <rect x="38" y="82" width="129" height="11" stroke-width="1.2" />
+    <rect x="38" y="96" width="129" height="11" stroke-width="1.2" />
+    <path d="M52,29 V40 M66,29 V40 M80,29 V40 M94,29 V40 M108,29 V40 M122,29 V40 M136,29 V40 M150,29 V40" stroke-width="1" />
+    <path d="M52,43 V54 M66,43 V54 M80,43 V54 M94,43 V54 M108,43 V54 M122,43 V54 M136,43 V54 M150,43 V54" stroke-width="1" />
+    <path d="M52,82 V93 M66,82 V93 M80,82 V93 M94,82 V93 M108,82 V93 M122,82 V93 M136,82 V93 M150,82 V93" stroke-width="1" />
+    <path d="M52,96 V107 M66,96 V107 M80,96 V107 M94,96 V107 M108,96 V107 M122,96 V107 M136,96 V107 M150,96 V107" stroke-width="1" />
+    <rect x="250" y="26" width="135" height="84" stroke-dasharray="4,2" stroke-width="1" />
+    <rect x="253" y="29" width="129" height="11" stroke-width="1.2" />
+    <rect x="253" y="43" width="129" height="11" stroke-width="1.2" />
+    <rect x="253" y="82" width="129" height="11" stroke-width="1.2" />
+    <rect x="253" y="96" width="129" height="11" stroke-width="1.2" />
+    <path d="M267,29 V40 M281,29 V40 M295,29 V40 M309,29 V40 M323,29 V40 M337,29 V40 M351,29 V40 M365,29 V40" stroke-width="1" />
+    <path d="M267,43 V54 M281,43 V54 M295,43 V54 M309,43 V54 M323,43 V54 M337,43 V54 M351,43 V54 M365,43 V54" stroke-width="1" />
+    <path d="M267,82 V93 M281,82 V93 M295,82 V93 M309,82 V93 M323,82 V93 M337,82 V93 M351,82 V93 M365,82 V93" stroke-width="1" />
+    <path d="M267,96 V107 M281,96 V107 M295,96 V107 M309,96 V107 M323,96 V107 M337,96 V107 M351,96 V107 M365,96 V107" stroke-width="1" />
+    <rect x="105" y="116" width="40" height="12" stroke-width="1" />
+    <line x1="105" y1="116" x2="145" y2="128" stroke-width="1" />
+    <line x1="145" y1="116" x2="105" y2="128" stroke-width="1" />
+    <rect x="275" y="116" width="40" height="12" stroke-width="1" />
+    <line x1="275" y1="116" x2="315" y2="128" stroke-width="1" />
+    <line x1="315" y1="116" x2="275" y2="128" stroke-width="1" />
+    <circle cx="210" cy="22" r="2.5" stroke-width="1.2" />
+    <circle cx="210" cy="68" r="2.5" stroke-width="1.2" />
+    <circle cx="210" cy="114" r="2.5" stroke-width="1.2" />
+    <path d="M210,17 V27 M205,22 H215 M210,63 V73 M205,68 H215 M210,109 V119 M205,114 H215" stroke-width="1" />
+  </g>
+  <path d="M 125,135 L 125,68 L 192,68 L 192,22 L 392,22 L 392,68 L 222,68" 
+        fill="none" 
+        stroke="#4a86cf" 
+        stroke-width="1.2" 
+        stroke-dasharray="4,3" 
+        stroke-linejoin="round" 
+        stroke-linecap="round" />
+  <g fill="none" stroke="#4a86cf" stroke-width="1">
+    <path d="M 123,135 H 127 M 125,133 V 137" />
+    <path d="M 190,22 H 194 M 192,20 V 24" />
+    <path d="M 390,22 H 394 M 392,20 V 24" />
+    <path d="M 390,68 H 394 M 392,66 V 70" />
+  </g>
+  <rect x="212" y="63" width="10" height="10" rx="1" fill="#0b4fa8" stroke="#1e4f8e" stroke-width="1.2" />
+</svg>

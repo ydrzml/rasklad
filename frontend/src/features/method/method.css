@@ -1,0 +1,349 @@
+/* Страница "Как мы считаем". Цвета, тени и отступы из набора (tokens.css, ui.css) */
+
+.m-page section {
+  scroll-margin-top: var(--s-4);
+}
+
+/* Главная оговорка страницы плашкой */
+.m-lead {
+  margin: 0 0 var(--s-5);
+  padding: var(--s-3) var(--s-4);
+  max-inline-size: 90ch;
+  border-radius: var(--r-lg);
+  background: var(--blue-tint);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.m-lead b {
+  font-weight: 600;
+}
+
+.m-body {
+  display: grid;
+  gap: var(--s-3);
+  padding: var(--s-4);
+}
+
+.m-body p,
+.m-note {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+/* Путь расчета: пять плиток по порядку, между ними стрелка */
+.m-path {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--s-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.m-path li {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: var(--s-3);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.m-path li b {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.m-path li + li::before {
+  content: "→";
+  position: absolute;
+  left: calc(-1 * var(--s-4));
+  top: 50%;
+  width: var(--s-4);
+  text-align: center;
+  transform: translateY(-50%);
+  color: var(--ink-faint);
+}
+
+.m-path-idx {
+  font-size: 11px;
+  color: var(--blue);
+}
+
+/* Парк картинкой: столбик спроса и столбик из роботов той же высоты */
+.m-bars {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: var(--s-5);
+  height: 280px;
+}
+
+.m-bar {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  justify-items: center;
+  gap: var(--s-2);
+  width: 170px;
+}
+
+.m-bar-col,
+.m-bar-stack {
+  width: 72px;
+  height: 100%;
+}
+
+.m-bar-col {
+  border-radius: 8px 8px 2px 2px;
+  background: var(--blue-tint);
+  box-shadow: inset 0 0 0 1.5px var(--blue);
+}
+
+.m-bar-stack {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 3px;
+}
+
+.m-bar-stack i {
+  flex: 1;
+  border-radius: 4px;
+  background: var(--sc-buy);
+}
+
+.m-bar-cap {
+  display: grid;
+  justify-items: center;
+  font-size: 13px;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.m-bar-cap b {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.m-bars-sign {
+  align-self: center;
+  font-size: 28px;
+  color: var(--ink-faint);
+}
+
+/* Окупаемость крупной формулой из трех чисел */
+.m-big {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--s-4);
+  margin: 0;
+}
+
+.m-big span {
+  display: grid;
+  gap: 2px;
+}
+
+.m-big small {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.m-big b {
+  font-size: clamp(26px, 3vw, 36px);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.m-big span:last-child b {
+  color: var(--blue);
+}
+
+.m-big i {
+  padding-bottom: 4px;
+  font-style: normal;
+  font-size: 28px;
+  color: var(--ink-faint);
+}
+
+/* Шкала доверия цветной полосой: ширина куска по числу значений с этой оценкой.
+   Синие оценки держатся на источниках, серые слабее, сигнальные это спорное и допущения */
+.m-scale {
+  display: flex;
+  height: 36px;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.m-scale span {
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  color: #fff;
+}
+
+.m-page .is-strong {
+  background: var(--blue-deep);
+}
+
+.m-page .is-good {
+  background: var(--blue);
+}
+
+.m-page .is-mid {
+  background: #6f95c9;
+}
+
+.m-page .is-weak {
+  background: #b9c9dc;
+  color: var(--ink);
+}
+
+.m-page .is-bad {
+  background: var(--signal);
+}
+
+.m-scale-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 6px var(--s-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.m-scale-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.m-scale-legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.m-scale-legend b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.m-scale-legend span {
+  margin-left: auto;
+  color: var(--ink-faint);
+}
+
+.m-list {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+  padding-left: 18px;
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+@media (max-width: 880px) {
+  .m-path {
+    grid-template-columns: 1fr;
+    gap: var(--s-2);
+  }
+
+  .m-path li + li::before {
+    content: none;
+  }
+
+  .m-body {
+    padding: var(--s-3);
+  }
+
+  .m-bars {
+    gap: var(--s-3);
+    height: 220px;
+  }
+
+  .m-bar {
+    width: 120px;
+  }
+}
+
+/* Плиты страницы легче, чем плиты рабочих шагов: волосяная линия без тяжелой тени */
+.m-page .u-panel {
+  box-shadow: var(--hair);
+}
+
+/* "подробнее" внутри плиты без своей рамки и нижнего отступа: иначе снизу плиты воздуха
+   больше, чем сверху, и рамка в рамке выглядит тяжело */
+.m-body .u-fold {
+  margin: 0;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.m-body > :last-child {
+  margin-bottom: 0;
+}
+
+/* Ответ окупаемости крупнее остальных чисел формулы */
+.m-big span:last-child b {
+  font-size: clamp(34px, 3.8vw, 48px);
+  font-weight: 600;
+}
+
+.m-body .u-fold summary {
+  padding: 0;
+}
+
+/* Темная тема: самый темный кусок шкалы сливался с фоном, светлый был с белым текстом */
+:root[data-theme="dark"] .m-page .is-strong {
+  background: var(--blue-line);
+  color: var(--on-blue);
+}
+
+:root[data-theme="dark"] .m-page .is-good {
+  color: var(--on-blue);
+}
+
+:root[data-theme="dark"] .m-page .is-mid {
+  background: color-mix(in srgb, var(--blue) 55%, var(--paper));
+}
+
+:root[data-theme="dark"] .m-page .is-weak {
+  background: color-mix(in srgb, var(--blue) 25%, var(--paper));
+  color: var(--ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .m-page .is-strong {
+    background: var(--blue-line);
+    color: var(--on-blue);
+  }
+
+  :root:not([data-theme]) .m-page .is-good {
+    color: var(--on-blue);
+  }
+
+  :root:not([data-theme]) .m-page .is-mid {
+    background: color-mix(in srgb, var(--blue) 55%, var(--paper));
+  }
+
+  :root:not([data-theme]) .m-page .is-weak {
+    background: color-mix(in srgb, var(--blue) 25%, var(--paper));
+    color: var(--ink);
+  }
+}

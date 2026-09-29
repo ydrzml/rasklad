@@ -1,0 +1,507 @@
+/* Раскладка админки. Цвета, тени и скругления берем из набора (tokens.css, ui.css). */
+
+.a-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.a-gap {
+  flex: 1;
+}
+
+.a-faint {
+  color: var(--ink-faint);
+}
+
+/* Выбор из списка в наборе растянут на всю ширину: над списком решений он стоит в строку с поиском */
+.u-bar .u-select {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.u-bar .u-search {
+  min-width: 240px;
+}
+
+.a-said {
+  margin: 0 0 var(--s-3);
+}
+
+.a-more {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--s-3);
+}
+
+.a-recent {
+  margin-top: var(--s-6);
+}
+
+/* Название решения нажимается и раскрывает карточку под строкой */
+.a-name {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.a-name b {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.a-name span {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.a-name:hover b {
+  color: var(--blue);
+}
+
+.a-name:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Плита над списком: загрузка выгрузки и новое решение */
+.a-plate {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+  padding: 22px 24px;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair), var(--lift);
+}
+
+.a-plate h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.a-plate p {
+  margin: 0;
+  max-inline-size: 80ch;
+}
+
+.a-file {
+  position: relative;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.a-file input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.a-file:has(input:focus-visible) {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+
+.a-report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.a-report p {
+  margin: 0;
+}
+
+/* Поля карточки: четыре колонки, длинные поля на две */
+.a-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-2) 0 var(--s-4);
+}
+
+.a-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+
+.a-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.a-field-top {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-height: 22px;
+}
+
+/* Метка «вручную» и возврат к значению организатора прямо у подписи поля */
+.a-manual {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.a-manual .u-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+}
+
+.a-reset {
+  border: none;
+  background: none;
+  padding: 2px 4px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--blue);
+  cursor: pointer;
+  border-radius: var(--r-sm);
+}
+
+.a-reset:hover {
+  background: var(--blue-tint);
+}
+
+.a-field.is-wide {
+  grid-column: span 2;
+}
+
+.a-checks {
+  grid-column: span 2;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-4);
+}
+
+.a-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--r-sm);
+  background: var(--sheet);
+  box-shadow: var(--edge);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.a-input:focus {
+  outline: none;
+  box-shadow: var(--hair-blue);
+  background: var(--paper);
+}
+
+.a-sub {
+  margin: var(--s-3) 0 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.a-rating {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.a-rating select {
+  width: 60px;
+}
+
+.a-spec-actions {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.a-source {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.a-source a {
+  font-size: 12px;
+  color: var(--blue);
+}
+
+.a-add {
+  gap: 6px;
+}
+
+.a-add .u-btn {
+  font-size: 13px;
+  padding: 6px 12px;
+}
+
+/* Фото: миниатюра в списке и блок в карточке */
+.a-thumb {
+  display: block;
+  width: 64px;
+  height: 48px;
+  border-radius: var(--r-sm);
+  object-fit: cover;
+  box-shadow: var(--hair);
+  background-color: var(--sheet);
+}
+
+.a-photo {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: var(--s-4);
+  align-items: start;
+}
+
+.a-photo-frame {
+  display: grid;
+  place-items: center;
+  height: 220px;
+  border-radius: var(--r-md);
+  box-shadow: var(--hair);
+  overflow: hidden;
+}
+
+.a-photo-frame img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.a-photo-empty {
+  padding: var(--s-4);
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.a-photo-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.a-photo-hint {
+  margin: 0;
+  font-size: 12px;
+}
+
+.a-file.is-busy {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* История правок: когда, что, кто, было и стало */
+.a-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  font-size: 14px;
+}
+
+.a-history li {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: var(--s-3);
+}
+
+.a-history .mono {
+  font-size: 12px;
+  padding-top: 2px;
+}
+
+.a-diff {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.a-diff s {
+  color: var(--ink-faint);
+}
+
+@media (max-width: 1080px) {
+  .a-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Кнопка "Фильтры" нужна только на узком экране, на широком фильтры стоят в строку как раньше */
+.a-filter-toggle {
+  display: none;
+}
+
+.a-filters {
+  display: contents;
+}
+
+@media (max-width: 640px) {
+  .a-filter-toggle {
+    display: inline-flex;
+  }
+
+  .a-filters {
+    display: none;
+  }
+
+  .a-filters.is-open {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    width: 100%;
+  }
+
+  .a-filters.is-open .u-select {
+    width: 100%;
+  }
+}
+
+@media (max-width: 880px) {
+  .a-photo {
+    grid-template-columns: 1fr;
+  }
+
+  .a-form {
+    grid-template-columns: 1fr;
+  }
+
+  .a-field.is-wide,
+  .a-checks {
+    grid-column: auto;
+  }
+
+  .a-history li {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
+/* Объекты и операции решения */
+.a-count {
+  margin-left: 6px;
+  opacity: 0.6;
+}
+.a-short {
+  color: var(--warn);
+}
+.a-uses ul {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+.a-use {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr) 110px auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.a-use-rejected b {
+  font-weight: 400;
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.a-proposals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.a-proposal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s-3);
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  box-shadow: var(--hair);
+  font-size: 14px;
+}
+
+.a-proposal .a-faint {
+  display: block;
+  font-size: 13px;
+}
+
+.a-proposal .a-input {
+  inline-size: 110px;
+}
+
+.a-checks-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
+
+@media (max-width: 720px) {
+  .a-proposal {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.a-tree {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: 18px 22px;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.a-tree-list {
+  list-style: none;
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.a-tree > .a-tree-list {
+  padding-left: 0;
+}
+
+.a-tree summary {
+  cursor: pointer;
+  padding: 3px 0;
+}
+
+.a-tree-leaf {
+  border: 0;
+  padding: 2px 0;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.a-tree-leaf:hover {
+  color: var(--blue);
+  text-decoration: underline;
+}

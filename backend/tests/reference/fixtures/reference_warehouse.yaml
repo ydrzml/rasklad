@@ -1,0 +1,136 @@
+# ЭТАЛОН. Данные склада из датасета организатора и значения config/model.yaml на момент расчета эталона.
+# Все ожидаемые числа посчитаны формулами в Excel, независимо от кода: файл эталона ведет Саша.
+# Не редактировать вместе с config/model.yaml: этот файл замораживает формулы, а не данные.
+# Если меняете формулу, пересчитайте Excel и только потом меняйте ожидания в test_reference_case.py.
+
+engine:
+  max_fleet: 500
+  geometry:
+    route_factor: 0.75
+economics:
+  horizon_years: 5
+  annual_work_hours: 1972
+  discount_rate: 0.14
+  wage_growth: 0.07
+  energy_price_growth: 0.09
+  inflation: 0.04
+  energy_price_rub_kwh: 9
+  capex_reserve_share: 0.1
+  peak_reserve_share: 0.15
+  payback_bands_years:
+  - 3
+  - 5
+  payroll:
+    insurance_rate: 0.3
+    insurance_rate_above_limit: 0.151
+    insurance_base_limit_rub: 2979000
+    injury_insurance_rate: 0.006
+    workwear_rub_year: 0
+    turnover_rate: 0
+    hire_cost_months: 0
+subsidies:
+- id: example-grant
+  name: 'Пример: субсидия на оборудование (название и условия пока заглушка)'
+  kind: capex_grant
+  share: 0.25
+  cap_rub: 10000000
+robots:
+- id: ronavi-h1500
+  type: amr
+  vendor: Ronavi Robotics
+  model: H1500
+  price_rub: 2700000
+  nominal_trips_per_hour: 0
+  avg_speed_m_s: 1.0
+  handling_s: 20
+  utilization: 0.75
+  robots_per_charger: 5
+  charger_price_rub: 300000
+  software_rub: 1500000
+  commissioning_share: 0.1
+  maintenance_share_year: 0.05
+  license_rub_year: 60000
+  avg_power_kw: 0.5
+  operator_attention_min_per_hour: 1.5
+  service_life_years: 5
+  battery_price_rub: 270000
+  battery_life_years: 3
+  station_price_rub: 0
+  raas:
+    fee_rub_month: 100000
+    contract_months: 36
+    damage_share_year: 0.01
+    support_share: 0
+- id: ronavi-m
+  type: amr
+  vendor: Ronavi Robotics
+  model: M
+  price_rub: 2400000
+  nominal_trips_per_hour: 30
+  utilization: 0.75
+  robots_per_charger: 5
+  charger_price_rub: 300000
+  software_rub: 1500000
+  commissioning_share: 0.1
+  maintenance_share_year: 0.05
+  license_rub_year: 60000
+  avg_power_kw: 0.5
+  operator_attention_min_per_hour: 1.5
+  service_life_years: 5
+  battery_price_rub: 240000
+  battery_life_years: 3
+  station_price_rub: 500000
+  raas:
+    fee_rub_month: 89000
+    contract_months: 36
+    damage_share_year: 0.01
+    support_share: 0
+facilities:
+- id: warehouse
+  name: Склад (торговля)
+  schedule:
+    shifts: 2
+    shift_hours: 11
+    days_per_year: 365
+  min_operator_posts: 1
+  peak_factor: 1.5
+  staff_loss_share: 0.25
+  active_area_m2: 10000
+  operator_salary_premium: 0
+  implementation:
+    integration_rub: 5000000
+    infrastructure_rub: 3000000
+    retraining_rub_per_person: 10000
+    hiring_rub_per_person: 50000
+    communications_rub_year: 300000
+  staff:
+  - id: forklift-operators
+    role: forklift_operator
+    headcount: 25
+    salary_month: 120000
+  - id: pickers
+    role: picker
+    headcount: 100
+    salary_month: 100000
+  operations:
+  - id: pallet_transport
+    name: Перевозка паллет между зонами
+    volume_per_day: 2000
+    automatable_share: 0.95
+    performed_by: [forklift_operator]
+    ops_per_trip: 1
+  - id: piece_picking
+    name: Мелкоштучный отбор
+    volume_per_day: 100000
+    automatable_share: 0.3
+    performed_by: [picker]
+    productivity_before: 150
+    productivity_after: 200
+    ops_per_trip: 1
+roles:
+  forklift_operator:
+    id: forklift_operator
+    productivity: 18.5
+  picker:
+    id: picker
+    productivity: 150

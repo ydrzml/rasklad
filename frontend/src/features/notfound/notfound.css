@@ -1,0 +1,40 @@
+/* Страница 404: крупные цифры фоном, робот перед ними. Цвета из tokens.css */
+.nf-art {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-items: end;
+  min-height: 300px;
+}
+
+.nf-code {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: clamp(130px, 15vw, 230px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--blue-pale);
+  user-select: none;
+}
+
+.u-empty-robot svg.nf-bot {
+  position: relative;
+  width: 320px;
+}
+
+@media (max-width: 880px) {
+  .nf-art {
+    min-height: 200px;
+  }
+
+  .nf-code {
+    font-size: 110px;
+  }
+
+  .u-empty-robot svg.nf-bot {
+    width: 240px;
+  }
+}

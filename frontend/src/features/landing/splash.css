@@ -1,0 +1,65 @@
+/* Заставка поверх лендинга: лист в клетку во весь экран, сцена по центру */
+.s-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: var(--s-3);
+  background-color: var(--sheet);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--blue-line) 8%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--blue-line) 8%, transparent) 1px, transparent 1px);
+  background-size: 20px 20px;
+  cursor: pointer;
+  transition: opacity 300ms var(--ease);
+}
+
+.s-splash.is-leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.s-stage {
+  width: min(100%, 1040px);
+  height: auto;
+  overflow: visible;
+}
+
+.s-skip {
+  position: absolute;
+  top: var(--s-3);
+  right: var(--s-3);
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  box-shadow: var(--hair);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+.s-skip:hover {
+  color: var(--ink);
+}
+
+.s-title {
+  font-family: var(--font);
+  font-size: 64px;
+  font-weight: 600;
+  letter-spacing: -1.3px;
+}
+
+.s-cap {
+  font-family: var(--font);
+  font-size: 16px;
+  fill: var(--ink-soft);
+}
+
+.s-number {
+  font-family: var(--mono);
+  font-size: 19px;
+  fill: var(--ink-soft);
+}

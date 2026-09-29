@@ -1,0 +1,162 @@
+/* Строки-сводки блоков шага 5: список на всю ширину, одна под другой. Полный блок под своей строкой */
+.u-digests {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: var(--s-6);
+}
+
+.u-digest-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.u-digest.is-open .u-digest-row {
+  box-shadow: var(--hair-blue);
+}
+
+.u-digest-text {
+  min-width: 0;
+}
+
+.u-digest-row h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.u-digest-line {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.u-digest-facts {
+  display: flex;
+  gap: var(--s-4);
+  margin: 0;
+}
+
+.u-digest-facts dt {
+  font-size: 13px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.u-digest-facts dd {
+  margin: 2px 0 0;
+  font-size: 20px;
+  white-space: nowrap;
+}
+
+.u-digest-facts small {
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+/* Кнопка всегда в последней колонке: у строки без цифр (что будет, если, пока считаем)
+   иначе она вставала в среднюю колонку и уезжала влево от кнопок соседних строк */
+.u-digest-more {
+  grid-column: -2 / -1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 132px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  box-shadow: var(--hair);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.u-digest-more:hover,
+.u-digest.is-open .u-digest-more {
+  color: var(--blue);
+  box-shadow: var(--hair-blue);
+}
+
+.u-digest-more:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.u-digest-more .u-chev {
+  display: inline-flex;
+  transform: rotate(90deg);
+  transition: transform var(--fast) var(--ease);
+}
+
+.u-digest.is-open .u-digest-more .u-chev {
+  transform: rotate(-90deg);
+}
+
+/* Полный блок прямо под строкой, как стоял на странице раньше. Заголовок блока уже в строке */
+.u-digest-body {
+  padding: var(--s-4) 0 var(--s-5);
+}
+
+.u-digest,
+.u-digest [id] {
+  scroll-margin-top: var(--s-3);
+}
+
+/* Как подобран парк: кривая в начале блока "Откуда цифры" */
+.u-fleet {
+  margin-bottom: var(--s-4);
+}
+
+.u-main .u-digest-body section,
+.u-digest-body #scenarios {
+  margin-top: 0;
+}
+
+.u-digest-body > section > .u-block-head:first-child > h2,
+.u-digest-body > div > section > .u-block-head:first-child > h2 {
+  display: none;
+}
+
+@media (max-width: 880px) {
+  .u-digest-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .u-digest-facts {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 640px) {
+  .u-digest-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-2);
+    padding: var(--s-3);
+  }
+
+  .u-digest-facts {
+    grid-row: auto;
+    gap: var(--s-2) var(--s-3);
+  }
+
+  .u-digest-facts dd {
+    font-size: 18px;
+  }
+
+  .u-digest-more {
+    justify-self: start;
+  }
+}

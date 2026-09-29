@@ -1,0 +1,3345 @@
+/* Стили набора компонентов из src/ui. Прикладные экраны своих цветов и теней не заводят,
+   а берут отсюда: так интерфейс остается одинаковым и правится в одном месте. */
+
+/* Разметка страницы. Ширина колонки 1440: на мониторе шире 1500 поля по краям съедали
+   место у списка решений и у таблицы сравнения. */
+.u-wrap {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 var(--s-5);
+}
+
+.u-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  /* сетка в углу доходит до края экрана и не должна давать прокрутку вбок */
+  overflow-x: clip;
+}
+
+/* width нужен: без него колонка внутри страницы-флексбокса ужимается по содержимому,
+   и на широком экране список решений и таблица сравнения оказывались уже шапки */
+.u-main {
+  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Шаг мастера до ответа сервера короткий, и подвал сначала стоял на первом экране, а потом
+   уезжал вниз: это был второй по величине сдвиг раскладки. Шаг всегда не ниже экрана */
+.u-main.is-wizard {
+  min-height: 100vh;
+}
+
+/* Пока идет расчет, шаг короче экрана, и полоса действия висела посреди страницы сразу под
+   карточкой загрузки. Тогда шаг колонкой, полоса уходит вниз: прижата к низу окна, как на
+   длинных шагах. Только на загрузке: на остальных шагах раскладку не трогаем */
+.u-main.is-wizard:has(> .u-progress, > .u-waiting) {
+  display: flex;
+  flex-direction: column;
+}
+
+.u-main.is-wizard:has(> .u-progress, > .u-waiting) > .u-action {
+  margin-top: auto;
+}
+
+.u-main.is-wizard > .u-progress,
+.u-main.is-wizard > .u-waiting {
+  margin-bottom: 28px;
+}
+
+/* Между блоками шага всегда один отступ: заголовок следующего блока не липнет к предыдущему */
+.u-main section + section {
+  display: block;
+  margin-top: var(--s-6);
+}
+
+/* Панель: белая плита со скруглением, волосяной линией и мягкой тенью */
+.u-panel {
+  border-radius: var(--r-xl);
+  background: var(--paper);
+  box-shadow:
+    var(--hair),
+    0 18px 44px -32px color-mix(in srgb, var(--shadow) 45%, transparent);
+  overflow: hidden;
+}
+
+/* Кнопки */
+.u-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  border: none;
+  border-radius: var(--r-pill);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 11px 20px;
+  cursor: pointer;
+  transition:
+    background var(--slow) var(--ease),
+    transform var(--slow) var(--ease),
+    color var(--slow) var(--ease);
+}
+
+/* Кнопка-ссылка (Button с href) выглядит так же, без подчеркивания */
+a.u-btn {
+  text-decoration: none;
+}
+
+.u-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.u-btn-primary {
+  background: var(--blue);
+  color: var(--on-blue);
+}
+
+/* справа место под кружок со стрелкой, отступ меньше. Без стрелки отступы ровные, иначе подпись
+   стояла левее середины */
+.u-btn-primary:has(> .u-knob) {
+  padding-right: 12px;
+}
+
+.u-btn-primary:hover:not(:disabled) {
+  background: var(--blue-press);
+}
+
+.u-btn-dark {
+  background: var(--ink);
+  color: var(--on-ink);
+  font-size: 14px;
+  padding: 9px 18px;
+}
+
+.u-btn-dark:hover:not(:disabled) {
+  background: var(--ink-press);
+}
+
+.u-btn-ghost {
+  background: none;
+  color: var(--ink);
+  box-shadow: var(--hair);
+}
+
+.u-btn-ghost:hover:not(:disabled) {
+  color: var(--blue);
+  box-shadow: var(--hair-blue);
+}
+
+.u-btn-light {
+  background: var(--btn-light);
+  color: var(--ink-deep);
+}
+
+/* справа место под кружок со стрелкой, как у главной кнопки. Без кружка отступы ровные: иначе
+   подпись "Как пользоваться" или "Отчет PDF" стояла правее середины */
+.u-btn-light:has(> .u-knob) {
+  padding-right: 11px;
+}
+
+.u-btn-link {
+  background: none;
+  color: var(--blue);
+  font-size: 14px;
+  padding: 6px 12px;
+}
+
+.u-btn-link:hover:not(:disabled) {
+  background: var(--blue-tint);
+}
+
+.u-textbtn {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--blue);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.u-textbtn:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* Удаление: та же ссылка, но красным, чтобы не спутать с безопасными действиями */
+.u-btn-danger {
+  background: none;
+  color: var(--stop);
+  font-size: 14px;
+  padding: 6px 12px;
+}
+
+.u-btn-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--stop) 8%, transparent);
+}
+
+.u-btn:disabled {
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+  color: color-mix(in srgb, var(--ink) 40%, transparent);
+  cursor: not-allowed;
+}
+
+/* Кружок со стрелкой внутри кнопки */
+.u-knob {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--on-blue) 18%, transparent);
+  display: grid;
+  place-items: center;
+  transition:
+    transform var(--slow) var(--ease),
+    background var(--slow) var(--ease);
+}
+
+.u-btn-light .u-knob {
+  background: color-mix(in srgb, var(--blue-deep) 9%, transparent);
+}
+
+.u-btn:hover:not(:disabled) .u-knob {
+  transform: translate(3px, -1px) scale(1.06);
+}
+
+.u-btn:disabled .u-knob {
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+/* Метка состояния */
+.u-badge {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  color: var(--ink-soft);
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  white-space: nowrap;
+}
+
+.u-badge-blue {
+  color: var(--blue);
+  background: var(--blue-tint);
+}
+
+/* Шапка */
+.u-head {
+  position: relative;
+  z-index: 3;
+  padding: 18px 0 0;
+}
+
+.u-head-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: 12px 14px 12px 20px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+/* Панель шапки не обрезает содержимое: иначе меню аккаунта срезается по ее краю,
+   а фокус на пункте меню прокручивает шапку внутри панели */
+.u-head .u-panel {
+  overflow: visible;
+}
+
+/* Шапка без ленты шагов, как в кабинете: черта под строкой не нужна */
+.u-head-row.is-alone {
+  border-bottom: 0;
+}
+
+.u-rail[hidden] {
+  display: none;
+}
+
+/* Кнопка аккаунта и ее меню. Само меню того же вида, что меню по правой кнопке на плане (board.css) */
+.u-account-box {
+  position: relative;
+}
+
+.u-account-slot {
+  display: inline-block;
+  width: 96px;
+  height: 38px;
+}
+
+/* Ссылка в шапке по правилу .u-head nav a стала бы серой: у кнопки входа цвет свой */
+.u-head nav a.u-account-login,
+.u-head nav a.u-account-login:hover {
+  color: var(--on-ink);
+  background: var(--ink);
+  padding: 9px 18px;
+  text-decoration: none;
+}
+
+.u-account {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 40px;
+  padding: 4px 12px 4px 4px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  box-shadow: var(--hair);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  transition: box-shadow var(--fast) var(--ease);
+}
+
+.u-account:hover,
+.u-account[aria-expanded="true"] {
+  box-shadow: var(--hair-blue);
+}
+
+.u-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  display: grid;
+  place-items: center;
+  background: var(--ink);
+  color: var(--white);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.u-account-mail {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.u-account-chev {
+  color: var(--ink-faint);
+  transition: transform var(--fast) var(--ease);
+}
+
+.u-account[aria-expanded="true"] .u-account-chev {
+  transform: rotate(180deg);
+}
+
+.u-account-menu {
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 30;
+  min-width: 240px;
+}
+
+.u-account-menu a[role="menuitem"] {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-sm);
+  color: var(--ink);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.u-account-menu a[role="menuitem"]:hover,
+.u-account-menu a[role="menuitem"]:focus-visible {
+  background: var(--blue-tint);
+  outline: none;
+}
+
+.u-account-who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px var(--s-2) 4px;
+  font-size: 13px;
+}
+
+.u-account-who span:last-child {
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+/* Пункт меню аккаунта, который на широком экране стоит ссылкой в шапке: там он лишний */
+.u-account-menu a.u-narrow-item[role="menuitem"] {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .u-account-menu a.u-narrow-item[role="menuitem"] {
+    display: flex;
+  }
+}
+
+/* Ссылка в шапке, которой на узком экране нет места: она же есть в меню аккаунта.
+   u-narrow-only наоборот: короткая подпись вместо длинной, только на телефоне */
+.u-head nav .u-narrow-only {
+  display: none;
+}
+
+.u-head nav a {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .u-head nav .u-wide-only {
+    display: none;
+  }
+
+  .u-head nav .u-narrow-only {
+    display: inline;
+  }
+
+  .u-head-row {
+    gap: var(--s-2);
+    padding-left: 16px;
+    padding-right: 10px;
+  }
+}
+
+@media (max-width: 880px) {
+  .u-account-mail {
+    display: none;
+  }
+}
+
+.u-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.u-word span {
+  color: var(--blue);
+}
+
+.u-head nav {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.u-head nav a:not(.u-btn, .u-account-login) {
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-size: 14px;
+  padding: 8px 12px;
+  border-radius: var(--r-pill);
+  transition:
+    background var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.u-head nav a:not(.u-btn, .u-account-login):hover {
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  color: var(--ink);
+}
+
+/* Лента шагов: у каждого шага свой отрезок полосы прогресса */
+.u-rail {
+  display: flex;
+  gap: 2px;
+  padding: 12px 20px;
+}
+
+.u-rail button {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink-faint);
+  text-align: left;
+  cursor: not-allowed;
+}
+
+.u-rail .u-track {
+  width: 100%;
+  height: 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
+  overflow: hidden;
+}
+
+.u-rail .u-track i {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 2px;
+  background: var(--blue);
+  transition: width 700ms var(--ease);
+}
+
+.u-rail .u-step-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.u-rail .u-idx {
+  font-family: var(--font);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--ink-faint);
+}
+
+.u-rail .is-done,
+.u-rail .is-now {
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.u-rail .is-next {
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.u-rail .is-now {
+  font-weight: 600;
+}
+
+.u-rail .is-done .u-track i,
+.u-rail .is-now .u-track i {
+  width: 100%;
+}
+
+.u-rail .is-done .u-idx,
+.u-rail .is-now .u-idx {
+  color: var(--blue);
+}
+
+/* На телефоне пять названий в строку не помещаются: "Экономика" обрезалась, "План объекта"
+   переносилось. Там у всех шагов только номер и полоска, название пишем у текущего, ему и место шире */
+@media (max-width: 640px) {
+  .u-rail {
+    padding: 10px 16px 12px;
+    gap: 4px;
+  }
+
+  .u-rail button {
+    min-width: 0;
+    min-height: 32px;
+  }
+
+  .u-rail .is-now {
+    flex: 3.2;
+  }
+
+  .u-rail .u-step-name {
+    display: none;
+  }
+
+  .u-rail .is-now .u-step-name {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .u-rail .u-step-label {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+/* Заголовок экрана */
+.u-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 7.2fr) minmax(0, 3.4fr);
+  gap: var(--s-6);
+  align-items: center;
+  padding: var(--s-6) 0 var(--s-5);
+}
+
+/* Внутри мастера заголовок экрана скромнее: место нужно содержимому, а не типографике */
+.u-hero.is-compact {
+  padding: var(--s-5) 0 var(--s-4);
+}
+
+.u-hero.is-compact h1 {
+  font-size: clamp(30px, 3.4vw, 44px);
+}
+
+/* Мастер переводит фокус на заголовок нового шага, чтобы не терялось место. Нажать заголовок
+   нельзя, поэтому рамки у него нет */
+.u-hero h1:focus {
+  outline: none;
+}
+
+.u-hero.is-compact p {
+  margin-top: var(--s-2);
+  font-size: 16px;
+}
+
+/* В мастере сетка ниже: на 1366 на 768 место нужно самому шагу */
+.u-hero.is-compact .u-pattern {
+  height: 420px;
+}
+
+/* На первом шаге заголовок крупнее, но не на пол-экрана: на 1366 на 768 под ним должен быть
+   виден выбор объекта, а не только полоса действия */
+.u-hero h1 {
+  font-size: clamp(34px, 3.9vw, 52px);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  font-weight: 600;
+  margin: 0;
+  max-inline-size: 17ch;
+}
+
+.u-hero p {
+  margin: var(--s-4) 0 0;
+  font-size: 18px;
+  color: var(--ink-soft);
+  max-inline-size: 46ch;
+}
+
+/* Чертежная сетка: фон для схем и декоративных мест */
+.u-grid-bg {
+  background:
+    linear-gradient(color-mix(in srgb, var(--blue) 5%, transparent) 1px, transparent 1px) 0 0 / 100% 16px,
+    linear-gradient(90deg, color-mix(in srgb, var(--blue) 5%, transparent) 1px, transparent 1px) 0 0 / 16px 100%,
+    var(--paper-cool);
+}
+
+/* Чертежная сетка в правом верхнем углу страницы. Лежит фоном и места в раскладке не занимает:
+   заходит под шапку, доходит до края экрана и растворяется к центру и вниз. Клетка та же 18 точек */
+.u-pattern {
+  position: absolute;
+  z-index: -1;
+  top: -60px;
+  right: calc((100vw - 100%) / -2);
+  width: min(62vw, 900px);
+  height: 500px;
+  background:
+    linear-gradient(color-mix(in srgb, var(--blue) 7%, transparent) 1px, transparent 1px) 0 0 / 100% 18px,
+    linear-gradient(90deg, color-mix(in srgb, var(--blue) 7%, transparent) 1px, transparent 1px) 0 0 / 18px 100%;
+  background-position: right top;
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(120% 110% at 100% 0%, #000 42%, transparent 82%);
+  mask-image: radial-gradient(120% 110% at 100% 0%, #000 42%, transparent 82%);
+}
+
+.u-hero > div:first-child {
+  position: relative;
+  z-index: 1;
+}
+
+/* Заголовок блока */
+.u-block-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  margin-bottom: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.u-block-head h2 {
+  font-size: 24px;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  margin: 0;
+}
+
+.u-block-head p {
+  margin: 0;
+  font-size: 15px;
+  color: var(--ink-faint);
+}
+
+.u-block-head .u-spacer {
+  margin-left: auto;
+}
+
+/* Выбор одного из нескольких: карточки одного вида в ряд, выбранная подсвечена и стоит на месте.
+   Состояние держит radio, рисует CSS, поэтому работает и без скриптов. */
+/* Карточки на всю ширину ряда, но плотно: промежуток маленький, внутри мало пустоты, низ у всех
+   одинаковый. Так ряд читается одной группой и справа не остается пустого места */
+.u-choice {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--s-2);
+}
+
+.u-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair);
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    background var(--fast) var(--ease),
+    transform var(--fast) var(--ease),
+    box-shadow var(--fast) var(--ease);
+}
+
+.u-option:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--hair), var(--lift);
+}
+
+.u-option input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.u-option:has(input:checked) {
+  background: color-mix(in srgb, var(--blue) 8%, var(--paper));
+  box-shadow: var(--lift);
+  transform: none;
+  cursor: default;
+}
+
+/* рамка выбранного поверх схемы: у схемы свой непрозрачный фон, внутренняя тень плиты под ним не видна */
+.u-option:has(input:checked)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 2px var(--blue);
+  pointer-events: none;
+}
+
+.u-option:has(input:focus-visible) {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+
+.u-option .u-plan {
+  min-height: 112px;
+  padding: 24px 10px 8px;
+}
+
+.u-option .u-plan img {
+  max-height: 84px;
+}
+
+.u-mini {
+  border-radius: var(--r-md);
+  display: grid;
+  place-items: center;
+  height: 46px;
+  box-shadow: var(--hair);
+  overflow: hidden;
+}
+
+.u-plan {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 10px;
+  min-height: 200px;
+}
+
+.u-plan img {
+  max-width: 100%;
+  height: auto;
+}
+
+.u-stamp {
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--blue);
+  opacity: 0.7;
+}
+
+.u-option-body {
+  flex: 1;
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.u-option-body h3 {
+  font-size: 17px;
+  letter-spacing: -0.02em;
+  margin: 0;
+  font-weight: 600;
+}
+
+.u-option-body p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* низ у всех карточек одинаковый: число строкой, метка под ним, прижаты к низу карточки.
+   В строку они вставали только у короткого числа, и у "Другого" низ выходил другим */
+.u-option-foot {
+  margin-top: auto;
+  padding-top: var(--s-2);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  font-size: 14px;
+}
+
+/* Строка с галочкой: выбор нескольких вариантов */
+.u-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.u-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 210px 170px;
+  gap: var(--s-4);
+  align-items: center;
+  padding: 20px 24px 20px 20px;
+  border-radius: 22px;
+  background: var(--paper);
+  box-shadow: var(--hair);
+  cursor: pointer;
+  transition:
+    box-shadow var(--slow) var(--ease),
+    transform var(--slow) var(--ease),
+    background var(--slow) var(--ease);
+}
+
+.u-row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 18px;
+  bottom: 18px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--blue);
+  transform: scaleY(0);
+  transition: transform var(--slow) var(--ease);
+}
+
+.u-row:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--hair), var(--lift);
+}
+
+.u-row:has(.u-tick:checked) {
+  background: var(--paper-cool);
+  box-shadow: var(--hair-blue), var(--lift);
+}
+
+.u-row:has(.u-tick:checked)::before {
+  transform: scaleY(1);
+}
+
+/* Настоящий чекбокс лежит поверх нарисованного квадрата: клик и фокус работают без скрипта */
+.u-tick {
+  position: absolute;
+  left: 20px;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.u-box {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  box-shadow: var(--edge);
+  display: grid;
+  place-items: center;
+  transition:
+    background var(--fast) var(--ease),
+    box-shadow var(--fast) var(--ease);
+}
+
+.u-box svg {
+  opacity: 0;
+  transform: scale(0.5);
+  transition:
+    opacity var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.u-row:has(.u-tick:checked) .u-box {
+  background: var(--blue);
+  box-shadow: none;
+}
+
+.u-row:has(.u-tick:checked) .u-box svg {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.u-row:has(.u-tick:focus-visible) .u-box {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+
+.u-row h3 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  letter-spacing: -0.015em;
+  font-weight: 600;
+}
+
+.u-row p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.u-row .u-who {
+  margin-top: 6px;
+  display: block;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+/* Значение с подписью: что это за число и откуда */
+.u-metric .u-cap {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-faint);
+  margin-bottom: 2px;
+}
+
+.u-metric .u-val {
+  font-family: var(--font);
+  font-size: 19px;
+  letter-spacing: -0.02em;
+  color: var(--ink-faint);
+  transition: color var(--fast) var(--ease);
+}
+
+.u-row:has(.u-tick:checked) .u-metric .u-val {
+  color: var(--blue);
+}
+
+.u-metric .u-unit {
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.u-hint {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink-faint);
+  border-bottom: 1px dotted color-mix(in srgb, var(--blue) 30%, transparent);
+  cursor: help;
+}
+
+/* Способ, которым робот забирает работу */
+.u-mode {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  padding: 7px 13px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  white-space: nowrap;
+}
+
+.u-mode i {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--blue);
+}
+
+.u-mode-speed i {
+  background: var(--mode-speed);
+}
+
+/* Сообщение на месте содержимого */
+.u-notice {
+  padding: 28px 30px;
+  border-radius: 22px;
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.u-notice :is(h2, h3) {
+  margin: 0 0 8px;
+  font-size: 19px;
+}
+
+.u-notice p {
+  margin: 0;
+  color: var(--ink-soft);
+  max-inline-size: 70ch;
+}
+
+/* "Что дальше" у объекта без расчета: строки плана развития под объяснением, тонкой линией отделены */
+.u-notice-next {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.u-notice-next h4 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.u-notice-next ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--ink-soft);
+  max-inline-size: 70ch;
+}
+
+.u-notice-next li + li {
+  margin-top: 4px;
+}
+
+.u-notice-next li::marker {
+  color: var(--blue);
+}
+
+/* Пустой экран: плашка с текстом слева, робот справа заходит под ее край */
+.u-empty {
+  display: grid;
+  grid-template-columns: minmax(0, 620px) auto;
+  align-items: end;
+  max-width: 900px;
+}
+
+.u-empty.is-apart {
+  grid-template-columns: minmax(0, 520px) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s-6);
+  max-width: none;
+}
+
+.u-empty-plate {
+  position: relative;
+  z-index: 1;
+  padding: 28px 30px 26px;
+  border-radius: 22px;
+  background: var(--paper);
+  box-shadow: var(--hair), var(--lift);
+}
+
+.u-empty-plate h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+
+.u-empty-plate p {
+  margin: 0;
+  color: var(--ink-soft);
+  max-inline-size: 60ch;
+}
+
+.u-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+}
+
+.u-empty-actions a {
+  text-decoration: none;
+}
+
+.u-empty-robot {
+  margin-left: -22px;
+  margin-bottom: -6px;
+}
+
+.u-empty-robot svg {
+  display: block;
+  width: 200px;
+  overflow: visible;
+}
+
+.u-empty.is-apart .u-empty-robot {
+  margin: 0;
+  justify-self: center;
+}
+
+.u-empty.is-apart .u-empty-robot svg {
+  width: 280px;
+}
+
+/* Плашка "Сервер не отвечает" стоит над содержимым шага, а не вместо него */
+.u-server-down {
+  margin-bottom: var(--s-5);
+}
+
+/* на телефоне робот над плашкой столкнул бы "Повторить" под полосу действий */
+@media (max-width: 880px) {
+  .u-server-down .u-empty-robot {
+    display: none;
+  }
+}
+
+/* 07 на экране ошибки: смущен, коробка съехала */
+.u-empty.is-apart .u-empty-robot svg.u-crash-bot {
+  width: 300px;
+}
+
+@media (max-width: 880px) {
+  .u-empty {
+    grid-template-columns: 1fr;
+  }
+
+  .u-empty-robot {
+    order: -1;
+    justify-self: end;
+    margin: 0 8px -30px 0;
+  }
+
+  .u-empty-robot svg {
+    width: 150px;
+  }
+
+  .u-empty.is-apart {
+    grid-template-columns: 1fr;
+    gap: var(--s-3);
+  }
+
+  /* Отдельно стоящий робот на узком экране встает под плашку: над ней он сталкивал кнопки за первый экран */
+  .u-empty.is-apart .u-empty-robot {
+    order: 1;
+    justify-self: center;
+    margin: 0;
+  }
+
+  .u-empty.is-apart .u-empty-robot svg {
+    width: 160px;
+  }
+}
+
+/* Полоса действия. Держится у нижнего края экрана, пока страница длинная: иначе до кнопки
+   надо пролистать весь список, уже зная, что выбрал. Внизу страницы встает на место.
+   Тонкая и плотная: сквозь полупрозрачную полосу проступал чертеж и цифры, и казалось, что их
+   обрезало. Выше полосы мягкий переход в фон, содержимое уходит под нее, а не обрывается */
+.u-action {
+  position: sticky;
+  bottom: 12px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: 28px;
+  padding: 6px 6px 6px 20px;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  box-shadow: var(--hair), var(--lift);
+}
+
+.u-action::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: -12px;
+  right: -12px;
+  bottom: -12px;
+  height: calc(100% + 36px);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--sheet) 0%, transparent), var(--sheet) 55%);
+  pointer-events: none;
+}
+
+.u-action .u-tally {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.u-action .u-tally b {
+  font-family: var(--font);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.u-action .u-btn-primary {
+  margin-left: auto;
+}
+
+/* кнопки справа в полосе через один шаг: "Назад", файлы, сохранение и главная кнопка
+   стоят ровным рядом, без зазора шире между группами */
+.u-action .u-amore-row {
+  gap: var(--s-2);
+}
+
+/* Место для своего содержимого шага: отметки для сравнения на шаге решения */
+.u-action-extra {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 14px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.u-action-extra:empty {
+  display: none;
+}
+
+.u-action-extra.is-inline {
+  margin-bottom: var(--s-3);
+}
+
+/* Второстепенные кнопки полосы: в ряд, на телефоне под кнопкой с меню */
+.u-amore {
+  position: relative;
+  display: inline-flex;
+}
+
+.u-amore-row {
+  display: inline-flex;
+  gap: var(--s-2);
+}
+
+.u-amore-toggle {
+  display: none;
+}
+
+.u-amore-pop {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+  padding: 6px;
+  border-radius: var(--r-md);
+  background: var(--paper);
+  box-shadow: var(--hair), var(--lift-high);
+}
+
+.u-amore-pop .u-btn {
+  justify-content: flex-start;
+  width: 100%;
+}
+
+/* Меню нужно только на телефоне: на широком экране те же кнопки стоят в ряд */
+@media (min-width: 641px) {
+  .u-amore-pop {
+    display: none;
+  }
+}
+
+/* Кнопки в полосе ниже обычных: полоса тоньше и меньше закрывает */
+.u-action .u-btn {
+  padding-top: 7px;
+  padding-bottom: 7px;
+  min-height: 44px;
+}
+
+/* Запас под полосу: то, что прокручивают к себе по ссылке или фокусом, встает выше нее */
+html {
+  scroll-padding-bottom: 96px;
+  /* место под полосу прокрутки держим всегда: когда страница дорастает до прокрутки, полоса
+     появлялась и все, что по центру и привязано к 100vw (сетка в шапке шага), уезжало вбок.
+     Lighthouse считал это главным сдвигом раскладки на шагах мастера */
+  scrollbar-gutter: stable;
+}
+
+/* Карточки решений: место под фото, название, цена, факты, действия */
+.u-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
+}
+
+.u-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px 14px;
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: var(--hair);
+  transition:
+    box-shadow var(--slow) var(--ease),
+    transform var(--slow) var(--ease);
+}
+
+.u-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--hair), var(--lift);
+}
+
+.u-card.is-compared {
+  box-shadow: var(--hair-blue);
+}
+
+.u-card.is-picked {
+  box-shadow: var(--hair-blue), var(--lift);
+  background: var(--paper-cool);
+}
+
+.u-card-photo {
+  aspect-ratio: 16 / 10;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  text-align: center;
+  padding: 0 12px;
+}
+
+.u-card-photo img {
+  width: 100%;
+  height: 100%;
+  /* снимок товара целиком: высокий штабелер при обрезке терял мачту */
+  object-fit: contain;
+  padding: var(--s-2);
+}
+
+.u-card h3 {
+  margin: 4px 0 0;
+  font-size: 16px;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.u-card-sub,
+.u-card-facts {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.u-card-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* ключевые цифры из каталога: название мелко, число с единицей читается сразу */
+.u-card-keys {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.u-card-keys b {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.u-card-key-name {
+  color: var(--ink-faint);
+}
+
+.u-card-price {
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.u-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Действия карточки столбиком: выбрать, под ним сравнить, ниже второе решение на задачу с подсказкой */
+.u-card-act {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin-top: auto;
+  padding-top: var(--s-2);
+}
+
+.u-card .u-fold {
+  margin: 0;
+  padding: 0 10px;
+  background: var(--sheet);
+  box-shadow: none;
+}
+
+.u-card .u-fold summary {
+  padding: 8px 0;
+  font-size: 13px;
+}
+
+/* Панель поиска, фильтров и сортировки */
+.u-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+
+.u-search {
+  flex: 1;
+  min-width: 200px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  box-shadow: var(--edge);
+  font: inherit;
+  font-size: 14px;
+  padding: 9px 16px;
+}
+
+.u-bar.is-roomy {
+  margin-bottom: var(--s-5);
+}
+
+.u-bar.is-roomy .u-search {
+  flex: 0 1 380px;
+}
+
+@media (max-width: 640px) {
+  .u-bar.is-roomy .u-search {
+    flex: 1 1 100%;
+  }
+}
+
+.u-search:focus {
+  outline: none;
+  box-shadow: var(--hair-blue);
+}
+
+.u-pill {
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  box-shadow: var(--hair);
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink-soft);
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.u-pill.is-on {
+  background: var(--blue-tint);
+  box-shadow: var(--hair-blue);
+  color: var(--blue);
+}
+
+/* Долгий расчет: сигнальный огонь и строка о том, что именно идет */
+.u-waiting {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 20px 24px;
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.u-waiting strong {
+  display: block;
+  font-weight: 600;
+}
+
+.u-waiting span span {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.u-beacon {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--r-pill);
+  background: var(--blue);
+  animation: u-blink 1.4s var(--ease) infinite;
+}
+
+@keyframes u-blink {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Подвал на синьке тонкой строкой: ссылки на методику. Единственное темное место на белом экране */
+.u-foot {
+  margin-top: var(--s-5);
+  color: var(--on-deep);
+  background:
+    linear-gradient(color-mix(in srgb, var(--white) 4.5%, transparent) 1px, transparent 1px) 0 0 / 100% 22px,
+    linear-gradient(90deg, color-mix(in srgb, var(--white) 4.5%, transparent) 1px, transparent 1px) 0 0 / 22px 100%,
+    var(--blue-deep);
+}
+
+.u-foot-line {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 18px var(--s-5);
+  display: flex;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: color-mix(in srgb, var(--on-deep) 55%, transparent);
+}
+
+.u-foot-line a {
+  color: color-mix(in srgb, var(--on-deep) 80%, transparent);
+}
+
+/* Главные значения шага: крупное число, подпись сверху. Читается как сводка, а не как форма */
+.u-keys {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+}
+
+/* Семь карточек в ряд на 1366 не помещаются, число обрезается. Ставим не больше четырех в ряд,
+   4 и 3, а не 6 и одну отдельно. На узком экране как обычно */
+.u-keys:has(> :nth-child(7)) {
+  grid-template-columns: repeat(auto-fit, minmax(max(190px, calc((100% - 3 * var(--s-2)) / 4)), 1fr));
+}
+
+.u-key {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: 12px 14px 12px;
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: var(--edge);
+  transition: box-shadow var(--slow) var(--ease);
+}
+
+.u-key-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  cursor: text;
+}
+
+/* подсказка под полем: две строки, длинная раскрывается кнопкой; предупреждение на ее месте */
+.u-key-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  flex: 1;
+  min-height: calc(2 * 1.4em);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.u-key-hint {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: calc(2 * 1.4em);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.u-key-foot .u-key-hint {
+  min-height: 0;
+}
+
+.u-key-hint.is-open {
+  display: block;
+}
+
+.u-key-hint.is-warn {
+  color: var(--warn);
+}
+
+.u-key-more {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--blue);
+  cursor: pointer;
+}
+
+.u-key-more:hover {
+  text-decoration: underline;
+}
+
+.u-key-more:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* пустое необязательное значение словами, а не числом: обычным шрифтом, без разрядки цифр */
+.u-key input::placeholder {
+  font-family: var(--font);
+  font-size: 20px;
+  letter-spacing: 0;
+  color: var(--ink-faint);
+}
+
+/* Необязательное поле строкой (InlineField): подпись, узкое поле, подсказка рядом.
+   На телефоне подсказка уходит под поле */
+.u-inline-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-5);
+}
+
+.u-inline-field .u-field-box {
+  box-sizing: border-box;
+  width: 160px;
+}
+
+.u-inline-field:focus-within .u-field-box {
+  box-shadow: var(--hair-blue);
+}
+
+.u-inline-field .u-frow-hint {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.u-inline-field input::placeholder {
+  color: var(--ink-faint);
+}
+
+.u-key:focus-within .u-key-box {
+  box-shadow: var(--hair-blue);
+  background: var(--paper);
+}
+
+.u-key.is-warn .u-key-box {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 70%, transparent);
+  background: color-mix(in srgb, var(--warn) 5%, transparent);
+}
+
+/* подпись в две строки у всех плиток ряда: иначе поле под длинной подписью съезжало ниже соседних */
+.u-key-top {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  min-height: calc(2 * 1.3em);
+  line-height: 1.3;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.u-key-name {
+  flex: 1;
+}
+
+/* поле как в остальной форме (u-field-box): фон и волосяная рамка, только число крупнее */
+.u-key-box {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+  box-shadow: var(--hair);
+  padding: 8px 12px;
+  transition:
+    box-shadow var(--fast) var(--ease),
+    background var(--fast) var(--ease);
+}
+
+.u-key input {
+  min-width: 0;
+  flex: 1;
+  border: none;
+  background: none;
+  font: inherit;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  padding: 0;
+}
+
+.u-key input:focus {
+  outline: none;
+}
+
+.u-key-unit {
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+/* Остальные параметры: строка на всю ширину, поле справа */
+.u-frow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px 28px;
+  gap: var(--s-3);
+  align-items: center;
+  padding: 12px 0;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.u-frow-name {
+  display: block;
+  font-size: 15px;
+}
+
+.u-frow-hint {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* На телефоне подпись и подсказка встают над полем во всю ширину: в колонке рядом с полем
+   оставалось точек сто, и подсказка шла столбиком по одному слову. Поле под ними, буква
+   оценки справа от поля */
+@media (max-width: 640px) {
+  .u-frow {
+    grid-template-columns: minmax(0, 1fr) 28px;
+    gap: 8px var(--s-2);
+  }
+
+  .u-frow > :first-child {
+    grid-column: 1 / -1;
+  }
+
+  .u-frow.is-pair > .u-field-box {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Раскрывающийся блок на details: работает с клавиатуры и без скриптов */
+.u-fold {
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: var(--hair);
+  padding: 0 20px;
+  margin-bottom: var(--s-3);
+}
+
+.u-fold summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 14px 0;
+  font-size: 15px;
+  color: var(--blue);
+  cursor: pointer;
+  list-style: none;
+}
+
+.u-fold summary::-webkit-details-marker {
+  display: none;
+}
+
+.u-fold .u-chev {
+  display: grid;
+  place-items: center;
+  transition: transform var(--fast) var(--ease);
+}
+
+.u-fold[open] .u-chev {
+  transform: rotate(90deg);
+}
+
+.u-fold-body {
+  padding-bottom: var(--s-3);
+}
+
+/* Тонкая раскрывашка: строка-ссылка со стрелкой без плиты, для строк внутри блока */
+.u-fold.is-thin {
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+}
+
+.u-fold.is-thin summary {
+  padding: 2px 0;
+  font-size: 13px;
+}
+
+.u-fold.is-thin .u-fold-body {
+  padding: var(--s-2) 0 var(--s-2);
+}
+
+.u-fold-body h3 {
+  margin: var(--s-3) 0 0;
+  font-size: 13px;
+  font-family: var(--font);
+  color: var(--ink-faint);
+  font-weight: 400;
+}
+
+.u-field-box {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+  box-shadow: var(--edge);
+  padding: 8px 14px;
+}
+
+.u-field-box.is-warn {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 50%, transparent);
+  background: color-mix(in srgb, var(--warn) 5%, transparent);
+}
+
+.u-field-box input,
+.u-num input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+  font-size: 17px;
+  color: var(--ink);
+  padding: 0;
+}
+
+.u-field-box input:focus,
+.u-num input:focus {
+  outline: none;
+}
+
+.u-field-unit,
+.u-num span {
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.u-field-hint {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* Два поля в одной коробке: «76 × 102 м» */
+.u-field-box.is-pair {
+  align-items: baseline;
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.u-pair-one {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.u-pair-one input {
+  width: 100%;
+}
+
+.u-pair-sep {
+  flex: none;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.u-field-src {
+  font-family: var(--font);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--ink-faint);
+}
+
+/* Оценка доверия: одна буква у значения, расшифровка при наведении */
+.u-trust {
+  font-family: var(--font);
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  color: var(--ink-soft);
+  cursor: help;
+}
+
+/* Предупреждение и пояснение: стоят там, где случились */
+.u-alert {
+  display: flex;
+  gap: var(--s-2);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--warn);
+}
+
+.u-alert i {
+  margin-top: 6px;
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: currentColor;
+}
+
+.u-alert-note {
+  color: var(--ink-soft);
+}
+
+/* Предупреждение из нескольких строк: по строке на задачу */
+.u-alert-line {
+  display: block;
+  margin-top: 2px;
+}
+
+/* Число в ячейке таблицы */
+.u-num {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  height: 38px;
+  box-sizing: border-box;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+  box-shadow: var(--edge);
+  padding: 7px 10px;
+}
+
+.u-num:focus-within {
+  box-shadow: var(--hair-blue);
+}
+
+.u-num.is-warn {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 50%, transparent);
+}
+
+.u-num input {
+  font-size: 15px;
+  width: 100%;
+  align-self: center;
+}
+
+/* Выбор из справочника */
+/* Выбор из справочника. Сам список остается системным: на телефоне он открывается родным
+   колесом, с клавиатуры работает как обычно. Закрытое поле свое, как поля с числами рядом:
+   без серой кнопки и стрелки Windows, галочка та же, что у меню аккаунта */
+.u-select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 38px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--r-sm);
+  background-color: color-mix(in srgb, var(--ink) 3%, transparent);
+  background-image: var(--select-arrow);
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  box-shadow: var(--edge);
+  font: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  padding: 8px 30px 8px 10px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: box-shadow var(--fast) var(--ease);
+}
+
+.u-select:hover {
+  box-shadow: var(--hair-blue);
+}
+
+.u-select:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+/* Отдельная галочка: тот же квадрат, что в строке списка */
+.u-check {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* Настоящий чекбокс лежит поверх всей подписи: клик работает по любому месту строки.
+   Без position: relative у подписи он уезжал к краю страницы и перехватывал чужие клики. */
+.u-check input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.u-check:has(input:checked) .u-box {
+  background: var(--blue);
+  box-shadow: none;
+}
+
+.u-check:has(input:checked) .u-box svg {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.u-check:has(input:focus-visible) .u-box {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+
+/* Таблица ввода: шапка, строки, итог */
+.u-sheet {
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: var(--hair);
+  overflow: hidden;
+}
+
+.u-sheet-head,
+.u-sheet-foot,
+.u-sheet-row {
+  display: grid;
+  grid-template-columns: var(--cols);
+  gap: var(--s-3);
+  row-gap: 0;
+  align-items: center;
+  padding: 12px 20px;
+}
+
+.u-sheet-head {
+  padding-bottom: 4px;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.u-sheet-foot {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.u-sheet-row,
+.u-sheet-foot {
+  align-items: start;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.u-sheet-row {
+  padding: 14px 20px;
+}
+
+/* Кнопка «добавить роль» стоит последней строкой таблицы, а не в заголовке блока:
+   роль добавляют, когда дочитали список до конца */
+.u-sheet-add {
+  padding: 12px 20px;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+/* Строку можно перетащить: курсор-рука на всей строке и ручка из точек у левого края */
+.u-sheet-row.is-drag {
+  position: relative;
+  cursor: grab;
+}
+
+.u-sheet-row.is-drag:active {
+  cursor: grabbing;
+}
+
+.u-grip {
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  width: 8px;
+  height: 14px;
+  margin-top: -7px;
+  background: radial-gradient(circle, var(--ink-faint) 1.1px, transparent 1.5px) 0 0 / 4px 4.67px;
+  opacity: 0.55;
+  transition: opacity var(--fast) var(--ease);
+}
+
+.u-sheet-row.is-drag:hover .u-grip {
+  opacity: 1;
+}
+
+/* На телефоне перетаскивания нет, ручка только сбивала бы */
+@media (hover: none) {
+  .u-grip {
+    display: none;
+  }
+}
+
+.u-sheet-row.is-muted .u-cell {
+  opacity: 0.6;
+}
+
+/* Ячейка: сам элемент ввода сверху, подпись под ним. Так поля стоят на одной линии,
+   даже когда подпись есть не у всех колонок */
+.u-cell {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-height: 38px;
+  font-size: 14px;
+}
+
+.u-sheet-notes {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+}
+
+@media (max-width: 1080px) {
+  .u-row {
+    grid-template-columns: 30px minmax(0, 1fr) 190px;
+  }
+
+  .u-mode {
+    display: none;
+  }
+}
+
+@media (max-width: 880px) {
+  .u-wrap,
+  .u-foot-line {
+    padding-left: var(--s-3);
+    padding-right: var(--s-3);
+  }
+
+  .u-hero {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  /* на телефоне объекты столбиком, у каждого схема слева от названия: четыре высокие карточки
+     уводили задачи за три экрана */
+  .u-choice {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-2);
+  }
+
+  .u-option {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+
+  .u-option .u-plan {
+    min-height: 0;
+    padding: 8px;
+  }
+
+  .u-option .u-plan img {
+    max-height: 72px;
+  }
+
+  .u-option .u-stamp {
+    display: none;
+  }
+
+  .u-option-body {
+    padding: var(--s-2) var(--s-3);
+  }
+
+  .u-option-body h3 {
+    font-size: 17px;
+  }
+
+  .u-option-body p {
+    font-size: 13px;
+  }
+
+  .u-pattern {
+    width: 90vw;
+    height: 300px;
+  }
+
+  .u-row {
+    grid-template-columns: 26px 1fr;
+    gap: 14px;
+    padding: 18px;
+  }
+
+  .u-metric {
+    grid-column: 2;
+  }
+
+  /* Таблица штата на узком экране: шапка прячется, строка становится карточкой */
+  .u-sheet-head {
+    display: none;
+  }
+
+  .u-sheet-row,
+  .u-sheet-foot {
+    grid-template-columns: 1fr;
+    gap: var(--s-2);
+    padding: 16px;
+  }
+
+  /* Полоса действия на телефоне: итог одной строкой над кнопками, кнопки в один ряд.
+     Если итог ломается в несколько строк, полоса занимает четверть экрана */
+  .u-action {
+    flex-wrap: wrap;
+    gap: 6px var(--s-2);
+    padding: 8px;
+    border-radius: var(--r-lg);
+  }
+
+  .u-action .u-tally,
+  .u-action-extra {
+    flex-basis: 100%;
+    padding: 0 8px;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* отметки для сравнения важнее итога: он и так виден на карточке с меткой */
+  .u-action:has(.u-action-extra:not(:empty)) .u-tally {
+    display: none;
+  }
+
+  .u-action .u-btn {
+    min-height: 44px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  /* главная кнопка забирает остаток строки; кружок со стрелкой отдает место подписи,
+     иначе "Сохранить в проект" ломается в две строки */
+  .u-action .u-btn-primary {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+    padding-right: 20px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  .u-action .u-btn-primary .u-knob {
+    display: none;
+  }
+
+  .u-amore-row {
+    display: none;
+  }
+
+  .u-amore-toggle {
+    display: inline-flex;
+  }
+
+  .u-amore-pop .u-wide {
+    display: inline;
+  }
+}
+
+/* Окно подтверждения (confirm.tsx): плита по центру над затемнением, кнопки справа */
+.u-dialog {
+  border: 0;
+  padding: 0;
+  max-width: min(460px, calc(100vw - 32px));
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--lift-high);
+}
+
+.u-dialog::backdrop {
+  background: color-mix(in srgb, var(--shadow) 32%, transparent);
+}
+
+.u-dialog[open] {
+  animation: u-dialog-in var(--fast) var(--ease);
+}
+
+@keyframes u-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.u-dialog-body {
+  padding: var(--s-4);
+}
+
+.u-dialog h2 {
+  margin: 0 0 var(--s-2);
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.u-dialog p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.u-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+}
+
+/* Кнопка опасного действия: красная заливка, только в окне подтверждения */
+.u-btn-stop {
+  background: var(--stop);
+  color: var(--paper);
+}
+
+.u-btn-stop:hover {
+  filter: brightness(0.88);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u-dialog[open] {
+    animation: none;
+  }
+}
+
+/* Кнопка выбора файла: обычная кнопка набора, поверх нее прозрачное поле файла.
+   Фокус с клавиатуры видно рамкой, как у кнопок */
+.u-file {
+  position: relative;
+  cursor: pointer;
+}
+
+.u-file input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.u-file:has(input:focus-visible) {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+
+.u-file.is-busy {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Загрузка файла на шаге параметров плитой, как остальные разделы шага. Файл можно бросить на нее */
+.u-file-plate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3) var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair);
+  transition: box-shadow var(--fast) var(--ease);
+}
+
+.u-file-plate.is-over {
+  box-shadow: var(--hair-blue);
+  background: var(--blue-tint);
+}
+
+.u-file-plate p {
+  flex: 1 1 380px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.u-file-plate .u-btn-light {
+  box-shadow: var(--hair);
+}
+
+/* кнопка файла и ссылка на шаблон в одну строку по середине высоты */
+.u-file-plate .u-action-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+/* Кнопки прямо на странице, без полосы действия: "Новый расчет" (продолжить или начать новый)
+   и "Проект не открылся". Без зазора они слипались */
+.u-main > .u-action-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+}
+
+/* Отчет загрузки файла на шаге параметров */
+.u-import {
+  display: grid;
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+}
+
+.u-import p {
+  margin: 0;
+}
+
+.u-import-bad {
+  color: var(--stop);
+}
+
+.u-import-warn {
+  color: var(--warn);
+}
+
+/* Выбранное решение в карточке: метка с галочкой той же высоты, что кнопка рядом */
+/* "Выбрано" того же размера, что кнопка "Выбрать": у выбранной карточки меняется только цвет */
+.u-picked {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 0 20px;
+  border-radius: var(--r-pill);
+  background: var(--blue-tint);
+  color: var(--blue);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+/* "Выбрано" кнопкой: мерки "Выбрать" (u-btn), цвет выбранного. Нажатие снимает выбор */
+.u-btn.u-picked {
+  min-height: 0;
+  padding: 11px 20px;
+}
+
+.u-btn.u-picked:hover {
+  background: color-mix(in srgb, var(--blue) 18%, transparent);
+}
+
+.u-btn.u-picked:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* Галочка стоит вплотную к своей подписи, а соседние фильтры разнесены: видно, что к чему */
+.u-bar .u-check {
+  gap: var(--s-1);
+  margin-right: var(--s-3);
+}
+
+/* Панель сбоку (drawer.tsx): прижата к правому краю, во всю высоту */
+.u-drawer {
+  margin: 0 0 0 auto;
+  height: 100dvh;
+  max-height: 100dvh;
+  width: min(760px, 100vw);
+  max-width: 100vw;
+  border: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--lift-high);
+}
+
+.u-drawer::backdrop {
+  background: color-mix(in srgb, var(--shadow) 32%, transparent);
+}
+
+.u-drawer[open] {
+  display: flex;
+  flex-direction: column;
+  animation: u-drawer-in var(--slow) var(--ease);
+}
+
+@keyframes u-drawer-in {
+  from {
+    transform: translateX(40px);
+    opacity: 0;
+  }
+}
+
+.u-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  box-shadow: var(--hair);
+}
+
+.u-drawer-head h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.u-drawer-body {
+  overflow: auto;
+  padding: var(--s-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u-drawer[open] {
+    animation: none;
+  }
+}
+
+/* Аренда под ценой покупки отдельной строкой */
+/* Строка про бюджет на карточке решения: синим, чтобы отличалась от проверок */
+.u-card-budget {
+  color: var(--blue);
+}
+
+.u-card-rent {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* Очередь выбора на шаге решения: задача на плитку, по порядку. Открытая задача на голубом,
+   у выбранной название решения с галочкой, у остальных "выберите решение" */
+.u-queue {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
+}
+
+.u-queue button {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  min-height: 44px;
+  padding: var(--s-2) var(--s-3) 12px;
+  border: none;
+  border-radius: var(--r-md);
+  background: var(--paper);
+  box-shadow: var(--hair);
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow var(--fast) var(--ease);
+}
+
+.u-queue button:hover {
+  box-shadow: var(--hair), var(--lift);
+}
+
+.u-queue button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.u-queue .is-now {
+  background: var(--blue-tint);
+  box-shadow: var(--hair-blue);
+}
+
+.u-queue-idx {
+  font-family: var(--font);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--ink-faint);
+}
+
+.u-queue-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.u-queue-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.u-queue .is-done .u-queue-pick {
+  color: var(--blue);
+  font-weight: 600;
+}
+
+/* галочка набора белая: под ней синий кружок, как в строке с галочкой */
+.u-queue-pick svg {
+  flex: none;
+  box-sizing: content-box;
+  padding: 2px;
+  border-radius: 50%;
+  background: var(--blue);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u-queue button {
+    transition: none;
+  }
+}
+
+/* Доля объема между двумя решениями задачи: строка над списком, ползунок цвета синьки */
+.u-split {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--paper);
+  box-shadow: var(--hair);
+  font-size: 14px;
+}
+
+.u-split-task {
+  flex: none;
+  font-weight: 600;
+}
+
+.u-split-note {
+  flex-basis: 100%;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.u-split-name {
+  flex: 0 1 240px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.u-split-name.is-right {
+  text-align: right;
+}
+
+.u-split .mono {
+  font-family: var(--font);
+  font-weight: 500;
+  color: var(--blue);
+}
+
+.u-split input[type="range"] {
+  flex: 1;
+  min-width: 120px;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+
+.u-split input[type="range"]:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 4px;
+  border-radius: var(--r-pill);
+}
+
+@media (max-width: 880px) {
+  .u-split input[type="range"] {
+    order: 3;
+    flex-basis: 100%;
+  }
+}
+
+/* Ползунок с числом (Slider): условия кредита и лизинга, как в банковских калькуляторах */
+.u-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.u-slider-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 160px 28px;
+  gap: var(--s-3);
+  align-items: center;
+}
+
+/* Высота поля с запасом под бегунок: подписи краев стоят под ним и бегунком не закрываются,
+   даже когда он на самом краю */
+.u-slider input[type="range"] {
+  width: 100%;
+  height: 24px;
+  margin: 2px 0 0;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+
+.u-slider input[type="range"]:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 4px;
+  border-radius: var(--r-pill);
+}
+
+.u-slider-ends {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.u-slider-ends > :last-child {
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .u-slider-head {
+    grid-template-columns: minmax(0, 1fr) 28px;
+  }
+
+  .u-slider-head > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Решение строкой (ListRow): список тех, что требуют проверки или не подходят */
+.u-lrows {
+  display: grid;
+  gap: 6px;
+}
+
+.u-lrow {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 170px minmax(0, 460px);
+  gap: var(--s-3);
+  align-items: center;
+  padding: 10px 14px 10px 10px;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.u-lrow.is-picked {
+  box-shadow: var(--hair-blue);
+}
+
+.u-lrow-photo {
+  width: 64px;
+  height: 48px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.u-lrow-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 3px;
+  box-sizing: border-box;
+}
+
+.u-lrow-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* заголовок строки свой: внутри раскрывающегося блока h3 иначе берет его мелкий моноширинный капс */
+.u-lrow h3 {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink);
+}
+
+.u-lrow-why {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.u-lrow-why .warn {
+  color: var(--signal-press);
+}
+
+.u-lrow-price {
+  font-family: var(--font);
+  font-size: 14px;
+}
+
+.u-lrow-price .u-card-rent {
+  font-family: var(--font);
+  font-size: 12px;
+}
+
+/* решение без расчетных параметров: вместо кнопки пояснение, обычным шрифтом и в две строки */
+.u-lrow-act .u-field-src {
+  max-width: 240px;
+  font-family: var(--font);
+  font-size: 12px;
+  text-align: right;
+}
+
+.u-lrow-act {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  justify-content: flex-end;
+}
+
+@media (max-width: 880px) {
+  .u-lrow {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .u-lrow-price,
+  .u-lrow-act {
+    grid-column: 1 / -1;
+  }
+
+  .u-lrow-act {
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+}
+
+/* Предложение пересчитать штат: текст и две кнопки в одной плашке, на узком экране кнопки под текстом */
+.u-rescale {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.u-rescale > span:first-child {
+  flex: 1 1 420px;
+}
+
+/* Что показываем только на широком экране: на телефоне полоса действия не вмещает четыре кнопки */
+@media (max-width: 640px) {
+  .u-wide-hide {
+    display: none;
+  }
+}
+
+/* Выключенная галочка: бледнее и без руки, причина в подсказке */
+.u-check.is-off {
+  color: var(--ink-faint);
+  cursor: not-allowed;
+}
+
+/* Приглушенная строка таблицы сравнения: задача, снятая с расчета */
+.u-compare tr.is-muted th,
+.u-compare tr.is-muted td {
+  color: var(--ink-faint);
+}
+
+/* Полоса долей задач в разбивке экономики */
+.u-sharebar {
+  display: grid;
+  gap: var(--s-1);
+  margin-bottom: var(--s-3);
+}
+
+.u-sharebar-label {
+  font-size: 14px;
+}
+
+.u-sharebar-label .mono {
+  font-family: var(--font);
+  font-weight: 500;
+}
+
+.u-sharebar-track {
+  display: flex;
+  height: 14px;
+  overflow: hidden;
+  border-radius: var(--r-pill);
+  background: var(--sheet);
+  box-shadow: var(--hair);
+}
+
+.u-sharebar-track i {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+}
+
+.u-sharebar-track i + i {
+  border-left: 2px solid var(--paper);
+}
+
+.u-sharebar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-3);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.u-sharebar-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.u-sharebar-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.u-sharebar-legend .mono {
+  font-family: var(--font);
+  color: var(--ink);
+}
+
+.u-sharebar-legend small {
+  color: var(--ink-faint);
+}
+
+/* Строка задачи в разбивке: имя, главные числа и галочка в одну линию, статьи раскрываются ниже */
+.u-taskrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-4);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.u-taskrow.is-muted {
+  color: var(--ink-faint);
+}
+
+.u-taskrow-name {
+  flex: 1 1 260px;
+}
+
+.u-taskrow-name small {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.u-taskrow-fact {
+  min-width: 96px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.u-taskrow-fact b {
+  display: block;
+  font-family: var(--font);
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.u-taskrow-fact b.warn {
+  color: var(--signal-text);
+}
+
+.u-taskrow .u-fold {
+  flex-basis: 100%;
+}
+
+/* Выбор из справочника своим списком (Picker). Закрытый выглядит как поле с числами рядом,
+   кнопка-действие как контурная кнопка. Список той же плитой, что меню аккаунта */
+.u-picker {
+  position: relative;
+  width: 100%;
+}
+
+.u-picker-btn {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 38px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--r-sm);
+  background-color: color-mix(in srgb, var(--ink) 3%, transparent);
+  background-image: var(--select-arrow);
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  box-shadow: var(--edge);
+  padding: 0 30px 0 10px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.u-picker-btn:hover,
+.u-picker-btn[aria-expanded="true"] {
+  box-shadow: var(--hair-blue);
+}
+
+.u-picker-btn.is-action {
+  width: auto;
+  height: auto;
+  background-image: none;
+  padding: 9px 18px;
+  font-size: 14px;
+}
+
+.u-picker-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.u-picker-list {
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  /* по ширине самой длинной роли, не шире экрана */
+  width: max-content;
+  min-width: 100%;
+  max-width: min(420px, calc(100vw - 32px));
+  box-sizing: border-box;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.u-picker-list [role="group"] {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Выбранный пункт видно сразу: заливка, синий текст и галочка */
+.u-picker-list button[aria-selected="true"] {
+  background: var(--blue-tint);
+  color: var(--blue);
+  font-weight: 500;
+}
+
+.u-picker-group {
+  display: block;
+  padding: 8px var(--s-2) 4px;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+/* Роль, которую требует выбранная задача: название без выбора и метка. Убрать ее можно только
+   крестиком, случайно заменить в списке нельзя */
+.u-role-fixed {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 38px;
+  font-size: 15px;
+}
+
+/* Отметка для сравнения: пилюля, настоящий чекбокс лежит поверх и не виден */
+.u-compare-tgl {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: var(--r-pill);
+  box-shadow: var(--hair);
+  color: var(--ink-soft);
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.u-compare-tgl input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.u-compare-tgl:hover {
+  color: var(--blue);
+  box-shadow: var(--hair-blue);
+}
+
+.u-compare-tgl.is-on {
+  background: var(--blue-tint);
+  color: var(--blue);
+  box-shadow: none;
+}
+
+.u-compare-tgl:has(input:focus-visible) {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* Цифры в поле таблицы по центру на глаз. Коробка ставит поле ровно посередине, но у
+   моноширинных цифр нет нижних выносных, и число казалось поднятым. Опускаем текст на 2 точки,
+   единицу ставим по центру, а не по базовой линии */
+.u-num {
+  align-items: center;
+}
+
+.u-num input {
+  padding-top: 2px;
+}
+
+/* Открытый список ролей не обрезается краем таблицы штата: у нее скругление держит overflow */
+.u-sheet:has(.u-picker-list) {
+  overflow: visible;
+}
+
+/* Открытый список встает над полосой действия, у кнопки-действия он своей ширины, а не на всю таблицу */
+.u-picker:has(.u-picker-list) {
+  z-index: 6;
+}
+
+.u-sheet-add .u-picker {
+  width: auto;
+  display: inline-block;
+}
+
+.u-card-second {
+  display: grid;
+  gap: 2px;
+}
+
+/* место под ссылку у выбранной карточки: не видно, но высоту держит */
+.u-card-second.is-hold {
+  visibility: hidden;
+}
+
+/* на телефоне карточки в одну колонку, равнять не с кем: пустое место не держим */
+@media (max-width: 600px) {
+  .u-card-second.is-hold {
+    display: none;
+  }
+}
+
+/* подсказка под ссылкой ровно по ее тексту: у ссылки свой отступ под подсветку */
+.u-card-second .u-field-src {
+  padding-left: 12px;
+}
+
+/* в строке списка места нет: подсказка остается во всплывающей подписи ссылки */
+.u-lrow .u-card-second .u-field-src {
+  display: none;
+}
+
+/* Сворачиваемый блок шага (Collapse): кнопка справа от заголовка, свернутый это заголовок
+   и строка итога. Место под кнопку в строке заголовка держим, чтобы она не легла на подписи */
+.u-collapse {
+  position: relative;
+  margin-top: var(--s-6);
+}
+
+.u-main .u-collapse > section,
+.u-main .u-collapse > div > section {
+  margin-top: 0;
+}
+
+.u-collapse > section > .u-block-head,
+.u-collapse > div > section > .u-block-head {
+  padding-right: 130px;
+}
+
+.u-collapse-btn {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  box-shadow: var(--hair);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.u-collapse-btn:hover {
+  color: var(--blue);
+  box-shadow: var(--hair-blue);
+}
+
+.u-collapse-btn .u-chev {
+  display: inline-flex;
+  transform: rotate(-90deg);
+  transition: transform var(--fast) var(--ease);
+}
+
+.u-collapse.is-closed .u-collapse-btn .u-chev {
+  transform: rotate(90deg);
+}
+
+.u-collapse.is-closed > section > :not(.u-block-head),
+.u-collapse.is-closed > div > section > :not(.u-block-head),
+.u-collapse.is-closed .u-block-head > :not(h2) {
+  display: none;
+}
+
+.u-collapse-sum {
+  margin: calc(-1 * var(--s-2)) 0 0;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--paper);
+  box-shadow: var(--hair);
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 640px) {
+  .u-collapse > section > .u-block-head,
+  .u-collapse > div > section > .u-block-head {
+    padding-right: 0;
+    padding-top: 44px;
+  }
+}
+
+/* Долгий расчет с полосой и этапами (Progress) */
+.u-progress {
+  display: grid;
+  gap: var(--s-2);
+  padding: 20px 24px;
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.u-progress-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.u-progress-top strong {
+  font-weight: 600;
+}
+
+.u-progress-top span {
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.u-progress-bar {
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  overflow: hidden;
+}
+
+.u-progress-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--blue);
+  transition: width 400ms linear;
+}
+
+.u-progress-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px var(--s-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--ink-faint);
+}
+
+.u-progress-stages li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.u-progress-stages .is-done {
+  color: var(--ink-soft);
+}
+
+.u-progress-stages .is-now {
+  color: var(--blue);
+  font-weight: 600;
+}
+
+.u-progress-stages .is-now::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--blue);
+  animation: u-blink 1.4s var(--ease) infinite;
+}
+
+.u-progress p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u-progress-bar i {
+    transition: none;
+  }
+
+  .u-progress-stages .is-now::before {
+    animation: none;
+  }
+}
+
+/* Пояснение про короткий путь аэропорта и медучреждения: с воздухом, а не вплотную к задачам */
+.u-short-note {
+  margin: var(--s-2) 0 var(--s-4);
+}

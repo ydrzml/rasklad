@@ -1,0 +1,6 @@
+{#- Оформление служебных таблиц поверх SQLAdmin: свои стили после стилей Tabler, остальное как в оригинале -#}
+{% extends "sqladmin_original/base.html" %}
+{% block head_css %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('admin:look', path='admin.css') }}">
+{% endblock %}

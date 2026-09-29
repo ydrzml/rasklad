@@ -1,0 +1,1191 @@
+/* Экономика: плитки сценариев, график накопленных затрат, таблица сравнения.
+   Цвет сценария задан один раз и дальше берется через --tone. */
+.is-now {
+  --tone: var(--sc-now);
+}
+
+.is-buy {
+  --tone: var(--sc-buy);
+}
+
+.is-rent {
+  --tone: var(--sc-rent);
+}
+
+/* Плитки сценариев */
+.u-scenarios {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+
+.u-scenario {
+  display: flex;
+  flex-direction: column;
+  padding: var(--s-4);
+  border-radius: var(--r-xl);
+  background: var(--paper);
+  box-shadow:
+    var(--hair),
+    0 18px 44px -32px color-mix(in srgb, var(--shadow) 45%, transparent);
+}
+
+.u-scenario.is-best {
+  box-shadow: var(--hair-blue), var(--lift);
+}
+
+.u-scenario header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.u-scenario h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.u-scenario header .u-badge {
+  margin-left: auto;
+}
+
+.u-scenario-key,
+.u-compare th i,
+.u-cost-pick i {
+  flex: none;
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--tone);
+}
+
+.u-scenario-note {
+  /* две строки у всех плиток: главные числа стоят на одной высоте */
+  min-height: calc(2 * 1.55em);
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.u-scenario-head {
+  display: flex;
+  flex-direction: column;
+  margin: var(--s-4) 0 var(--s-3);
+}
+
+.u-scenario-label {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.u-scenario-value {
+  font-size: 34px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+}
+
+.u-scenario small,
+.u-compare small {
+  margin-left: 6px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.u-scenario dl {
+  margin: 0;
+}
+
+.u-scenario dl div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 9px 0;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.u-scenario dt {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.u-scenario dd {
+  margin: 0;
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+/* Вывод и график рядом: слева график, справа риски */
+.u-money-row {
+  display: grid;
+  grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+}
+
+.u-money-row > .u-panel {
+  padding: var(--s-4);
+}
+
+.u-money-row h3 {
+  margin: 0 0 var(--s-2);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.u-money-row h3 span {
+  margin-left: var(--s-2);
+  font-weight: 400;
+  color: var(--ink-faint);
+  font-size: 14px;
+}
+
+.u-risks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.u-risks li {
+  padding: 10px 0;
+  font-size: 14px;
+  color: var(--ink-soft);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.u-risks li:first-child {
+  box-shadow: none;
+}
+
+.u-risks b {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* График накопленных затрат */
+.u-cost {
+  margin: 0;
+}
+
+.u-cost svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: pan-y;
+}
+
+.u-cost-grid {
+  stroke: color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.u-cost-tick {
+  fill: var(--ink-soft);
+  font: 11px var(--font);
+}
+
+.u-cost-hover {
+  stroke: var(--ink-faint);
+  stroke-dasharray: 3 3;
+}
+
+.u-cost-series path {
+  fill: none;
+  stroke: var(--tone);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.u-cost-series.is-now path {
+  stroke-dasharray: 6 4;
+}
+
+.u-cost-series circle {
+  fill: var(--tone);
+  stroke: var(--paper);
+  stroke-width: 2;
+}
+
+.u-cost-end {
+  fill: var(--ink);
+  font-size: 13px;
+}
+
+.u-cost-end tspan {
+  fill: var(--ink-soft);
+  font-family: var(--font);
+}
+
+.u-cost-cap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--s-3);
+  min-height: 22px;
+  margin-top: var(--s-1);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.u-cost-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.u-cost-pick b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* Таблица сравнения */
+.u-compare {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.u-compare th,
+.u-compare td {
+  padding: 11px 12px;
+  text-align: right;
+}
+
+.u-compare thead th {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.u-compare thead th i {
+  margin-right: 8px;
+}
+
+.u-compare th:first-child {
+  text-align: left;
+  font-weight: 400;
+}
+
+.u-compare tbody th small {
+  display: block;
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.u-compare td {
+  white-space: nowrap;
+}
+
+/* Действия результата: сохранить и выгрузить. Состояние после входа и после сохранения */
+.u-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--ink);
+}
+
+.u-saved svg {
+  color: var(--go);
+}
+
+/* Источники значений */
+.u-sources {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.u-sources li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--s-3);
+  padding: 10px 0;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.u-sources-name {
+  font-size: 15px;
+}
+
+.u-sources-name small {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-faint);
+  overflow-wrap: anywhere;
+}
+
+.u-sources-value {
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+/* Что войдет в отчет */
+.u-report {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-4);
+}
+
+.u-report ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
+.u-report li + li {
+  margin-top: 4px;
+}
+
+@media (max-width: 1080px) {
+  .u-money-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 880px) {
+  .u-scenarios {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-2);
+  }
+
+  .u-scenario {
+    padding: var(--s-3);
+  }
+
+  .u-scenario-value {
+    font-size: 28px;
+  }
+
+  .u-scenario-note {
+    min-height: 0;
+  }
+
+  .u-money-row > .u-panel {
+    padding: var(--s-3);
+  }
+
+  .u-report {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .u-compare thead {
+    display: none;
+  }
+
+  .u-compare tr {
+    display: block;
+    padding: var(--s-2) 0;
+    box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink) 7%, transparent);
+  }
+
+  .u-compare th,
+  .u-compare td {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    box-shadow: none;
+  }
+
+  .u-compare tbody th {
+    display: block;
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+
+  .u-compare td::before {
+    content: attr(data-label);
+    font-family: var(--font);
+    color: var(--ink-soft);
+  }
+}
+
+/* Действия результата справа в полосе: выгрузки светлыми, сохранение главной кнопкой */
+.u-action .u-action-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-left: auto;
+}
+
+/* "Назад" стоит перед группой справа: тот же шаг, что между кнопками группы. На телефоне шаг
+   полосы и так такой */
+@media (min-width: 881px) {
+  .u-action .u-btn + .u-action-end {
+    margin-left: calc(var(--s-2) - var(--s-3));
+  }
+}
+
+.u-action .u-action-end .u-btn-primary {
+  margin-left: 0;
+}
+
+@media (max-width: 880px) {
+  /* На телефоне полоса короче: итог уже виден на плитках, кнопки в одну строку,
+     файлы отчета под кнопкой с меню */
+  .u-action:has(.u-action-end) .u-tally {
+    display: none;
+  }
+
+  .u-action .u-action-end {
+    flex: 1;
+    flex-wrap: nowrap;
+    min-width: 0;
+    justify-content: flex-end;
+  }
+
+  .u-wide {
+    display: none;
+  }
+}
+
+/* Как посчитано: раскрывается внизу плитки, формула словами и в цифрах */
+.u-scenario-how {
+  margin-top: var(--s-2);
+}
+
+.u-scenario-how summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--blue);
+  font-size: 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.u-scenario-how summary::-webkit-details-marker {
+  display: none;
+}
+
+.u-scenario-how > div {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.u-scenario-how a {
+  color: var(--blue);
+}
+
+.u-formula {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 0 var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--sheet);
+}
+
+.u-formula .mono {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.u-more {
+  display: inline-block;
+  margin-top: 2px;
+  color: var(--blue);
+  font-size: 14px;
+}
+
+/* Куда уходят деньги: три колонки рядом */
+/* Плиты по своему содержимому: при равной высоте у короткой колонки внизу оставалась пустота */
+.u-ledger {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+  align-items: start;
+}
+
+.u-ledger-col {
+  padding: var(--s-4);
+  border-radius: var(--r-xl);
+  background: var(--paper);
+  box-shadow:
+    var(--hair),
+    0 18px 44px -32px color-mix(in srgb, var(--shadow) 45%, transparent);
+  scroll-margin-top: 90px;
+}
+
+.u-ledger-col h3 {
+  display: flex;
+  flex-direction: column;
+  margin: 0 0 var(--s-2);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.u-ledger-col h3 span {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.u-ledger-col dl {
+  margin: 0;
+}
+
+.u-ledger-col dl div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 9px 0;
+  font-size: 14px;
+}
+
+.u-ledger-col dt small {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.u-ledger-col dd {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.u-ledger-col .u-ledger-total {
+  font-weight: 600;
+  margin-top: 6px;
+  padding-top: 12px;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 35%, transparent);
+}
+
+/* Строки таблиц без линий: под шапкой одна черта, дальше полоса через строку */
+.u-compare thead th,
+.u-whatif thead th {
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.u-compare tbody tr:nth-child(even),
+.u-whatif tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
+}
+
+/* Что будет, если */
+.u-whatif {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.u-whatif th,
+.u-whatif td {
+  padding: 10px 12px;
+  text-align: right;
+  vertical-align: top;
+}
+
+.u-whatif thead th {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.u-whatif th:first-child {
+  width: 34%;
+  text-align: left;
+  font-weight: 400;
+  font-size: 15px;
+}
+
+.u-whatif tbody th small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.u-whatif td b,
+.u-whatif td span {
+  display: block;
+  white-space: nowrap;
+}
+
+.u-whatif td b {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.u-whatif td b.is-bad {
+  color: var(--signal-text);
+}
+
+.u-whatif td span {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.u-whatif td.is-base {
+  background: var(--blue-tint);
+}
+
+/* Все числа по силе влияния */
+.u-whatif-all {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  padding: var(--s-3) 12px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.u-whatif-rest {
+  margin: var(--s-2) 12px 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.u-whatif-rest b {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.u-tornado-head,
+.u-tornado li {
+  display: grid;
+  grid-template-columns: minmax(0, 34%) minmax(0, 1fr) 96px;
+  gap: var(--s-3);
+  align-items: center;
+}
+
+.u-tornado-head {
+  padding: 0 12px 8px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.u-tornado-head > span:last-child,
+.u-tornado-size {
+  text-align: right;
+}
+
+.u-tornado-axis {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.u-tornado-axis b {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.u-tornado ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.u-tornado li {
+  padding: 9px 12px;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.u-tornado-name {
+  font-size: 14px;
+}
+
+.u-tornado-name small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.u-tornado-track {
+  position: relative;
+  height: 30px;
+  background: linear-gradient(var(--ink), var(--ink)) 50% 0 / 1px 100% no-repeat;
+}
+
+.u-tornado-track i {
+  position: absolute;
+  top: 8px;
+  height: 14px;
+  min-width: 2px;
+}
+
+.u-tornado-track i.is-better {
+  background: var(--tornado);
+  border-radius: 0 4px 4px 0;
+}
+
+.u-tornado-track i.is-worse {
+  background: var(--signal-text);
+  opacity: 0.75;
+  border-radius: 4px 0 0 4px;
+}
+
+.u-tornado-track em {
+  position: absolute;
+  top: -2px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-style: normal;
+  line-height: 1;
+  color: var(--ink-faint);
+}
+
+.u-tornado-size {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+@media (max-width: 1080px) {
+  .u-ledger {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 880px) {
+  .u-ledger-col {
+    padding: var(--s-3);
+  }
+
+  .u-whatif thead {
+    display: none;
+  }
+
+  .u-tornado-head,
+  .u-tornado li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px var(--s-2);
+  }
+
+  .u-tornado-head > span:first-child,
+  .u-tornado-head > span:last-child {
+    display: none;
+  }
+
+  .u-tornado-axis,
+  .u-tornado-track {
+    grid-column: 1 / -1;
+  }
+
+  .u-tornado-name {
+    grid-row: 1;
+  }
+
+  .u-tornado-size {
+    grid-row: 1;
+    align-self: start;
+  }
+
+  .u-whatif tr {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    padding: var(--s-2) 0;
+    box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink) 7%, transparent);
+  }
+
+  .u-whatif th,
+  .u-whatif td {
+    padding: 3px 2px;
+    text-align: center;
+    box-shadow: none;
+  }
+
+  .u-whatif tbody th,
+  .u-whatif th:first-child {
+    grid-column: 1 / -1;
+    width: auto;
+    margin-bottom: 4px;
+    text-align: left;
+  }
+
+  /* на телефоне в ячейке только окупаемость: пять сумм в миллионах в строку не влезают */
+  .u-whatif td span {
+    display: none;
+  }
+
+  .u-whatif td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+
+  .u-whatif td b {
+    font-size: 12px;
+    white-space: normal;
+  }
+}
+
+.u-whatif-panel {
+  padding: var(--s-2) var(--s-4);
+}
+
+.u-summary-lead {
+  max-width: 880px;
+  margin: 0 0 var(--s-3);
+  font-size: 17px;
+}
+
+@media (max-width: 880px) {
+  .u-whatif-panel {
+    padding: var(--s-1) var(--s-3);
+  }
+}
+
+.u-ledger-col .u-ledger-after {
+  color: var(--ink-soft);
+}
+
+.u-ledger-col .u-ledger-total + .u-ledger-after {
+  margin-top: var(--s-3);
+}
+
+.u-ledger-col > .u-more {
+  margin-top: var(--s-2);
+}
+
+/* Смена: выгрузка кадра и журнала под шкалой */
+.u-shift-export {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3) var(--s-3);
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.u-shift-export small {
+  flex-basis: 100%;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+/* Строки роботов внутри плеера, под шкалой: без своей плиты, край в край со шкалой,
+   чтобы час в строках стоял под тем же часом шкалы */
+.u-shift-player .u-score {
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.u-shift-player .u-score-more {
+  padding: 0;
+}
+
+.u-shift-player .u-score-facts {
+  padding: var(--s-2) 0 var(--s-2) 18px;
+}
+
+.u-shift-player .u-shift-export {
+  padding: var(--s-2) 0 0;
+}
+
+/* Между сводкой, тремя сценариями и остальными блоками шага 5 воздух: без него заголовок
+   «Три сценария за пять лет» прилипал к плиткам сводки */
+.u-summary + section,
+#scenarios + section,
+#scenarios {
+  margin-top: var(--s-6);
+}
+
+/* Кривая парка под шкалой смены: слева небольшой график, сразу справа от него заголовок и вывод
+   словами, а не посередине пустого поля далеко от графика. На узком экране друг под другом */
+.u-shift-curve {
+  display: grid;
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "chart title"
+    "chart note";
+  align-items: start;
+  gap: var(--s-1) var(--s-4);
+  margin-top: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.u-shift-curve h3 {
+  grid-area: title;
+  margin: 0;
+}
+
+.u-shift-curve .u-curve {
+  grid-area: chart;
+  margin: 0;
+}
+
+.u-shift-curve .u-shift-note {
+  grid-area: note;
+  margin: 0;
+  max-inline-size: 52ch;
+  font-size: 15px;
+}
+
+@media (max-width: 767px) {
+  .u-shift-curve {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "title"
+      "chart"
+      "note";
+  }
+}
+
+/* Внутри проигрывателя кривая без своей плиты: отделена линией, как выгрузка выше */
+.u-shift-player .u-shift-curve {
+  margin-top: var(--s-3);
+  padding: var(--s-3) 0 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+/* Главный ответ шага экономики: фраза крупно, цифра ответа цветом покупки, ниже строка чисел */
+.u-answer {
+  margin: var(--s-3) 0 0;
+  padding: var(--s-5);
+  border-radius: var(--r-xl);
+  background: var(--paper);
+  box-shadow: var(--hair), var(--lift);
+}
+
+.u-answer-main {
+  margin: 0;
+  font-size: clamp(28px, 3.2vw, 44px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.u-answer-main b {
+  color: var(--blue);
+  font-weight: 600;
+}
+
+.u-answer-sub {
+  margin: var(--s-2) 0 0;
+  font-size: 20px;
+  color: var(--ink-soft);
+}
+
+.u-answer-sub b {
+  color: var(--ink);
+  font-family: var(--font);
+  font-weight: 500;
+}
+
+.u-answer-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-3);
+  margin: var(--s-4) 0 0;
+  padding-top: var(--s-3);
+  border-top: 1px solid color-mix(in srgb, var(--ink) 7%, transparent);
+}
+
+.u-answer-facts dt {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.u-answer-facts dd {
+  margin: 4px 0 2px;
+  font-size: 22px;
+}
+
+.u-answer-facts .u-answer-more {
+  margin: 0;
+  font-size: inherit;
+}
+
+.u-answer-facts small {
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+@media (max-width: 880px) {
+  .u-answer {
+    padding: var(--s-4);
+  }
+
+  .u-answer-sub {
+    font-size: 17px;
+  }
+
+  .u-answer-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Оговорка под главным ответом шага экономики: одной строкой, мелко */
+/* Строка про бюджет между заголовком и "Чем платить": с воздухом сверху и снизу, точка на одной
+   линии с подписью "Чем платить" внутри блока */
+.u-summary-over {
+  margin: var(--s-1) 0 var(--s-3);
+  padding-left: var(--s-4);
+}
+
+.u-summary-note {
+  margin: var(--s-2) 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* Чем платить за покупку: строка над главным ответом шага 5. Способ оплаты, коротко условия
+   и кнопка в панель условий. На телефоне кнопка уходит на свою строку */
+.u-pay-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-3);
+  padding: 10px 10px 10px var(--s-4);
+  border-radius: var(--r-xl);
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.u-pay-row-label {
+  font-weight: 500;
+}
+
+.u-pay-row-pills {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.u-pay-row-note {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.u-pay-row > .u-btn {
+  margin-left: auto;
+}
+
+/* Панель "Как платить за покупку": все по одной колонке с одним шагом между частями */
+.u-pay {
+  display: grid;
+  gap: var(--s-4);
+}
+
+.u-pay > p,
+.u-pay-support p {
+  margin: 0;
+}
+
+/* отступ между частями задает сетка панели, свой отступ переключателя лишний */
+.u-pay > .u-bar {
+  margin-bottom: 0;
+}
+
+.u-pay-wrong {
+  display: grid;
+  justify-items: start;
+  gap: var(--s-2);
+}
+
+.u-pay-terms {
+  display: grid;
+}
+
+/* четыре числа сеткой два на два, плитки одного размера */
+.u-pay-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: var(--s-3);
+}
+
+.u-pay-tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--sheet);
+}
+
+.u-pay-tile span {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.u-pay-tile b {
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1.15;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transition: opacity var(--slow) var(--ease);
+}
+
+/* Пересчет после ползунка: числа не мигают и не прыгают. Прежние стоят как есть и приглушаются,
+   только если ответ идет дольше трети секунды; новые встают на их место без анимации */
+.u-pay-tiles.is-busy b {
+  opacity: 0.55;
+  transition-delay: 350ms;
+}
+
+.u-pay-tile small {
+  margin-left: 6px;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.u-pay-support {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.u-pay-support h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.u-pay-measure {
+  display: grid;
+  gap: 4px;
+}
+
+/* условия меры ровно под ее названием, а не под галочкой */
+.u-pay-measure > .u-check ~ * {
+  padding-left: 34px;
+}
+
+.u-pay .u-fold {
+  margin: 0;
+}
+
+/* платежи и "что это меняет" в панели друг под другом: рядом им узко */
+.u-pay .u-ledger {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (max-width: 880px) {
+  .u-pay-row > .u-btn {
+    margin-left: 0;
+  }
+
+  .u-pay-tile b {
+    font-size: 22px;
+  }
+}

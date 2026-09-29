@@ -1,0 +1,50 @@
+[project]
+name = "unicorn-lct-backend"
+version = "0.1.0"
+description = "Сервер платформы подбора роботизированных решений"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.141",
+    "uvicorn[standard]>=0.53",
+    "openpyxl>=3.1",
+    # openpyxl разбирает xlsx через defusedxml, если он есть: файл с вложенными сущностями не раздует память
+    "defusedxml>=0.7",
+    "reportlab>=4.2",
+    "pydantic-settings>=2.15",
+    # 2.1 перестала ставить greenlet сама, а без него не запускается админка. Переход на 2.1 отдельно
+    "sqlalchemy>=2.0.54,<2.1",
+    "psycopg[binary]>=3.3",
+    "pyyaml>=6.0",
+    "simpy>=4.1",
+    "alembic>=1.16",
+    "argon2-cffi>=25.1",
+    "pyjwt>=2.10",
+    "email-validator>=2.2",
+    "python-multipart>=0.0.20",
+    "sqladmin[i18n]>=0.32",
+    "itsdangerous>=2.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "httpx>=0.28",
+    "ruff>=0.16",
+]
+
+# Сервер не ставится как библиотека, из pyproject берем только зависимости. Без этого установщик
+# видит рядом app и migrations и не понимает, что из них пакет
+[tool.setuptools]
+py-modules = []
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]

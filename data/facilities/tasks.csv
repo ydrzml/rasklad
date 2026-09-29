@@ -1,0 +1,10 @@
+facility;operation;volume_key;staff_keys;description
+airport;baggage_transport;baggage_per_day;ramp_staff;Беспилотные тягачи и платформы возят багаж и грузы по перрону
+airport;cleaning;robot_cleaning_area_m2;terminal_staff;Роботы моют полы терминала, где датасет считает уборку роботизированной
+airport;patrol;apron_area_m2;;Робот объезжает стоянки самолетов и технические зоны
+airport;passenger_help;passengers_per_day;;Робот у стоек регистрации отвечает на вопросы и показывает дорогу
+clinic;floor_delivery;drug_orders_per_day;orderlies;Робот везет лекарства и расходники из аптеки в отделения по этажам
+clinic;campus_delivery;samples_per_day;orderlies;Дрон или ровер везет пробы в лабораторию из другого корпуса или больницы
+clinic;cart_transport;meal_portions_per_day;kitchen_staff,laundry_staff,orderlies;Робот-тягач возит тележки с питанием, бельем и отходами
+clinic;disinfection;operating_rooms;;Робот обеззараживает палаты и операционные ультрафиолетом
+clinic;cleaning;floor_area_m2;;Роботы моют полы коридоров и холлов
