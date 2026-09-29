@@ -1,0 +1,69 @@
+<svg viewBox="0 0 1000 480" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      @font-face { font-family: "Onest"; src: url("../../../backend/app/reports/fonts/Onest-Regular.ttf"); font-weight: 400; }
+      @font-face { font-family: "Onest"; src: url("../../../backend/app/reports/fonts/Onest-SemiBold.ttf"); font-weight: 600; }
+      .box-title { font-family: "Onest", sans-serif; font-weight: 600; font-size: 20px; fill: #0b4fa8; }
+      .box-title-inv { font-family: "Onest", sans-serif; font-weight: 600; font-size: 18px; fill: #ffffff; }
+      .item { font-family: "Onest", sans-serif; font-weight: 400; font-size: 15px; fill: #0d141b; }
+      .sub { font-family: "Onest", sans-serif; font-weight: 400; font-size: 13px; fill: #55636f; }
+      .row-title { font-family: "Onest", sans-serif; font-weight: 600; font-size: 14px; fill: #0b4fa8; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#55636f"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1000" height="480" fill="#ffffff"/>
+
+  <!-- Браузер -->
+  <rect x="30" y="70" width="250" height="320" rx="10" fill="#ffffff" stroke="#0b4fa8" stroke-width="2"/>
+  <rect x="30" y="70" width="250" height="46" rx="10" fill="#0b4fa8"/>
+  <rect x="30" y="96" width="250" height="20" fill="#0b4fa8"/>
+  <text x="155" y="100" text-anchor="middle" class="box-title-inv">Браузер</text>
+  <text x="155" y="150" text-anchor="middle" class="item">мастер</text>
+  <text x="155" y="180" text-anchor="middle" class="item">чертеж</text>
+  <text x="155" y="210" text-anchor="middle" class="item">проигрыватель смены</text>
+  <text x="155" y="240" text-anchor="middle" class="item">кабинет</text>
+  <text x="155" y="270" text-anchor="middle" class="item">админка</text>
+
+  <!-- Стрелка 1 -->
+  <line x1="282" y1="230" x2="345" y2="230" stroke="#55636f" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Сервер FastAPI -->
+  <rect x="350" y="30" width="290" height="400" rx="10" fill="#ffffff" stroke="#0b4fa8" stroke-width="2"/>
+  <rect x="350" y="30" width="290" height="46" rx="10" fill="#0b4fa8"/>
+  <rect x="350" y="56" width="290" height="20" fill="#0b4fa8"/>
+  <text x="495" y="60" text-anchor="middle" class="box-title-inv">Сервер FastAPI</text>
+
+  <line x1="350" y1="110" x2="640" y2="110" stroke="#c9d2db" stroke-width="1"/>
+  <text x="495" y="100" text-anchor="middle" class="row-title">api</text>
+
+  <line x1="350" y1="150" x2="640" y2="150" stroke="#c9d2db" stroke-width="1"/>
+  <text x="495" y="135" text-anchor="middle" class="row-title">services</text>
+
+  <line x1="350" y1="260" x2="640" y2="260" stroke="#c9d2db" stroke-width="1"/>
+  <text x="495" y="170" text-anchor="middle" class="row-title">engine</text>
+  <text x="495" y="195" text-anchor="middle" class="item">подбор</text>
+  <text x="495" y="220" text-anchor="middle" class="item">экономика</text>
+  <text x="495" y="245" text-anchor="middle" class="item">прогон смены</text>
+
+  <line x1="350" y1="340" x2="640" y2="340" stroke="#c9d2db" stroke-width="1"/>
+  <text x="495" y="285" text-anchor="middle" class="row-title">reports</text>
+  <text x="495" y="310" text-anchor="middle" class="item">PDF и Excel</text>
+
+  <text x="495" y="375" text-anchor="middle" class="row-title">config</text>
+  <text x="495" y="400" text-anchor="middle" class="sub">нормативы с источниками</text>
+
+  <!-- Стрелка 2 -->
+  <line x1="642" y1="230" x2="705" y2="230" stroke="#55636f" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- PostgreSQL и файлы -->
+  <rect x="710" y="140" width="260" height="180" rx="10" fill="#ffffff" stroke="#0b4fa8" stroke-width="2"/>
+  <rect x="710" y="140" width="260" height="46" rx="10" fill="#0b4fa8"/>
+  <rect x="710" y="166" width="260" height="20" fill="#0b4fa8"/>
+  <text x="840" y="170" text-anchor="middle" class="box-title-inv">PostgreSQL и файлы</text>
+  <text x="840" y="230" text-anchor="middle" class="item">таблицы данных</text>
+  <text x="840" y="260" text-anchor="middle" class="item">каталог, проекты, версии</text>
+  <text x="840" y="290" text-anchor="middle" class="sub">файлы проектов, фото каталога</text>
+</svg>

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 from pathlib import Path
 
 import markdown as md_lib
@@ -34,36 +35,113 @@ IMAGES = DOCS
 TITLE = "Расклад. Сопроводительная документация"
 SUBTITLE = "Команда unicorn, хакатон \"Лидеры цифровой трансформации 2026\", задача №1 (ФЦ БАС)"
 
-SECTION_BREAK = re.compile(r"^6\.\d+\.")
+GITHUB_REPO = "https://github.com/ydrzml/rasklad"
+
+
+def current_branch() -> str:
+    try:
+        name = subprocess.check_output(
+            ["git", "branch", "--show-current"], cwd=REPO, text=True
+        ).strip()
+    except Exception:
+        name = ""
+    return name or "main"
+
+
+BRANCH = current_branch()
+REPO_BLOB_BASE = f"{GITHUB_REPO}/blob/{BRANCH}/"
+REPO_TREE_BASE = f"{GITHUB_REPO}/tree/{BRANCH}/"
+
+# Разделы уровня ## (не ###), у которых новая страница обязательна: пункты 6.x,
+# "Что мы прорабатывали сами", приложения. "Карта материалов" намеренно не входит -
+# она уже стоит сразу после оглавления и не требует отдельного разрыва.
+MAJOR_HEADING = re.compile(r"^(6\.\d+\.|Как проверить за 10 минут|Что мы прорабатывали сами|Приложение [А-Я]\.)")
+
+FENCE = re.compile(r"```.*?```", re.DOTALL)
+URL_RE = re.compile(r"https?://[^\s<>\]\)\|]+")
+PATH_RE = re.compile(r"(?<![\w/])(`)?((?:docs|data)/[\w./-]*)(`)?")
+
+
+def linkify_urls(text: str) -> str:
+    def repl(m: re.Match) -> str:
+        url = m.group(0)
+        trail = ""
+        while url and url[-1] in ".,;:":
+            trail = url[-1] + trail
+            url = url[:-1]
+        return f"[{url}]({url}){trail}"
+
+    return URL_RE.sub(repl, text)
+
+
+def linkify_paths(text: str) -> str:
+    def repl(m: re.Match) -> str:
+        open_tick, path, close_tick = m.group(1), m.group(2), m.group(3)
+        base = REPO_TREE_BASE if path.endswith("/") else REPO_BLOB_BASE
+        url = base + path
+        label = f"`{path}`" if open_tick and close_tick else path
+        return f"[{label}]({url})"
+
+    return PATH_RE.sub(repl, text)
+
+
+def linkify(text: str) -> str:
+    """Делает ссылки кликабельными: голые URL и относительные пути docs/, data/
+    превращает в markdown-ссылки. Содержимое ```-блоков (примеры команд) не трогает."""
+    parts = FENCE.split(text)
+    fences = FENCE.findall(text)
+    out = []
+    for i, part in enumerate(parts):
+        part = linkify_urls(part)
+        part = linkify_paths(part)
+        out.append(part)
+        if i < len(fences):
+            out.append(fences[i])
+    return "".join(out)
 
 
 def inject_stand_access(text: str, extra_path: Path | None) -> str:
-    """Вставляет подраздел "Доступ к стенду" сразу после "Как проверить за 10 минут"."""
-    if extra_path is None:
-        return text
-    extra = extra_path.read_text(encoding="utf-8").strip()
-    block = "\n\n### Доступ к стенду\n\n" + extra + "\n"
-    marker = "\n## 6.1. "
-    idx = text.index(marker)
-    return text[:idx] + block + text[idx:]
+    """Вставляет подраздел "Доступ к стенду" сразу после "Как проверить за 10 минут"
+    и подставляет нужную формулировку в карту материалов."""
+    if extra_path is not None:
+        extra = extra_path.read_text(encoding="utf-8").strip()
+        block = "\n\n### Доступ к стенду\n\n" + extra + "\n"
+        marker = "\n## 6.1. "
+        idx = text.index(marker)
+        text = text[:idx] + block + text[idx:]
+        note = 'в разделе "Доступ к стенду"'
+    else:
+        note = "в README на Диске с материалами сдачи"
+    return text.replace("{{STAND_ACCESS_NOTE}}", note)
 
 
 def build_toc(toc_tokens: list[dict]) -> str:
     rows = []
-    for item in toc_tokens:
-        if item["level"] != 2:
-            continue
-        rows.append(
-            f'<li class="toc-entry"><a href="#{item["id"]}">{item["name"]}</a></li>'
-        )
+
+    def walk(items: list[dict]) -> None:
+        for item in items:
+            if item["level"] in (2, 3):
+                cls = "toc-entry" if item["level"] == 2 else "toc-entry toc-sub"
+                rows.append(
+                    f'<li class="{cls}"><a href="#{item["id"]}">{item["name"]}</a></li>'
+                )
+            walk(item.get("children") or [])
+
+    walk(toc_tokens)
     return "<ul class=\"toc-list\">" + "".join(rows) + "</ul>"
 
 
 def mark_section_breaks(html: str) -> str:
-    def repl(m: re.Match) -> str:
-        return m.group(0).replace('<h2 id=', '<h2 class="section-break" id=', 1)
+    """Ставит принудительный разрыв страницы перед каждым разделом уровня ##
+    (пункты 6.x, "Что мы прорабатывали сами", приложения), но не перед ###."""
 
-    return re.sub(r'<h2 id="[^"]*">6\.\d+\.[^<]*</h2>', repl, html)
+    def repl(m: re.Match) -> str:
+        name = re.sub(r"<[^>]+>", "", m.group("name"))
+        if MAJOR_HEADING.match(name):
+            return m.group(0).replace('<h2 id=', '<h2 class="section-break" id=', 1)
+        return m.group(0)
+
+    return re.sub(r'<h2 id="[^"]*">(?P<name>[^<]*)</h2>', repl, html)
 
 
 def wrap_images(html: str) -> str:
@@ -128,7 +206,9 @@ h2 { string-set: section content(); }
 .toc-page h1 { font-size: 16pt; margin-bottom: 8mm; }
 .toc-list { list-style: none; margin: 0; padding: 0; }
 .toc-entry { margin: 0 0 3mm 0; font-size: 10.5pt; }
+.toc-entry.toc-sub { margin-left: 8mm; font-size: 9.5pt; color: #55636f; }
 .toc-entry a { text-decoration: none; color: #0d141b; }
+.toc-entry.toc-sub a { color: #55636f; }
 .toc-entry a::after { content: leader(".") target-counter(attr(href), page); color: #55636f; font-family: "JetBrains Mono"; font-size: 9pt; }
 
 h1 { font-family: "Onest"; font-weight: 600; font-size: 18pt; color: #0d141b; margin: 0 0 6mm 0; }
@@ -148,13 +228,16 @@ pre code { background: none; padding: 0; }
 blockquote { margin: 0 0 3mm 0; padding-left: 4mm; border-left: 1pt solid #c9d2db; color: #55636f; }
 
 table { width: 100%; border-collapse: collapse; margin: 0 0 4mm 0; font-size: 9pt; table-layout: fixed; }
-th, td { border: 0.5pt solid #c9d2db; padding: 1.6mm 2.2mm; text-align: left; vertical-align: top; overflow-wrap: break-word; }
+th, td { border: 0.5pt solid #c9d2db; padding: 1.5mm 2.1mm; text-align: left; vertical-align: top; overflow-wrap: break-word; }
 thead { display: table-header-group; }
 thead th { background: #eff5fd; color: #0b4fa8; font-weight: 600; font-family: "Onest"; }
 tr { break-inside: avoid; }
+/* последняя строка таблицы не должна уезжать одна на новую страницу: запрещаем
+   разрыв между предпоследней и последней строкой, они переходят вместе */
+tr:nth-last-child(2) { break-after: avoid; }
 
 .doc-figure { margin: 3mm 0 6mm 0; break-inside: avoid; }
-.doc-figure img { max-width: 100%; display: block; border: 0.5pt solid #c9d2db; border-radius: 1.5mm; }
+.doc-figure img { max-width: 56%; display: block; margin: 0 auto; border: 0.5pt solid #c9d2db; border-radius: 1.5mm; }
 .doc-figure figcaption { font-size: 8.6pt; color: #55636f; margin-top: 2mm; }
 
 hr { border: none; border-top: 0.5pt solid #c9d2db; margin: 6mm 0; }
@@ -169,6 +252,7 @@ def main() -> None:
 
     text = SOURCE.read_text(encoding="utf-8")
     text = inject_stand_access(text, Path(args.stand_access) if args.stand_access else None)
+    text = linkify(text)
 
     md = md_lib.Markdown(extensions=["extra", "tables", "toc", "sane_lists"], extension_configs={
         "toc": {"permalink": False, "toc_depth": "2-3"},
