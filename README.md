@@ -145,7 +145,7 @@ docker compose up --build
 
 ## Где что находится
 
-- Документация по ТЗ (разделы 6.1-6.10): [PDF](docs/documentation.pdf), [DOCX](docs/documentation.docx), [исходник](docs/documentation.md)
+- Документация по ТЗ (разделы 6.1-6.10): [PDF](docs/documentation.pdf), [исходник](docs/documentation.md)
 - Пример отчета по демо-расчету: [PDF](docs/example/report.pdf), [Excel](docs/example/report.xlsx), [запрос расчета](docs/example/request.json)
 - Методика расчета с примерами руками: [docs/calculation.md](docs/calculation.md), картинками в сервисе: http://localhost:3000/method
 - Журнал решений, что выбрали и почему: [docs/decisions.md](docs/decisions.md)
@@ -186,7 +186,7 @@ npm run dev
 | `config/` | Нормативы, профили объектов и поля формы с источниками |
 | [data/catalog/](data/catalog/) | Каталог складских решений с характеристиками и оценками |
 | [data/specs/](data/specs/) | Характеристики 31 складского решения с источниками |
-| [docs/documentation.pdf](docs/documentation.pdf) | Сопроводительная документация (разделы 6.1-6.10 ТЗ), DOCX рядом, исходник в `documentation.md` |
+| [docs/documentation.pdf](docs/documentation.pdf) | Сопроводительная документация (разделы 6.1-6.10 ТЗ), исходник в `documentation.md` |
 | [docs/example/](docs/example/) | Пример отчета PDF и таблиц Excel по демо-расчету |
 | [docs/requirements.md](docs/requirements.md) | Требования ТЗ списком |
 | [docs/scope.md](docs/scope.md) | Что сделано по ТЗ, сверх ТЗ, что не делаем и что не вошло в срез |
