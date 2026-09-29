@@ -326,7 +326,51 @@ def _without_station_data(request: CalculationRequest) -> TaskChoice | None:
     return None
 
 
+def _unfit(request: CalculationRequest) -> str | None:
+    """Выбранное решение, которое подбор исключает под эту задачу: массой груза, проездом или процессом.
+    Правила берем из подбора, свои не заводим. Проезды и пандусы плана не смотрим: про них отвечает проверка плана ниже. Пометка «требует проверки» расчет не останавливает."""
+    from app.engine import selection as rules
+    from app.services import selection as selection_service
+
+    model = _model()[0]
+    robots = {robot["id"]: robot for robot in model["robots"]}
+    facility = _by_id(model["facilities"], request.facility_id)
+    for choice in request.choices():
+        catalog_id = robots.get(choice.robot_id, {}).get("catalog_id")
+        if not catalog_id:
+            continue
+        load_kg = request.overrides.get(f"facilities.{request.facility_id}.operations.{choice.operation_id}.load_kg")
+        found = next(
+            (
+                one
+                for one in selection_service.solutions(request.facility_id, choice.operation_id, None, load_kg)
+                if one.id == catalog_id
+            ),
+            None,
+        )
+        if found is None or found.status != rules.EXCLUDED:
+            continue
+        reasons = "; ".join(check.detail for check in found.checks if check.outcome == rules.BLOCKS)
+        task = _by_id(facility["operations"], choice.operation_id).get("name", choice.operation_id)
+        return f'{found.product} не подходит для задачи "{task}": {reasons}'
+    return None
+
+
 def calculate(request: CalculationRequest) -> CalculationResult:
+    unfit = _unfit(request)
+    if unfit:
+        model = _model()[0]
+        return CalculationResult(
+            feasible=False,
+            cause="solution",
+            message=unfit,
+            model_version=str(model["meta"]["version"]),
+            facility_id=request.facility_id,
+            operation_id=request.choices()[0].operation_id,
+            robot_id=request.choices()[0].robot_id,
+            horizon_years=model["economics"]["horizon_years"],
+            applied_overrides=request.overrides,
+        )
     if _without_station_data(request):
         model = _model()[0]
         return CalculationResult(
