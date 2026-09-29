@@ -87,14 +87,13 @@ def test_report_time_is_moscow_and_says_so():
     assert any("расчет от" in cell and "мск" in cell for cell in cells)
 
 
-def test_report_checks_robots_by_the_load_the_user_entered():
-    """Экран проверяет решение по массе груза с шага параметров, и отчет должен так же: груз 3000 кг
-    Ronavi H1500 не поднимает, на экране он исключен, в отчете тоже."""
+def test_report_refuses_robot_that_cannot_lift_the_load_the_user_entered():
+    """Груз 3000 кг Ronavi H1500 не поднимает: подбор его исключает, и отчет по нему не собирается."""
+    import pytest
+
     from app.reports import content
     from app.schemas.economics import CalculationRequest
 
     load = "facilities.warehouse.operations.pallet_transport.load_kg"
-    report = content.build(CalculationRequest(overrides={load: 3000}))
-    robot = report.tasks[0].robot
-    assert robot is not None and robot.status == "excluded"
-    assert any(c.label == "Грузоподъемность" and c.outcome == "blocks" for c in robot.checks)
+    with pytest.raises(content.NotFeasible, match="не подходит для задачи"):
+        content.build(CalculationRequest(overrides={load: 3000}))

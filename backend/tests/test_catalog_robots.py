@@ -70,7 +70,12 @@ def test_shift_runs_for_every_solution(operation, robot):
     answer = calculation.calculate(
         CalculationRequest(facility_id=FACILITY, operation_id=operation, robot_id=robot, use_simulation=True)
     )
-    assert answer.feasible, answer.message
+    # решение, которое подбор исключает на типовом объекте (груз тяжелее, проезд уже), расчет отклоняет
+    catalog_id = next(r["catalog_id"] for r in calculation.model_with_overrides({})[0]["robots"] if r["id"] == robot)
+    excluded = any(
+        one.id == catalog_id and one.status == "excluded" for one in selection.solutions(FACILITY, operation)
+    )
+    assert answer.feasible != excluded, answer.message
 
 
 def test_selection_links_by_catalog_number_and_gives_photos():

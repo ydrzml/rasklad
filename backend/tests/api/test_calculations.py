@@ -231,3 +231,18 @@ def test_picking_demo_after_checking_the_dataset():
     result = preview(operation_id="piece_picking", robot_id="ronavi-m")
     assert result["sizing"]["fleet"] == 56
     assert round(result["scenarios"][1]["payback_cumulative_years"], 2) == 3.25
+
+
+def test_preview_refuses_solution_that_selection_excludes():
+    heavy = preview(overrides={"facilities.warehouse.operations.pallet_transport.load_kg": 3000})
+    assert heavy["feasible"] is False
+    assert heavy["scenarios"] == []
+    assert "не подходит для задачи" in heavy["message"]
+    assert "Ronavi H1500" in heavy["message"]
+    assert "3000" in heavy["message"]
+
+
+def test_preview_refuses_solution_from_other_task():
+    other = preview(robot_id="clinbotics-600")
+    assert other["feasible"] is False
+    assert "Перевозка паллет" in other["message"]

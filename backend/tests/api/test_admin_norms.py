@@ -31,8 +31,10 @@ def admin(db_client, monkeypatch):
     db_client.post("/api/auth/demo", json={"role": "admin"})
     monkeypatch.setattr(selection, "sessions", session)
     norms.forget()
+    selection.forget()
     yield db_client
     norms.forget()
+    selection.forget()
 
 
 def norm(client, code):
