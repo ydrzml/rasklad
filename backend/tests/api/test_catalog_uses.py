@@ -44,7 +44,7 @@ def test_our_solutions_are_bound_from_data(admin):
         ("airport", "cleaning"): "confirmed",
         ("clinic", "cleaning"): "confirmed",
     }
-    assert mark2["facilities"] == ["warehouse", "airport", "clinic"]
+    assert mark2["facilities"] == ["warehouse", "clinic", "airport"]
     assert uses(card(admin, RONAVI_SR)) == {("warehouse", "sorting"): "confirmed"}
 
 

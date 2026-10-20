@@ -99,7 +99,7 @@ def test_empty_plan_is_named_as_the_reason_not_the_robot():
 
 def test_catalog_lists_facilities_solutions_and_form_fields():
     facilities = client.get("/api/catalog/facilities").json()
-    assert [f["id"] for f in facilities] == ["warehouse", "airport", "clinic", "other"]
+    assert [f["id"] for f in facilities] == ["warehouse", "clinic", "airport", "other"]
     warehouse = facilities[0]
     # задачи объекта, из которых пользователь выбирает, что роботизировать
     assert [o["id"] for o in warehouse["operations"]] == ["pallet_transport", "piece_picking", "cleaning"]

@@ -25,7 +25,7 @@ class Operation:
     needs: tuple[str, ...]  # характеристики, без которых решение для этой операции не проверить
 
 
-FACILITIES = {"warehouse": "Склад", "airport": "Аэропорт", "clinic": "Медучреждение"}
+FACILITIES = {"warehouse": "Склад", "clinic": "Медучреждение", "airport": "Аэропорт"}
 
 MOVE = ("payload_kg", "max_speed_m_s", "runtime_h", "charge_time_h", "navigation_type")
 OPERATIONS = [
