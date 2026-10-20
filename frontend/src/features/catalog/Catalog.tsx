@@ -173,8 +173,12 @@ function Objects({
           <span className="c-object-name">{one.name}</span>
           <span className="c-object-count mono">{one.catalog.count}</span>
           <span className="c-object-unit">{plural(one.catalog.count)}</span>
-          <span className={one.status === "ready" ? "c-object-mode is-full" : "c-object-mode"}>
-            {one.status === "ready" ? "Подбор и полный расчет" : "Подбор, расчета пока нет"}
+          <span className={one.status === "ready" || one.id === "clinic" ? "c-object-mode is-full" : "c-object-mode"}>
+            {one.status === "ready"
+              ? "Подбор и полный расчет"
+              : one.id === "clinic"
+                ? "Подбор, план, смена и экономика"
+                : "Подбор, расчета пока нет"}
           </span>
           <span className="c-object-note">{one.note}</span>
         </button>
