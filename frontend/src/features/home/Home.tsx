@@ -5,7 +5,7 @@ import type { components } from "../../api/schema";
 import { money, term } from "../../app/format";
 import { Badge, BlockHead, CatalogStack, Header, Trust } from "../../ui";
 import { Pallet07 } from "../../ui/robots";
-import { HeatFloor } from "../landing/HeatFloor";
+import { LiveFloor } from "../landing-a/LiveFloor";
 import "../landing/landing.css";
 import "../landing-a/landing-a.css";
 import "./home.css";
@@ -48,21 +48,43 @@ export function Home() {
   const own = last && plan?.items?.length ? last : null;
 
   return (
-    <div className="l-page la-page">
-      <HeatFloor still />
-      <div data-floor-busy>
+    // фон и шапка как у лендинга: клетка плана с тихими волнами, шапка прилипает к верху
+    <div className="l-page la-page h-live">
+      <LiveFloor />
+      <div className="la-head" data-floor-busy>
         <Header />
       </div>
       <main className="l-wrap h-scene">
         <section className={own ? "la-hero h-studio" : "la-hero h-studio is-alone"}>
-          <div className="h-studio-left" data-floor-busy>
-            <h1>
-              Продолжим расчет <span>вашего склада</span>
-            </h1>
-            <p className="la-lead">
-              Продолжите последний проект или посчитайте новый склад: план, роботы, смена и окупаемость.
-            </p>
-            <a className="u-btn u-btn-primary la-go" href="/calc?new=1">
+          {/* волны гаснут возле самих текстов и карточек, а не возле всей колонки: колонка и секции
+              ниже во всю ширину страницы, и с пометкой на них фон гас почти везде */}
+          <div className="h-studio-left">
+            {/* продолжать есть что, только когда есть проект. Пока список грузится, место под заголовок пустое */}
+            {last ? (
+              <>
+                <h1 data-floor-busy>
+                  Продолжим расчет <span>вашего склада</span>
+                </h1>
+                <p className="la-lead" data-floor-busy>
+                  Продолжите последний проект или посчитайте новый склад: план, роботы, смена и окупаемость.
+                </p>
+              </>
+            ) : list === null ? (
+              <h1 aria-busy="true" data-floor-busy>
+                &nbsp;
+              </h1>
+            ) : (
+              <>
+                <h1 data-floor-busy>
+                  Посчитаем <span>ваш склад</span>
+                </h1>
+                <p className="la-lead" data-floor-busy>
+                  Пример склада уже заполнен: пройдите пять шагов и поменяйте то, что у вас иначе. Расчет можно
+                  сохранить в проект и вернуться к нему отсюда.
+                </p>
+              </>
+            )}
+            <a className="u-btn u-btn-primary la-go" href="/calc?new=1" data-floor-busy>
               Новый расчет
               <span className="u-knob">→</span>
             </a>
@@ -83,18 +105,20 @@ export function Home() {
         </section>
 
         {news && news.length > 0 && (
-          <section className="h-scene-news" data-floor-busy>
-            <BlockHead
-              title="Новое в каталоге роботов"
-              aside={
-                <a className="u-btn u-btn-link" href="/method">
-                  Как мы считаем
-                </a>
-              }
-            />
+          <section className="h-scene-news">
+            <div data-floor-busy>
+              <BlockHead
+                title="Новое в каталоге роботов"
+                aside={
+                  <a className="u-btn u-btn-link" href="/method">
+                    Как мы считаем
+                  </a>
+                }
+              />
+            </div>
             <div className="h-cards">
               {latest(news).map((item) => (
-                <article key={`${item.at}${item.title}${item.kind}`} className="h-news-card">
+                <article key={`${item.at}${item.title}${item.kind}`} className="h-news-card" data-floor-busy>
                   <div className="u-card-photo">
                     {item.photo_url ? (
                       <img src={item.photo_url} alt="" loading="lazy" />
@@ -124,7 +148,7 @@ export function Home() {
 
 function LastProject({ project }: { project: ProjectSummary }) {
   return (
-    <div className="h-last">
+    <div className="h-last" data-floor-busy>
       <span className="l-label">последний проект · {saved(project)}</span>
       <b className="h-last-name">{project.name}</b>
       <span className="h-last-figures">
@@ -166,17 +190,19 @@ const TRUST: [string, string][] = [
 
 function HowWeCount() {
   return (
-    <section className="h-how" data-floor-busy>
-      <BlockHead
-        title="Как мы считаем"
-        aside={
-          <a className="u-btn u-btn-link" href="/method">
-            Вся методика
-          </a>
-        }
-      />
+    <section className="h-how">
+      <div data-floor-busy>
+        <BlockHead
+          title="Как мы считаем"
+          aside={
+            <a className="u-btn u-btn-link" href="/method">
+              Вся методика
+            </a>
+          }
+        />
+      </div>
       <div className="h-how-grid">
-        <a className="h-how-tile" href="/method#path">
+        <a className="h-how-tile" data-floor-busy href="/method#path">
           <span className="l-label">пять шагов</span>
           <ol className="h-steps mono">
             <li>объект</li>
@@ -186,7 +212,7 @@ function HowWeCount() {
             <li>экономика</li>
           </ol>
         </a>
-        <a className="h-how-tile is-wide" href="/method#trust">
+        <a className="h-how-tile is-wide" data-floor-busy href="/method#trust">
           <span className="l-label">оценка доверия у каждой цифры</span>
           <span className="h-trust-row">
             {TRUST.map(([level, name]) => (
@@ -197,17 +223,17 @@ function HowWeCount() {
             ))}
           </span>
         </a>
-        <a className="h-how-tile" href="/method#fleet">
+        <a className="h-how-tile" data-floor-busy href="/method#fleet">
           <span className="l-label">парк роботов</span>
           <b>Прогон смены на вашем плане</b>
           <span className="h-faint">формула стоит рядом проверкой</span>
         </a>
-        <a className="h-how-tile" href="/method#scenarios">
+        <a className="h-how-tile" data-floor-busy href="/method#scenarios">
           <span className="l-label">экономика</span>
           <b>Три сценария за 5 лет</b>
           <span className="h-faint">без роботов, покупка, аренда</span>
         </a>
-        <a className="h-how-tile" href="/method#trust">
+        <a className="h-how-tile" data-floor-busy href="/method#trust">
           <span className="l-label">откуда данные</span>
           <b>Каталог ФЦ БАС и сайты производителей</b>
           <span className="h-faint">у значения ссылка, цитата и дата</span>

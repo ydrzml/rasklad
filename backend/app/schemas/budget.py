@@ -42,6 +42,15 @@ class BudgetFit(BaseModel):
     investment_needed_rub: float | None = Field(description="Вложения на старте покупкой при нужном парке")
     raas_start_rub: float | None = Field(description="Вложения на старте при аренде; пусто: аренды у решения нет")
     raas_fits: bool | None = Field(description="Укладывается ли старт аренды в бюджет")
+    loan_start_rub: float | None = Field(
+        default=None, description="Свои деньги на старте при покупке в кредит, нужный парк; пусто: парк не сходится"
+    )
+    leasing_start_rub: float | None = Field(
+        default=None, description="Свои деньги на старте при лизинге: аванс и то, что лизинг не берет"
+    )
+    raas_month_rub: float | None = Field(
+        default=None, description="Плата за аренду всего нужного парка в месяц; пусто: аренды у решения нет"
+    )
 
 
 class BudgetTask(BaseModel):

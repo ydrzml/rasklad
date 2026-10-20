@@ -14,6 +14,7 @@ from app.schemas.catalog import CatalogMatches, Facility, Operation, Parameter
 from app.services import facility_catalog
 from app.services.calculation import model_with_overrides
 from app.services.selection import catalog as solution_catalog
+from app.services.selection import catalog_count
 from app.settings import settings
 
 NO_SOLUTIONS = "В каталоге пока нет решений для этой задачи"
@@ -74,10 +75,16 @@ def _catalog_matches(spec: dict, provenance: dict[str, Provenance]) -> CatalogMa
     """Сколько решений стоит на карточке объекта и что это число значит.
 
     У склада считаем по своему отобранному каталогу, у аэропорта и больницы по разобранному
-    списку решений: это факт о файле, а не оценка. У "другого" число посчитано по выгрузке
-    организатора и записано в конфиге с источником.
+    списку решений: это факт о файле, а не оценка. У "другого" считаем весь каталог в базе: то же
+    число, что видит админка.
     """
     catalog = spec["catalog"]
+    if catalog.get("scope") == "all":
+        return CatalogMatches(
+            count=catalog_count(),
+            note=catalog["note"],
+            source="Каталог решений в базе, все позиции",
+        )
     if facility_catalog.has_solutions(spec["id"]):
         return CatalogMatches(
             count=facility_catalog.solutions_count(spec["id"]),
@@ -155,6 +162,7 @@ def parameters(facility_id: str, operation_ids: list[str] | None = None) -> list
                     key=bool(field.get("key", False)),
                     ours=bool(field.get("ours", False)),
                     yes_no=bool(field.get("yes_no", False)),
+                    yes_no_names=field.get("yes_no_names"),
                     label=field["label"],
                     unit=field["unit"],
                     value=_value(model, path),

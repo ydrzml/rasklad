@@ -208,6 +208,16 @@ function build(plan: Plan, measures: PlanMeasures | null, colorBy: ColorBy): { f
             color,
             kind: "box",
           });
+    } else if (item.kind === "blocked" && (item.role === "packing" || item.role === "conveyor")) {
+      // стол упаковки и лента: невысокие, по пояс, чтобы не закрывать станции
+      for (const part of stand(item))
+        things.push({
+          ...rect(part),
+          z0: part.floor,
+          z1: part.floor + (item.role === "packing" ? 0.9 : 0.8),
+          color: item.role === "packing" ? "var(--blue-tint)" : "var(--ink-soft)",
+          kind: "box",
+        });
     } else if (item.kind === "blocked" && item.role === "zone") {
       // закрытая зона без стен: лежит на полу, а не стоит коробкой
       for (const part of stand(item))

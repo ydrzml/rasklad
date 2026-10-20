@@ -46,7 +46,10 @@ def test_zero_volume_answers_with_zero_fleet_and_no_payback():
     assert result["sizing"]["fleet"] == 0
     purchase = scenario(result, "purchase")
     assert purchase["payback_cumulative_years"] is None
-    assert purchase["verdict"]["band"] == "не окупается"
+    # роботов нет: вкладывать не во что, и вывод говорит это прямо, а не "не окупается"
+    assert purchase["verdict"]["band"] == "роботов нет"
+    assert "Роботов 0" in purchase["verdict"]["text"]
+    assert purchase["capex_total_rub"] == 0
     assert finite_numbers(result)
 
 
@@ -152,7 +155,8 @@ def test_reports_for_infeasible_calculation_answer_without_a_crash():
 
 
 def test_sensitivity_marks_variants_where_the_fleet_does_not_fit():
-    # отбор на 855 тыс. строк в сутки: 470 роботов (1,9 строки за подачу), при +10% объема формула уходит за 500
+    # отбор на 855 тыс. строк в сутки при 22 часах: 855 000 * 0,3 / 22 * 1,5 * 1,15 / 42,75 = 470,5, вверх 471
+    # робот (1,9 строки за подачу), при +10% объема 518, формула уходит за 500
     body = {
         "facility_id": "warehouse",
         "operation_id": "piece_picking",

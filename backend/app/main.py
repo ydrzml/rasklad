@@ -9,8 +9,10 @@ from app.api import (
     auth,
     budget,
     calculations,
+    cases,
     catalog,
     catalog_updates,
+    clinic,
     data_import,
     health,
     photos,
@@ -49,8 +51,10 @@ app.include_router(staff.router, prefix="/api")
 app.include_router(data_import.router, prefix="/api")
 app.include_router(plan.router, prefix="/api")
 app.include_router(calculations.router, prefix="/api")
+app.include_router(cases.router, prefix="/api")
 app.include_router(budget.router, prefix="/api")
 app.include_router(simulation.router, prefix="/api")
+app.include_router(clinic.router, prefix="/api")
 app.include_router(projects.router, prefix="/api")
 app.include_router(shares.router, prefix="/api")
 app.include_router(admin_catalog.router, prefix="/api")

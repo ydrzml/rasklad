@@ -7,8 +7,9 @@ from sqlalchemy.pool import StaticPool
 from app.auth import throttle
 from app.db import get_session
 from app.main import app
-from app.services import catalog_photos, catalog_uses, selection
+from app.services import calculation, catalog_photos, catalog_uses, selection
 from app.services.catalog_import import seed_team_catalog
+from app.settings import settings
 from app.storage.models import Base
 
 
@@ -32,6 +33,22 @@ def catalog_database():
 
 
 selection.sessions = catalog_database()
+
+
+@pytest.fixture(autouse=True)
+def fresh_answers():
+    """Ответы расчета сервер помнит по входу и версии данных (services/calculation.py, _ANSWERS).
+    На сервере база одна, и номер правки каталога растет; тесты поднимают новую базу, где номер
+    начинается заново, поэтому ответы прошлого теста забываем"""
+    calculation._ANSWERS.clear()
+    yield
+
+
+@pytest.fixture(autouse=True)
+def demo_login_on(monkeypatch):
+    """Тесты входят в демо-аккаунты коротким запросом POST /api/auth/demo. На запуске он выключен
+    по умолчанию (app/settings.py), это проверяет test_release.py"""
+    monkeypatch.setattr(settings, "demo_login", True)
 
 
 @pytest.fixture

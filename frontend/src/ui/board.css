@@ -131,8 +131,252 @@
 
 .u-form-go {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: var(--s-2);
   padding-top: var(--s-2);
+}
+
+/* Окно чертежа DXF почти на весь экран: слева крупная картинка из включенных слоев, справа единицы
+   и таблица слоев, она листается сама. Итог, ошибка и кнопки стоят внизу и видны всегда */
+.u-dialog.u-dxf {
+  width: calc(100vw - 48px);
+  max-width: 1320px;
+  height: calc(100vh - 48px);
+  max-height: 900px;
+  overflow: hidden;
+}
+
+.u-dxf-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.u-dxf-lead {
+  max-width: 72ch;
+}
+
+.u-dxf-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: var(--s-4);
+  flex: 1;
+  min-height: 0;
+  margin-top: var(--s-3);
+}
+
+.u-dxf-side {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: var(--s-1);
+}
+
+/* окно при открытии ставит фокус на листаемую колонку: рамка вокруг всей таблицы только мешает,
+   у галочек и списков в ней своя рамка фокуса */
+.u-dxf-side:focus {
+  outline: none;
+}
+
+.u-dxf .u-dialog-actions {
+  padding-top: var(--s-2);
+}
+
+.u-dxf-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: var(--s-2);
+  border-radius: var(--r-md);
+  background: var(--sheet);
+  color: var(--ink-soft);
+  overflow: hidden;
+}
+
+.u-dxf-view img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.u-dxf-units {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.u-dxf-units .u-select {
+  max-width: 220px;
+}
+
+.u-dxf-note {
+  margin-top: var(--s-1);
+  font-size: 13px;
+}
+
+/* Таблица слоев: у каждой строки своя высота, длинное имя и подсказка переносятся, а не налезают */
+.u-dxf-table {
+  width: 100%;
+  margin-top: var(--s-3);
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.u-dxf-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--s-1) var(--s-1) var(--s-1) 0;
+  background: var(--paper);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.u-dxf-table td {
+  padding: var(--s-1) var(--s-1) var(--s-1) 0;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+  vertical-align: middle;
+}
+
+.u-dxf-table th:last-child,
+.u-dxf-table td:last-child {
+  width: 170px;
+  padding-right: 0;
+}
+
+.u-dxf-name .u-check {
+  overflow-wrap: anywhere;
+}
+
+/* На узком экране картинка сверху, все листается целиком; в строке слоя подсказка под именем */
+@media (max-width: 860px) {
+  .u-dialog.u-dxf {
+    width: calc(100vw - 16px);
+    height: calc(100vh - 16px);
+  }
+
+  .u-dxf-body {
+    overflow-y: auto;
+  }
+
+  .u-dxf-main {
+    display: block;
+    flex: none;
+  }
+
+  .u-dxf-view {
+    height: 240px;
+  }
+
+  .u-dxf-side {
+    overflow: visible;
+  }
+
+  .u-dxf-table thead {
+    display: none;
+  }
+
+  .u-dxf-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 150px;
+    align-items: center;
+    column-gap: var(--s-2);
+    padding: var(--s-1) 0;
+    border-top: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+  }
+
+  .u-dxf-table td {
+    padding: 0;
+    border: 0;
+  }
+
+  .u-dxf-table td:last-child {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    width: auto;
+  }
+}
+
+.u-dxf-limits {
+  margin-top: var(--s-3);
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.u-dxf-limits summary {
+  cursor: pointer;
+  color: var(--blue-deep);
+}
+
+.u-dxf-limits ul {
+  margin: var(--s-1) 0 0;
+  padding-left: var(--s-3);
+  line-height: 1.5;
+}
+
+/* Что взяли из чертежа: стоит над подложкой в колонке справа */
+.u-dxf-notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+  padding-bottom: var(--s-3);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.u-dxf-notes ul {
+  margin: 0;
+  padding-left: var(--s-3);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.u-dxf-meta {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.u-dxf-meta em {
+  margin-right: var(--s-1);
+  font-style: normal;
+  color: var(--blue-deep);
+}
+
+.u-dxf-size {
+  margin-top: var(--s-2);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.u-dxf-error {
+  min-height: 1.5em;
+  margin: var(--s-2) 0 0;
+  color: var(--stop);
+  line-height: 1.5;
+}
+
+.u-dxf-error:empty {
+  display: none;
+}
+
+/* Большой чертеж разбирается минуты: пока сервер работает, говорим, сколько ждать */
+.u-dxf-wait {
+  margin: var(--s-2) 0 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+/* Какой файл нужен для кнопки чертежа: формат и предел размера */
+.u-dxf-hint {
+  margin: var(--s-1) 0 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 /* Место для картинки плана: бросить сюда или щелкнуть. Внутри пример того, что на ней должно быть */
@@ -579,6 +823,23 @@ body.u-no-scroll {
   vector-effect: non-scaling-stroke;
 }
 
+/* Места упаковки у станций и конвейер к отгрузке ставит программа. Конвейер это схема, без расчета */
+.u-packing {
+  fill: color-mix(in srgb, var(--blue) 18%, transparent);
+  stroke: var(--blue);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.u-conveyor {
+  fill: color-mix(in srgb, var(--ink) 22%, transparent);
+  stroke: var(--ink-soft);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  vector-effect: non-scaling-stroke;
+}
+
 /* Закрытая зона: место на полу без стен, робот туда не заезжает. Штриховка, а не заливка стены */
 .u-nogo {
   fill: url(#u-nogo-hatch);
@@ -818,6 +1079,11 @@ rect.u-cell {
   transform: translate(-50%, -100%);
   white-space: nowrap;
   animation: u-window-in var(--fast) var(--ease);
+}
+
+/* левый край посчитан с учетом ширины панельки и окна свойств (Actions в board.tsx) */
+.u-actions.is-placed {
+  transform: translateY(-100%);
 }
 
 .u-actions button {
@@ -1470,6 +1736,11 @@ button.u-legend-row:hover {
   color: var(--ink-faint);
 }
 
+.u-player-speed-label {
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
 .u-player-speeds {
   display: inline-flex;
   gap: 2px;
@@ -1708,7 +1979,10 @@ button.u-legend-row:hover {
 
 /* Смена на плане на шаге экономики: лист с плеером слева, итоги и кривая справа */
 .u-shift {
-  --sheet-h: clamp(340px, calc(100vh - 420px), 560px);
+  /* лист по пропорции плана (--plan-aspect ставит ShiftOnPlan), чтобы план вписывался по ширине:
+     ширина колонки * пропорция, плюс запас на цифры размеров и переключатель вида. Выше экрана без
+     плеера и полосы внизу не растет */
+  --sheet-h: clamp(340px, calc(100cqw * var(--plan-aspect, 0.6) * 1.12 + 100px), max(440px, calc(100vh - 270px)));
   margin-top: var(--s-6);
 }
 
@@ -1732,6 +2006,7 @@ button.u-legend-row:hover {
   flex-direction: column;
   gap: var(--s-2);
   min-width: 0;
+  container-type: inline-size;
 }
 
 .u-shift-bar {
@@ -1841,6 +2116,149 @@ button.u-legend-row:hover {
   font-size: 13px;
 }
 
+/* Узкое место смены: первой строкой у парка, крупнее заметок, доли времени цифрой */
+.u-shift-key {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--blue-tint);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.u-shift-key-name {
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.u-shift-key b {
+  font-size: 19px;
+  font-weight: 600;
+}
+
+/* Парк крупно: первое, что ищут справа от смены */
+.u-shift-fleet {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
+.u-shift-fleet b {
+  color: var(--ink);
+  font-size: 28px;
+  font-weight: 500;
+}
+
+/* Загрузка парка за смену: одна полоса долей времени и подписи под ней */
+.u-load-bar {
+  display: flex;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--act-idle);
+}
+
+.u-load-bar span {
+  flex-basis: 0;
+  min-width: 0;
+}
+
+.u-load-keys {
+  display: grid;
+  gap: 4px;
+  margin: var(--s-2) 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.u-load-keys li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.u-load-keys i {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.u-load-keys b {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* Все задачи вместе: легенда задач в строке проигрывателя и итоги задачи справа */
+.u-together-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--s-3);
+  margin: 0 0 0 auto;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.u-together-keys li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.u-together-keys b {
+  color: var(--ink);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* значок задачи на светлом квадрате листа: цвета те же, что у роботов на плане, и в темной теме */
+.u-together-icon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.u-together-hint {
+  margin: 0;
+}
+
+.u-together-team h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: var(--s-2) 0 2px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.u-together-team h4 .mono {
+  margin-left: auto;
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+
+/* оговорка про помехи между роботами разных задач: спокойная строка под итогами */
+.u-shift-mixed {
+  padding-left: var(--s-2);
+  box-shadow: inset 2px 0 0 var(--line);
+}
+
 @media (max-width: 1100px) {
   .u-shift-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -1879,6 +2297,28 @@ button.u-legend-row:hover {
 .u-stale {
   opacity: 0.6;
   transition: opacity var(--fast) var(--ease);
+}
+
+/* Метка пересчета: внизу по центру над панелью действий (она 56-60 px и стоит в 12 px от края),
+   видна, где бы на шаге ни был человек */
+.u-recount {
+  position: fixed;
+  bottom: 88px;
+  left: 50%;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 8px 16px;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  box-shadow:
+    var(--hair),
+    0 6px 18px color-mix(in srgb, var(--ink) 12%, transparent);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transform: translateX(-50%);
 }
 
 /* Под итогами смены: путь назад к плану, если прогон показал очередь или длинные рейсы */
@@ -2832,9 +3272,33 @@ polygon.u-section {
   transition: box-shadow var(--fast) var(--ease);
 }
 
-.u-tour-choices button:first-child {
+/* выбранный путь: подложка и кружок переключателя, а не только цвет */
+.u-tour-choices button.is-on {
   background: var(--blue-tint);
-  box-shadow: var(--hair-blue);
+  box-shadow: inset 0 0 0 1.5px var(--blue);
+}
+
+.u-tour-radio {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink) 30%, transparent);
+  transition: box-shadow var(--fast) var(--ease);
+}
+
+.u-tour-choices button.is-on .u-tour-radio {
+  box-shadow:
+    inset 0 0 0 1.5px var(--blue),
+    inset 0 0 0 4px var(--paper),
+    inset 0 0 0 8px var(--blue);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u-tour-choices button,
+  .u-tour-radio {
+    transition: none;
+  }
 }
 
 .u-tour-choices button:hover,
@@ -2843,7 +3307,7 @@ polygon.u-section {
   outline: none;
 }
 
-.u-tour-choices button > span:first-child {
+.u-tour-choices button > span:not(.u-tour-radio):not(.mono) {
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -2991,5 +3455,236 @@ polygon.u-section {
   .u-flash {
     animation: none;
     box-shadow: 0 0 0 3px var(--blue);
+  }
+}
+
+/* --- Шаг 3: одна строка "что сделать сейчас" над листом и спокойная раскладка ---------- */
+
+/* Над листом одна фраза: что проверить или чего на плане не хватает */
+.u-plan-todo {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-3);
+  padding: 12px var(--s-3);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--blue) 7%, var(--paper));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--blue) 14%, transparent);
+  color: var(--ink);
+  font-size: 14.5px;
+  line-height: 1.45;
+}
+
+.u-plan-todo::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--go);
+}
+
+.u-plan-todo.is-next::before {
+  background: var(--blue);
+}
+
+/* Легенда свернута: две колонки, лист шире. Окно свойств выбранного ложится поверх листа справа,
+   а не открывает третью колонку: лист не сужается и чертеж не прыгает под рукой */
+.u-draft.is-calm {
+  grid-template-columns: 206px minmax(0, 1fr);
+}
+
+.u-draft.is-calm > .u-side:not(:has(> .u-window)) {
+  display: none;
+}
+
+/* правее кнопок масштаба, чтобы не закрывать их */
+.u-draft.is-calm > .u-side:has(> .u-window) {
+  position: absolute;
+  z-index: 5;
+  top: var(--s-2);
+  right: 64px;
+  width: 244px;
+  max-height: calc(var(--sheet-h) - 2 * var(--s-2));
+  box-shadow: var(--hair), var(--lift-high);
+}
+
+.u-draft.is-full.is-calm > .u-side:has(> .u-window) {
+  top: calc(var(--s-3) + var(--s-2));
+  right: calc(var(--s-3) + 64px);
+}
+
+/* Клавиши инструментов знают те, кто чертит часто: они в подсказке кнопки, не в колонке */
+.u-draft .u-tool kbd.u-hotkey {
+  display: none;
+}
+
+/* Кнопка легенды рядом с переключателем вида, такой же формы */
+.u-draft-views {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.u-legend-toggle {
+  min-height: 36px;
+  padding: 2px 14px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--paper);
+  box-shadow: var(--lift);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.u-legend-toggle:hover,
+.u-legend-toggle.is-on {
+  color: var(--blue);
+}
+
+.u-legend-toggle:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+@media (max-width: 1180px) {
+  .u-draft.is-calm {
+    grid-template-columns: 176px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 880px) {
+  .u-draft.is-calm {
+    grid-template-columns: 1fr;
+  }
+
+  .u-plan-todo {
+    font-size: 14px;
+  }
+
+  /* на телефоне строка под листом переносится, а не обрезается */
+  .u-board-where.mono {
+    font-family: inherit;
+    letter-spacing: 0;
+    white-space: normal;
+  }
+}
+
+/* Вопрос про обучение: галочка между текстом и кнопками */
+.u-tour-ask .u-check {
+  margin-top: var(--s-1);
+  font-size: 14px;
+}
+
+/* Сообщение на листе: действие не вышло или нечего делать. Внизу по центру, само уходит */
+.u-toast {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  bottom: 64px;
+  max-width: min(520px, calc(100% - 2 * var(--s-3)));
+  padding: 10px var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: var(--lift-high);
+  font-size: 13.5px;
+  line-height: 1.4;
+  text-align: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+  animation: u-toast-in var(--fast) var(--ease);
+}
+
+@keyframes u-toast-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Горячие клавиши: окно по центру листа, список листается внутри */
+.u-hotkeys {
+  position: absolute;
+  z-index: 7;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  width: min(460px, calc(100% - 2 * var(--s-3)));
+  max-height: calc(100% - 2 * var(--s-3));
+  padding: var(--s-3);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair), var(--lift-high);
+  transform: translate(-50%, -50%);
+}
+
+.u-hotkeys-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.u-hotkeys-head h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.u-hotkeys-note {
+  margin: 4px 0 var(--s-2);
+  color: var(--ink-soft);
+  font-size: 12.5px;
+}
+
+.u-hotkeys-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.u-hotkeys-body h4 {
+  margin: var(--s-3) 0 4px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.u-hotkeys-body dl {
+  margin: 0;
+}
+
+.u-hotkeys-body dl > div {
+  display: grid;
+  grid-template-columns: minmax(0, 11.5em) minmax(0, 1fr);
+  gap: var(--s-3);
+  padding: 4px 0;
+  font-size: 13.5px;
+}
+
+.u-hotkeys-body dt {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+.u-hotkeys-body dd {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.u-hotkeys .u-icon:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .u-toast {
+    animation: none;
   }
 }

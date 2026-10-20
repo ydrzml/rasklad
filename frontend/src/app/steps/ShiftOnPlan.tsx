@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import {
   api,
@@ -9,9 +9,10 @@ import {
   type RackType,
   type SimulationResult,
 } from "../../api/client";
-import { Alert, BlockHead, Button, Check, Legend, Pill, Player, Timeline, useClock, Waiting } from "../../ui";
+import { Alert, BlockHead, Button, Check, Fold, Legend, Pill, Player, Timeline, useClock, Waiting } from "../../ui";
 import { number } from "../format";
 import { fleetVerdict, plural } from "./economicsNames";
+import { formulaLine } from "./formulaLine";
 import { Editor } from "../plan/Editor";
 import { rackRows } from "../plan/geometry";
 import {
@@ -51,26 +52,43 @@ type Props = {
   onEditPlan?: () => void;
   /* Парк рядом со сменой: сколько роботов и во что обходится. Числа дает шаг экономики из ответа
      сервера. budget: строка «укладывается ли в бюджет», когда клиент бюджет назвал */
-  park?: { facts: { name: string; value: string; unit: string }[]; budget?: ReactNode };
+  park?: {
+    facts: { name: string; value: string; unit: string }[];
+    budget?: ReactNode;
+    chargers?: number;
+    /* парк по формуле из расчета: рядом с парком прогона, чтобы было видно, откуда разница */
+    formula?: number;
+  };
   /* расчет по ссылке: смотрят, но не правят, поэтому галочек, меняющих объект и план, нет */
   readOnly?: boolean;
   /* задач несколько: переключатель справа от заголовка, каждая задача гоняется своими роботами */
   switcher?: ReactNode;
   /* доля объема задачи у этого решения при смешанном парке: прогон гоняет только ее */
   share?: number;
+  /* готовый разбор для гостя: план не его, поэтому в подписях "план склада", а не "ваш план" */
+  sample?: boolean;
+  /* готовый разбор: дошла до конца, начинается снова. Пауза человека остается паузой */
+  loop?: boolean;
   /* смена идет сама на x240, как только прогон пришел. Кто просил меньше движения, видит ее на паузе */
   autoplay?: boolean;
   /* прогон пришел: шаг экономики берет из него кривую парка для блока "Откуда цифры" */
   onRun?: (result: SimulationResult | null) => void;
+  /* длительность смены в часах: если прогон короче, подпись говорит "8 часов из 11-часовой смены" */
+  shiftHours?: number;
+  /* на складе разные роботы: строка рядом с итогами, что помехи между ними на проездах не считаем */
+  mixed?: boolean;
 };
 
 type Paint = "robots" | "share" | "visits";
 
-const SPEEDS = [
-  { value: 60, name: "×60" },
-  { value: 240, name: "×240" },
-  { value: 900, name: "×900" },
-];
+/* Ускорение показа: смена идет быстрее жизни, роботы едут с обычной скоростью. Подсказка
+   переводит множитель в минуты смены на одну секунду экрана */
+const speedOf = (value: number) => ({
+  value,
+  name: `×${value}`,
+  hint: `×${value}: 1 секунда на экране = ${value / 60} ${plural(value / 60, "минута", "минуты", "минут")} смены. Роботы при этом едут с обычной скоростью`,
+});
+export const SPEEDS = [speedOf(60), speedOf(240), speedOf(900)];
 
 /* Смена на плане. Роботы выбранного решения едут по плану клиента, как посчитал сервер: плеер
    только проигрывает лог. Прогон подтверждает расчет, а не заменяет его (ТЗ, п. 3.6.2): парк
@@ -133,7 +151,7 @@ export function ShiftOnPlan(props: Props) {
       setBusy(true);
       setError("");
       api
-        .simulate({ ...runBody, with_events: true }, abort.signal)
+        .simulate({ ...runBody, with_events: true }, abort.signal, true)
         .then(setResult)
         .catch((failure: Error) => {
           if (failure.name !== "AbortError") setError("Прогон смены не посчитался: сервер не ответил");
@@ -199,6 +217,15 @@ export function ShiftOnPlan(props: Props) {
     clock.play(true);
   }, [result, clock, props.autoplay]);
 
+  // По кругу: часы сами встают в конце смены, тогда запускаем с начала. Остановку на середине
+  // сделал человек, ее не трогаем. При "меньше движения" смена не запускалась, и круга нет
+  useEffect(() => {
+    if (!props.loop) return;
+    return clock.subscribe(() => {
+      if (!clock.playing && clock.t >= clock.length && started.current) clock.play(true);
+    });
+  }, [clock, props.loop]);
+
   // Пробел ставит смену на паузу, где бы ни был фокус, кроме полей ввода
   useEffect(() => {
     const listen = (event: KeyboardEvent) => {
@@ -248,12 +275,20 @@ export function ShiftOnPlan(props: Props) {
   // участок от выезда с базы до смены воды. Подписи в тех же единицах, «средний рейс 5 534 секунд»
   // и «спрос в пик» у уборки ничего не говорили
   const washing = Boolean(result?.segments?.some((part) => part.action === "моет"));
+  const words = (text: string) =>
+    props.sample ? text.replace(/вашему плану/g, "плану склада").replace(/вашем плане/g, "плане склада") : text;
+
+  // Высота листа по пропорции плана: лист вписывается в окно по ширине, а не сжимается по высоте.
+  // Предел высоты в board.css (.u-shift), там же запас под цифры размеров и переключатель
+  const sheet = drawn ? ({ "--plan-aspect": (drawn.length_m / drawn.width_m).toFixed(3) } as CSSProperties) : undefined;
 
   return (
-    <section className="u-shift" id={props.id}>
+    <section className="u-shift" id={props.id} style={sheet}>
       <BlockHead
         title="Смена на плане"
-        note={`${props.robotName}, ${fleet} ${plural(fleet, "робот", "робота", "роботов")} ${zone ? "на робозоне: отбор считаем по ней, остальные задачи по вашему плану" : "на вашем плане"}, ${hours} часов смены${washing ? ", площадь разложена по смене" : " с пиком спроса"}`}
+        note={words(
+          `${props.robotName}, ${fleet} ${plural(fleet, "робот", "робота", "роботов")} ${zone ? "на робозоне: отбор считаем по ней, остальные задачи по вашему плану" : "на вашем плане"}, ${hours} ${plural(hours, "час", "часа", "часов")} ${props.shiftHours && props.shiftHours > hours ? `из ${props.shiftHours}-часовой смены` : "смены"}${washing ? ", площадь разложена по смене" : " с пиком спроса"}`,
+        )}
       />
       {/* переключатель задач своей строкой под заголовком: в строке заголовка ему тесно рядом
           с кнопкой «Свернуть», плитки разъезжались на две строки */}
@@ -296,7 +331,9 @@ export function ShiftOnPlan(props: Props) {
           {/* что сейчас на плане, строкой под переключателем: "как задумано / как вышло" без пояснения
               не понимали, а подсказки при наведении на телефоне нет */}
           <p className="u-frow-hint u-shift-paint-note">
-            {zone && paint === "robots" ? PAINT_NOTES.robots.replace("вашему плану", "робозоне") : PAINT_NOTES[paint]}
+            {zone && paint === "robots"
+              ? PAINT_NOTES.robots.replace("вашему плану", "робозоне")
+              : words(PAINT_NOTES[paint])}
           </p>
 
           <div ref={stage} className={busy && result ? "u-shift-stage is-stale" : "u-shift-stage"}>
@@ -311,7 +348,9 @@ export function ShiftOnPlan(props: Props) {
               <div className="u-shift-empty">
                 <Waiting
                   title="Гоняем смену"
-                  note="Роботы выбранного решения едут по вашему плану восемь часов, с очередями и зарядкой. Обычно пара секунд, отбору с сотней роботов до двадцати"
+                  note={words(
+                    "Роботы выбранного решения едут по вашему плану восемь часов, с очередями и зарядкой. Обычно пара секунд, отбору с сотней роботов до двадцати",
+                  )}
                 />
               </div>
             ) : (
@@ -341,6 +380,9 @@ export function ShiftOnPlan(props: Props) {
                     {narrow
                       ? "на телефоне лист только смотрят"
                       : "колесо: масштаб · протяжка: сдвиг листа · пробел: пауза"}
+                    {/* места упаковки и конвейер ставит сервер у станций отбора: говорим, что из этого в расчете */}
+                    {drawn.items.some((item) => item.role === "packing") &&
+                      " · у станций упаковка · у стены конвейер к отгрузке, схема без расчета"}
                   </span>
                 }
                 layer={(boardView, area) => (
@@ -398,65 +440,83 @@ export function ShiftOnPlan(props: Props) {
         </div>
 
         <aside className="u-side u-shift-side">
-          {props.park && (
-            <>
-              <h3>Парк</h3>
-              <dl className="u-facts">
-                {props.park.facts.map((fact) => (
-                  <Fact key={fact.name} {...fact} />
-                ))}
-              </dl>
-              {result && <p className="u-shift-note">{fleetVerdict({ needed, fleet, demand, washing })}</p>}
-              {props.park.budget}
-            </>
-          )}
-          <h3>Итоги смены</h3>
+          {/* Справа три ответа: сколько роботов, хватает ли на пик, где узкое место. Остальные
+              цифры смены и деньги парка свернуты ниже: пятнадцать строк подряд никто не читал */}
+          <h3>Парк</h3>
+          {/* узкое место первой строкой и крупно: на что смотреть в смене, с долей времени от сервера */}
+          {kpi && <Bottleneck text={kpi.bottleneck} />}
+          <p className="u-shift-fleet">
+            <b className="mono">{fleet}</b> {plural(fleet, "робот", "робота", "роботов")}
+            {props.park?.chargers !== undefined &&
+              ` и ${props.park.chargers} ${plural(props.park.chargers, "зарядка", "зарядки", "зарядок")}`}
+          </p>
+          {result && <p className="u-shift-note">{fleetVerdict({ needed, fleet, demand, washing })}</p>}
+          {kpi && props.park?.formula ? (
+            <p className="u-shift-note">{formulaLine(props.park.formula, fleet, kpi)}</p>
+          ) : null}
+          {props.park?.budget}
           {kpi ? (
             <>
-              <dl className="u-facts">
-                {washing ? (
-                  <>
-                    <Fact
-                      name="вымыто за смену"
-                      value={number(kpi.done, 0)}
-                      unit={asked ? `м² из ${number(asked, 0)}` : "м²"}
-                    />
-                    <Fact name="в среднем" value={number(kpi.ops_per_hour, 0)} unit="м² в час" />
-                  </>
-                ) : (
-                  <>
-                    <Fact
-                      name="сделано за смену"
-                      value={number(kpi.done, 0)}
-                      unit={asked ? `из ${number(asked, 0)} по спросу` : "операций"}
-                    />
-                    <Fact
-                      name="в среднем"
-                      value={number(kpi.ops_per_hour, 0)}
-                      unit={hourly.length ? `в час при спросе ${number(asked / hourly.length, 0)}` : "в час"}
-                    />
-                    {peak > 0 && (
+              <h3>Загрузка парка за смену</h3>
+              <Load
+                parts={[
+                  { id: "едет", name: "в работе", share: kpi.busy_share },
+                  { id: "ждет", name: "ждут в очереди", share: kpi.waiting_share },
+                  { id: "заряжается", name: "на зарядке", share: kpi.charging_share },
+                  { id: "без задания", name: "без задания", share: idle },
+                ]}
+              />
+              {props.mixed && <MixedNote />}
+              <Fold thin title="Все цифры смены">
+                {props.park && (
+                  <dl className="u-facts">
+                    {props.park.facts.map((fact) => (
+                      <Fact key={fact.name} {...fact} />
+                    ))}
+                  </dl>
+                )}
+                <dl className="u-facts">
+                  {washing ? (
+                    <>
                       <Fact
-                        name="спрос в пик"
-                        value={number(peak, 0)}
-                        unit={`в час, парк взят на ${number(demand, 0)}`}
+                        name="вымыто за смену"
+                        value={number(kpi.done, 0)}
+                        unit={asked ? `м² из ${number(asked, 0)}` : "м²"}
                       />
-                    )}
-                  </>
-                )}
-                <Fact name="роботы в работе" value={percentOf(kpi.busy_share)} unit="% времени" />
-                <Fact name="без задания" value={percentOf(idle)} unit="% времени" />
-                <Fact name="ждут в очереди" value={percentOf(kpi.waiting_share)} unit="% времени" />
-                <Fact name="на зарядке" value={percentOf(kpi.charging_share)} unit="% времени" />
-                {washing ? (
-                  <Fact name="на участок" value={spanText(kpi.avg_cycle_s)} unit="с дорогой и водой" />
-                ) : (
-                  <Fact name="средний рейс" value={number(kpi.avg_cycle_s, 0)} unit="секунд" />
-                )}
-              </dl>
-              <Alert tone="note">
-                <b>Узкое место:</b> {kpi.bottleneck}
-              </Alert>
+                      <Fact name="в среднем" value={number(kpi.ops_per_hour, 0)} unit="м² в час" />
+                    </>
+                  ) : (
+                    <>
+                      <Fact
+                        name="сделано за смену"
+                        value={number(kpi.done, 0)}
+                        unit={asked ? `из ${number(asked, 0)} по спросу` : "операций"}
+                      />
+                      <Fact
+                        name="в среднем"
+                        value={number(kpi.ops_per_hour, 0)}
+                        unit={hourly.length ? `в час при спросе ${number(asked / hourly.length, 0)}` : "в час"}
+                      />
+                      {peak > 0 && (
+                        <Fact
+                          name="спрос в пик"
+                          value={number(peak, 0)}
+                          unit={`в час, парк взят на ${number(demand, 0)}`}
+                        />
+                      )}
+                    </>
+                  )}
+                  <Fact name="роботы в работе" value={percentOf(kpi.busy_share)} unit="% времени" />
+                  <Fact name="без задания" value={percentOf(idle)} unit="% времени" />
+                  <Fact name="ждут в очереди" value={percentOf(kpi.waiting_share)} unit="% времени" />
+                  <Fact name="на зарядке" value={percentOf(kpi.charging_share)} unit="% времени" />
+                  {washing ? (
+                    <Fact name="на участок" value={spanText(kpi.avg_cycle_s)} unit="с дорогой и водой" />
+                  ) : (
+                    <Fact name="средний рейс" value={number(kpi.avg_cycle_s, 0)} unit="секунд" />
+                  )}
+                </dl>
+              </Fold>
               {props.onEditPlan && (
                 <div className="u-shift-plan">
                   {kpi.waiting_share >= 0.05 && (
@@ -477,6 +537,38 @@ export function ShiftOnPlan(props: Props) {
         </aside>
       </div>
     </section>
+  );
+}
+
+/* Узкое место смены: подпись сервера целиком, доли времени в ней крупнее */
+function Bottleneck({ text }: { text: string }) {
+  const parts = text.split(/(\d+%)/);
+  return (
+    <p className="u-shift-key">
+      <span className="u-shift-key-name">Узкое место смены</span>
+      <span>
+        {parts.map((part, index) =>
+          /^\d+%$/.test(part) ? (
+            <b key={index} className="mono">
+              {part}
+            </b>
+          ) : (
+            <span key={index}>{index === 0 ? part.charAt(0).toUpperCase() + part.slice(1) : part}</span>
+          ),
+        )}
+      </span>
+    </p>
+  );
+}
+
+/* Аудит, пункт А6: прогон гоняет каждую задачу своими роботами, общих проездов между разными
+   роботами он не видит. Говорим об этом одной строкой рядом с итогами, без тревоги */
+export function MixedNote() {
+  return (
+    <p className="u-shift-note u-shift-mixed">
+      Разные роботы на одном складе считаются по своим задачам: взаимные помехи на общих проездах не учтены,
+      производительность может быть немного завышена.
+    </p>
   );
 }
 
@@ -503,8 +595,33 @@ function HeatLegend({ paint }: { paint: Paint }) {
   );
 }
 
+/* Загрузка парка за смену одной полосой: доли времени из итогов сервера, цвета как на шкале */
+export function Load({ parts }: { parts: { id: string; name: string; share: number }[] }) {
+  return (
+    <div className="u-load">
+      <div
+        className="u-load-bar"
+        role="img"
+        aria-label={parts.map((part) => `${part.name} ${percentOf(part.share)}%`).join(", ")}
+      >
+        {parts.map((part) => (
+          <span key={part.id} style={{ flexGrow: part.share, background: ACTION_COLOR[part.id] }} />
+        ))}
+      </div>
+      <ul className="u-load-keys">
+        {parts.map((part) => (
+          <li key={part.id}>
+            <i style={{ background: ACTION_COLOR[part.id] }} />
+            {part.name} <b className="mono">{percentOf(part.share)}%</b>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /* Строка итога: подпись слева, число сервера справа моноширинным */
-function Fact({ name, value, unit }: { name: string; value: string; unit: string }) {
+export function Fact({ name, value, unit }: { name: string; value: string; unit: string }) {
   return (
     <div className="u-fact">
       <dt>{name}</dt>
@@ -516,7 +633,7 @@ function Fact({ name, value, unit }: { name: string; value: string; unit: string
 }
 
 /* Доля в процентах: меньше процента с десятой, иначе очередь в 0,4% выглядела бы как ее отсутствие */
-function percentOf(share: number): string {
+export function percentOf(share: number): string {
   const value = share * 100;
   return number(value, value > 0 && value < 1 ? 1 : 0);
 }
@@ -524,7 +641,7 @@ function percentOf(share: number): string {
 function noop() {}
 
 /* На узком экране палец на листе прокручивает страницу, а не двигает лист */
-function useNarrow(): boolean {
+export function useNarrow(): boolean {
   const query = "(max-width: 880px)";
   const [narrow, setNarrow] = useState(() => window.matchMedia(query).matches);
   useEffect(() => {
@@ -537,7 +654,7 @@ function useNarrow(): boolean {
 }
 
 /* Сколько длится участок уборщика: «1 ч 32 мин», короткий «45 мин» */
-function spanText(seconds: number): string {
+export function spanText(seconds: number): string {
   const minutes = Math.round(seconds / 60);
   const hours = Math.floor(minutes / 60);
   return hours > 0 ? `${hours} ч ${minutes % 60} мин` : `${minutes} мин`;

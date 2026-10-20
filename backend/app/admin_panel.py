@@ -12,9 +12,10 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
+from markupsafe import Markup, escape
 from sqladmin import Admin, ModelView
 from sqladmin.authentication import AuthenticationBackend, login_required
-from sqladmin.i18n import I18nConfig
+from sqladmin.i18n import I18nConfig, gettext, ngettext
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 from starlette.staticfiles import StaticFiles
@@ -22,7 +23,7 @@ from starlette.staticfiles import StaticFiles
 from app.auth.dependencies import COOKIE_NAME, user_by_token
 from app.auth.tokens import signing_key
 from app.db import SessionLocal, engine
-from app.storage.models import CatalogChange, NormChange, Role, Solution, User
+from app.storage.models import CatalogChange, MailOutbox, NormChange, Role, Solution, User
 
 BASE_URL = "/api/db"
 LOOK = Path(__file__).parent / "admin_look"
@@ -168,6 +169,33 @@ class NormChangeView(ModelView, model=NormChange):
     can_delete = False
 
 
+class OutboxView(ModelView, model=MailOutbox):
+    """Письма со ссылкой на новый пароль, когда почта на сервере не настроена. Ссылка работает
+    30 минут и один раз: администратор сверяет, что просит сам владелец почты, и передает ее ему"""
+
+    name = "Письмо без отправки"
+    name_plural = "Письма без отправки"
+    icon = "fa-solid fa-envelope"
+    column_list = [MailOutbox.at, MailOutbox.to_email, MailOutbox.subject, MailOutbox.link]
+    column_labels = {
+        MailOutbox.at: "Когда",
+        MailOutbox.to_email: "Кому",
+        MailOutbox.subject: "Тема",
+        MailOutbox.link: "Ссылка",
+    }
+    # в списке ссылка длинная и уходила за правый край: короткой подписью, целиком в карточке письма
+    column_formatters: dict[Any, Any] = {
+        MailOutbox.at: _when,
+        MailOutbox.link: lambda model, _: Markup('<a href="{}">открыть ссылку</a>').format(escape(model.link)),
+    }
+    column_formatters_detail: dict[Any, Any] = {MailOutbox.at: _when}
+    column_default_sort = [(MailOutbox.at, True)]
+    column_searchable_list = [MailOutbox.to_email]
+    can_create = False
+    can_edit = False
+    can_delete = False
+
+
 class SolutionView(ModelView, model=Solution):
     name = "Решение"
     name_plural = "Каталог (только просмотр)"
@@ -191,7 +219,26 @@ class SolutionView(ModelView, model=Solution):
     can_delete = False
 
 
+# Свои слова поверх перевода SQLAdmin: в нем "вперед" с буквой е-с-точками и "Показано 1-0 из 0" в пустой таблице
+WORDS = {
+    "next": "дальше",
+    "prev": "назад",
+    "Showing %(start)s to %(end)s of %(count)s items": "Всего записей: %(count)s",
+    "Select all": "Выбрать все",
+    "Save and add another": "Сохранить и добавить еще",
+}
+
+
+def _words(message: str) -> str:
+    return WORDS.get(message) or gettext(message)
+
+
 class Tables(Admin):
+    def init_templating_engine(self):  # noqa: ANN201 - тип у SQLAdmin свой, Jinja2Templates
+        templates = super().init_templating_engine()
+        templates.env.install_gettext_callables(_words, ngettext, newstyle=True)  # type: ignore[attr-defined]
+        return templates
+
     # Главная SQLAdmin пустая, только меню слева. Сразу открываем каталог: за ним сюда и приходят
     @login_required
     async def index(self, request: Request) -> Response:
@@ -211,6 +258,6 @@ def mount(app: FastAPI) -> Admin:
     )
     admin.admin.mount("/look", StaticFiles(directory=LOOK / "static"), name="look")
     admin.admin.mount("/fonts", StaticFiles(directory=FONTS, check_dir=False), name="fonts")
-    for view in (SolutionView, UserView, ChangeView, NormChangeView):
+    for view in (SolutionView, UserView, ChangeView, NormChangeView, OutboxView):
         admin.add_view(view)
     return admin

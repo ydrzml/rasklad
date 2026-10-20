@@ -72,8 +72,9 @@ export function VariantDialog({ project, onClose }: { project: Project; onClose:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fields, values]);
 
-  // Штат в проекте введен строками и под новый объем сам не растет. Когда меняют объем или смены,
-  // спрашиваем, сколько людей нужно: иначе сценарий без роботов останется прежним, и вариант обманет
+  // Когда меняют объем или смены, спрашиваем, сколько людей нужно. Штат по умолчанию сервер сам
+  // пересчитает под объем, как мастер; штат, введенный руками, сам не растет, и без числа
+  // сценарий без роботов останется прежним
   const askPeople =
     peopleBefore !== null && Object.keys(changes).some((path) => /volume_per_day|schedule\./.test(path));
   const peopleValue = peopleRaw === null ? null : Number(peopleRaw.replace(",", "."));
@@ -133,7 +134,7 @@ export function VariantDialog({ project, onClose }: { project: Project; onClose:
       }}
     >
       <div className="u-dialog-body">
-        <h2 id="c-variant-title">Копия «{project.name}»</h2>
+        <h2 id="c-variant-title">Копия "{project.name}"</h2>
         <p>Копия ляжет в ту же папку, рядом с оригиналом. Оригинал не меняется.</p>
 
         <div className="c-why" role="radiogroup" aria-label="Зачем копия">
@@ -172,9 +173,8 @@ export function VariantDialog({ project, onClose }: { project: Project; onClose:
                 <div className="c-variant-staff">
                   <Alert tone="note">
                     {state.staffTouched
-                      ? `Штат вы вводили сами: ${number(peopleBefore)} чел.`
-                      : `В расчете штат ${number(peopleBefore)} чел., его подставили под прежний объем.`}{" "}
-                    При новом объеме людей нужно больше? Без правки сценарий "без роботов" останется прежним.
+                      ? `Штат вы вводили сами: ${number(peopleBefore)} чел. При новом объеме людей нужно больше? Без правки сценарий "без роботов" останется прежним.`
+                      : `В расчете штат ${number(peopleBefore)} чел. под прежний объем. В копии пересчитаем его под новый объем, как в мастере. Если людей у вас другое число, введите его.`}
                   </Alert>
                   <FieldRow
                     label="Людей в штате"

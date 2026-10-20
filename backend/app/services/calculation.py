@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import math
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -15,9 +16,10 @@ from app.engine.economics.facility import FacilityResult, Task, evaluate_facilit
 from app.engine.economics.financing import LEASING, LOAN, method_of
 from app.engine.economics.financing import METHODS as PAY_METHODS
 from app.engine.economics.fleet import peak_demand
-from app.engine.economics.scenarios import buyout_share
+from app.engine.economics.scenarios import buyout_share, vat_factor
 from app.engine.model_config import Provenance, load_full_model, weak_values
 from app.reports import names
+from app.reports.words import about_years
 from app.schemas.economics import (
     Amortization,
     CalculationRequest,
@@ -26,6 +28,9 @@ from app.schemas.economics import (
     PartScenario,
     PaymentProblem,
     PickingZone,
+    RaasBuyout,
+    RaasTrial,
+    RoundTheClock,
     ScenarioResult,
     SharedPart,
     Sizing,
@@ -38,16 +43,16 @@ from app.schemas.economics import (
     YearRow,
 )
 from app.schemas.staff import StaffLine
-from app.services import catalog_prices
+from app.services import catalog_prices, payback_needs, plausibility, supplier_questions, unit_cost
+from app.services.memo import Memo
 from app.settings import settings
 
-NAMES = {BASELINE: "Без роботизации", PURCHASE: "Покупка", RAAS: "Роботы как услуга"}
+NAMES = {BASELINE: "Без роботизации", PURCHASE: "Покупка", RAAS: "Аренда"}
 SLOW_PAYBACK_YEARS = 3
+# Потеря на выходе на режим, которую в выводе пишем миллионами с одним знаком: меньше было бы 0,0
+RAMP_WORTH_NAMING_RUB = 50_000
 # Наша граница, не из данных: дальше 30 лет не живет ни робот, ни договор аренды
 MAX_HORIZON_YEARS = 30
-# Если за горизонт не окупается, досчитываем до верхней границы горизонта в датасете (лист «Склад»,
-# 5 лет, от 3 до 10): человек видит, окупится ли позже. Замену изношенных роботов движок уже учитывает
-LATER_HORIZON_YEARS = 10
 # Потолок правки. Границы полей из датасета мягкие: за ними мы только предупреждаем (ТЗ, п. 3.2.4).
 # Жесткий потолок нужен против чисел вроде 1e308, с которыми расчет переполняется или считает
 # бессмыслицу: правка не больше чем в тысячу раз выше значения модели и не больше 100 млрд в любом случае.
@@ -108,12 +113,45 @@ def model_with_overrides(overrides: dict[str, float], copy_always: bool = False)
         # условия кредита или лизинга неверные: покупку считаем за свои деньги, а не на условиях по умолчанию
         changed["financing"]["method"] = 0
     check_possible(changed)
+    for facility in changed.get("facilities", []):
+        apply_manual_work(facility)
     return changed, provenance
+
+
+# Выбор "как сейчас делают эту работу" у задачи: 1 машиной (как в конфиге), 0 вручную (блок manual)
+MANUAL_CHOICE = "by_machine"
+
+
+def apply_manual_work(facility: dict) -> dict:
+    """Задача, которую сейчас делают вручную, а не машиной: работу делает роль из блока manual, и строки
+    штата прежней роли переходят на нее с численностью по норме из того же блока (config/model.yaml,
+    уборка: оператор поломоечной машины или уборщики), и доля работы роботов берется из блока, если она там есть. Источник новой численности пишем в _staff_sources,
+    чтобы форма штата показала его, а не источник машины. Робот сравнивается с тем, как убирают сейчас."""
+    sources = facility.setdefault("_staff_sources", {})
+    for operation in facility.get("operations", []):
+        manual = operation.get("manual")
+        if not manual or operation.get(MANUAL_CHOICE, 1) >= 0.5:
+            continue
+        before = set(operation["performed_by"])
+        operation["performed_by"] = list(manual["performed_by"])
+        # вручную уборщик берет и то, куда робот не доедет, поэтому роботу своя доля работы
+        if "automatable_share" in manual:
+            operation["automatable_share"] = manual["automatable_share"]
+        role = manual["performed_by"][0]
+        for line in facility.get("staff", []):
+            if line.get("role") not in before:
+                continue
+            line["role"] = role
+            line["headcount"] = manual["headcount"]
+            if "filled" in line:
+                line["filled"] = manual["headcount"]
+            sources[line["id"]] = f"facilities.{facility['id']}.operations.{operation['id']}.manual.headcount"
+    return facility
 
 
 # Числа робота, от которых расчет делит или считает по целым годам. Ноль или дробь здесь раньше
 # давали 500 "На сервере что-то сломалось" вместо отказа с именем поля
-WHOLE_YEARS = ("service_life_years", "battery_life_years")
+WHOLE_YEARS = ("service_life_years", "amortization_years", "battery_life_years")
 POSITIVE = ("avg_speed_m_s", "run_time_h")
 WHOLE_NUMBERS = (*WHOLE_YEARS, "robots_per_charger", "contract_months")
 
@@ -356,7 +394,23 @@ def _unfit(request: CalculationRequest) -> str | None:
     return None
 
 
+# Ответы расчета по входу и версии данных. Шаг 5 заранее считает покупку в кредит и в лизинг для
+# строки способов оплаты, и щелчок "Кредит" потом просит ровно тот же расчет: отдаем готовый, а если
+# он еще считается, ждем его, а не считаем второй раз рядом. Версия данных в ключе: после правки
+# каталога или нормативов в админке расчет идет заново
+_ANSWERS: Memo[CalculationResult] = Memo(limit=32)
+
+
 def calculate(request: CalculationRequest) -> CalculationResult:
+    from app.services import versions  # noqa: PLC0415 - версии читают каталог, а каталог тянет этот модуль
+
+    body = json.dumps(request.model_dump(mode="json"), sort_keys=True, ensure_ascii=False)
+    key = (versions.model_version(), versions.data_version(), body)
+    # копия: ответ дальше дополняют (бюджет, отчет), а в памяти он должен остаться как был
+    return _ANSWERS.get(key, lambda: _calculate(request)).model_copy(deep=True)
+
+
+def _calculate(request: CalculationRequest) -> CalculationResult:
     unfit = _unfit(request)
     if unfit:
         model = _model()[0]
@@ -412,12 +466,30 @@ def calculate(request: CalculationRequest) -> CalculationResult:
         prepared.places,
     )
     answer.picking_zones = list(prepared.zones.values())
+    rent = next((one for one in answer.scenarios if one.id == RAAS), None)
+    if rent is not None:
+        rent.buyout = _buyout(request, prepared, result)
+        rent.trial = _trial(request, prepared, result)
+    answer.plausibility = plausibility.check(answer, prepared.model, prepared.provenance)
     _add_later_payback(answer, request, prepared, result)
+    answer.round_the_clock = _round_the_clock(request, prepared)
+    payback_needs.add(
+        answer,
+        request,
+        prepared.model,
+        result,
+        lambda model, fleets: _run(request, prepared, model, fleets),
+        _field_bounds(),
+    )
     if prepared.aisle_note:
         # проезд впритык: робот проходит, но запаса нет, и это риск каждого сценария с роботами
         for scenario in answer.scenarios:
             if scenario.verdict:
                 scenario.verdict.risks.append(prepared.aisle_note)
+    for note in [*_staff_notes(prepared.model, request), *_shelving_notes(prepared, request)]:
+        for scenario in answer.scenarios:
+            if scenario.verdict and scenario.id != BASELINE:
+                scenario.verdict.risks.append(note)
     if request.budget_rub:
         from app.services import budget  # импорт здесь: бюджет опирается на этот модуль
 
@@ -427,29 +499,266 @@ def calculate(request: CalculationRequest) -> CalculationResult:
     return answer
 
 
+@lru_cache(maxsize=1)
+def _field_bounds() -> dict[str, dict]:
+    """Границы полей шага параметров по пути: дальше них подсказку "что нужно, чтобы окупилось" не ищем."""
+    raw = yaml.safe_load((settings.config_dir / "parameters.yaml").read_text(encoding="utf-8"))
+    return {
+        field["path"]: field
+        for fields in raw.values()
+        if isinstance(fields, list)
+        for field in fields
+        if isinstance(field, dict) and "path" in field
+    }
+
+
+RENT_KEYS = ("raas_fee", "damage")
+OWN_KEYS = ("maintenance", "licenses", "battery")
+
+
+def _buyout(request: CalculationRequest, prepared: Prepared, result: FacilityResult) -> RaasBuyout | None:
+    """Выкуп роботов в конце договора как отдельный кейс рядом с арендой без выкупа.
+
+    Тот же объект считаем второй раз с выкупом: парк и люди те же, меняются только годы после
+    конца договора. Цена выкупа это вложения года выкупа, год аренды это плата и ответственность
+    за порчу, год своих роботов это ТО, лицензии, АКБ и обновление парка (docs/calculation.md, раздел 5)."""
+    if request.raas_buyout or RAAS not in result.scenarios:
+        return None
+    bought = _run(request.model_copy(update={"raas_buyout": True}), prepared, prepared.model).scenarios.get(RAAS)
+    rent = result.scenarios[RAAS]
+    if bought is None:
+        return None
+    paid = [(y.t, y.investment - r.investment) for y, r in zip(bought.years, rent.years, strict=True)]
+    year, price = next(((t, value) for t, value in paid if value > 0), (None, 0.0))
+    after = [t for t in range(1, len(rent.years) + 1) if year is not None and t > year]
+    if year is None or not after:
+        return None
+    rent_year = sum(sum(rent.years[t - 1].opex.get(key, 0.0) for key in RENT_KEYS) for t in after) / len(after)
+    own_year = sum(
+        sum(bought.years[t - 1].opex.get(key, 0.0) for key in OWN_KEYS) + bought.years[t - 1].investment for t in after
+    ) / len(after)
+    saving = rent_year - own_year
+    cheaper = rent.tco - bought.tco
+    return RaasBuyout(
+        year=year,
+        price_rub=price,
+        rent_year_rub=rent_year,
+        own_year_rub=own_year,
+        saving_year_rub=saving,
+        payback_years=price / saving if saving > 0 else None,
+        tco_rub=bought.tco,
+        cheaper_rub=cheaper,
+        worth=cheaper > 0,
+    )
+
+
+# пробная аренда перед покупкой: договор на год, дальше выкуп тех же роботов
+TRIAL_MONTHS = 12
+
+
+def _trial(request: CalculationRequest, prepared: Prepared, result: FacilityResult) -> RaasTrial | None:
+    """Год в аренду как проверка, потом выкуп: тот же объект с договором аренды на 12 месяцев и выкупом.
+
+    Формулы те же, что у выкупа в конце договора (_buyout): первый год плата и порча, в конце года
+    выкуп по остаточной стоимости, дальше ТО, лицензии, АКБ и обновление парка. Меняется только срок
+    договора, поэтому это допущение: поставщики в данных дают договоры от 30-36 месяцев."""
+    if request.raas_buyout or RAAS not in result.scenarios:
+        return None
+    model = copy.deepcopy(prepared.model)
+    chosen = {choice.robot_id for choice in request.choices()}
+    rented = [robot for robot in model["robots"] if robot["id"] in chosen and robot.get("raas")]
+    if not rented or len(rented) < len(chosen):
+        return None
+    for robot in rented:
+        robot["raas"]["contract_months"] = TRIAL_MONTHS
+    tried = _run(request.model_copy(update={"raas_buyout": True}), prepared, model).scenarios.get(RAAS)
+    if tried is None or not tried.years:
+        return None
+    return RaasTrial(
+        months=TRIAL_MONTHS,
+        price_rub=tried.years[0].investment,
+        tco_rub=tried.tco,
+        cumulative_cost_rub=_cumulative(tried),
+    )
+
+
+def _staff_notes(model: dict, request: CalculationRequest) -> list[str]:
+    """Экономия считается от штата в анкете, а роботы от объема. Если штат с объемом не сходится,
+    говорим это рядом с выводом: иначе 12 водителей на работу 25 давали "не окупается" без объяснения."""
+    from app.engine.economics import staff as staff_engine  # noqa: PLC0415
+
+    facility = _by_id(model["facilities"], request.facility_id)
+    roles = model.get("roles", {})
+    hours = model["economics"]["annual_work_hours"]
+    operations = staff_engine.selected_operations(facility, [choice.operation_id for choice in request.choices()])
+    notes = []
+    for role_id in staff_engine.roles_at_work(operations):
+        gap = staff_engine.normative_gap(facility, roles, role_id, hours)
+        actual = sum(line.headcount for line in staff_engine.lines_of_role(facility, role_id))
+        if gap is None or not actual or staff_engine.within_norm(actual, actual * gap):
+            continue
+
+        name = roles.get(role_id, {}).get("name", role_id)
+        # 12,5 места: при дробном числе слово в родительном единственного
+        places = names.plural(int(actual), "место", "места", "мест") if actual == int(actual) else "места"
+        people = math.ceil(actual * gap - 1e-9)
+        notes.append(
+            f'Экономия посчитана от вашего штата: "{name}" {actual:g} {places}. По объему и выработке на эту '
+            f"работу нужно {people} {names.plural(people, 'человек', 'человека', 'человек')} "
+            f"({_ru(actual * gap)} ставки): если штат другой, поправьте его на шаге параметров"
+        )
+    return notes
+
+
+def _shelving_notes(prepared: Prepared, request: CalculationRequest) -> list[str]:
+    """Робот возит паллеты по полу, а на плане стеллажи выше метра: кто ставит груз в ярус.
+    Расчет отдает роботу почти всю работу водителя погрузчика, поэтому говорим это рядом с выводом."""
+    if prepared.drawn is None:
+        return []
+    from app.services import plan as plan_service  # noqa: PLC0415
+    from app.services.selection import catalog  # noqa: PLC0415
+
+    model = prepared.model
+    stacking_mm = model["engine"]["selection"]["stacking_lift_mm"]
+    top_m = plan_service.measure(prepared.drawn).rack_top_m
+    if top_m * 1000 <= stacking_mm:
+        return []
+    facility = _by_id(model["facilities"], request.facility_id)
+    rows = {row["id"]: row for row in catalog()}
+    notes = []
+    for choice in request.choices():
+        operation = _by_id(facility["operations"], choice.operation_id)
+        if "forklift_operator" not in operation.get("performed_by", []):
+            continue
+        robot = _by_id(model["robots"], choice.robot_id)
+        if _lift_mm(rows.get(robot.get("catalog_id"), {})) > stacking_mm:
+            continue
+        name = f"{robot.get('vendor', '')} {robot.get('model', '')}".strip()
+        # та же доля, что в расчете штата (engine/economics/staff.py): labor_share, без нее доля объема
+        share = round(min(operation.get("labor_share", operation["automatable_share"]), 1.0) * 100)
+        notes.append(
+            f"{name} возит паллеты по полу, а верхний ярус на плане {_ru(top_m)} м. Кто ставит груз в стеллаж, "
+            f"проверьте: расчет отдает роботу {share}% работы водителя погрузчика, если ставит водитель, "
+            "часть его ставок останется"
+        )
+    return list(dict.fromkeys(notes))
+
+
+def _lift_mm(row: dict) -> float:
+    """Высота подъема из каталога, первое число записи; нет записи, нет и подъема."""
+    digits = "".join(ch if ch.isdigit() or ch == "." else " " for ch in str(row.get("lift_height_mm") or ""))
+    numbers = [float(part) for part in digits.split() if part.strip(".")]
+    return numbers[0] if numbers else 0.0
+
+
+# Круглосуточный режим для строки "при круглосуточной работе окупится за X"
+ROUND_THE_CLOCK = {"shifts": 3, "shift_hours": 8, "days_per_year": 365}
+
+
+def _round_the_clock(request: CalculationRequest, prepared: Prepared) -> RoundTheClock | None:
+    """Тот же склад, если бы он работал круглосуточно. Объем в сутки тот же, поэтому людей в году при той
+    же выработке больше в 365 / дней раз, а роботов в час нужно меньше: сутки длиннее. Считаем по формуле
+    парка, без прогона смены: строка рядом с ответом, а не второй расчет.
+
+    Пример, демо паллет: 2 смены по 8 ч и 250 дней, 17 водителей; круглосуточно 17 * 365 / 250 = 24,8, людей 25.
+    """
+    facility = _by_id(prepared.model["facilities"], request.facility_id)
+    schedule = facility["schedule"]
+    if schedule["shifts"] * schedule["shift_hours"] >= 24 and schedule["days_per_year"] >= 365:
+        return None
+    factor = ROUND_THE_CLOCK["days_per_year"] / schedule["days_per_year"]
+    lines = [
+        StaffLine(
+            id=line["id"],
+            role=line["role"],
+            headcount=_whole_people(line["headcount"] * factor),
+            filled=_whole_people(line.get("filled", line["headcount"]) * factor),
+            salary_month=line["salary_month"],
+            contractor=bool(line.get("contractor", False)),
+        )
+        for line in facility.get("staff", [])
+    ]
+    prefix = f"facilities.{request.facility_id}.schedule."
+    overrides = {**request.overrides, **{prefix + key: value for key, value in ROUND_THE_CLOCK.items()}}
+    try:
+        other = calculate(
+            request.model_copy(
+                update={"overrides": overrides, "staff": lines, "use_simulation": False, "budget_rub": None}
+            )
+        )
+    except (Impossible, UnknownPath, ValueError):
+        return None
+    if not other.feasible:
+        return None
+    paybacks = {one.id: one.payback_cumulative_years for one in other.scenarios}
+    later = {one.id: one.payback_later_years for one in other.scenarios}
+    buy, rent = paybacks.get(PURCHASE), paybacks.get(RAAS)
+
+    def said(value: float | None, scenario_id: str) -> str:
+        # дольше горизонта теми же словами, что везде (reports/content.py, payback_words)
+        if value is None and later.get(scenario_id) is not None:
+            horizon = other.horizon_years
+            return f"примерно за {about_years(later[scenario_id], horizon)}, дольше горизонта расчета в {horizon} лет"
+        if value is None:
+            return "не окупается"
+        # меньше месяца: "за 0,0 года" читается как ошибка
+        return "окупится в первый месяц" if value < 1 / 12 else f"за {_ru(value)} года"
+
+    text = f"При круглосуточной работе (3 смены, 365 дней) покупка {said(buy, PURCHASE)}"
+    if RAAS in paybacks:
+        text += f", аренда {said(rent, RAAS)}"
+    return RoundTheClock(
+        fleet=other.sizing.fleet if other.sizing else 0,
+        purchase_payback_years=buy,
+        raas_payback_years=rent,
+        text=text,
+    )
+
+
+def _whole_people(value: float) -> float:
+    """Людей целыми, половина вверх, как в форме штата (services/staff.py)"""
+    return float(int(value + 0.5))
+
+
 def _add_later_payback(
     answer: CalculationResult, request: CalculationRequest, prepared: Prepared, result: FacilityResult
 ) -> None:
-    """Сценарии, которые не окупаются за горизонт, пересчитываем на LATER_HORIZON_YEARS лет тем же парком.
+    """Сценарии, которые не окупаются за горизонт, пересчитываем до economics.later_payback_years тем же парком.
 
     Горизонт в ответе не меняется: главные цифры остаются за горизонт расчета, досчет только отвечает,
-    на каком году вложения вернутся. Горизонт и так не короче: досчитывать нечего.
+    на каком году вложения вернутся. Роботов движок меняет по физическому сроку службы, а не по сроку
+    амортизации: 5 лет по Постановлению № 1 это срок списания, робот с заменой АКБ служит дольше
+    (docs/decisions.md, "Срок службы и амортизация"). Горизонт и так не короче: досчитывать нечего.
     """
-    if not answer.feasible or prepared.model["economics"]["horizon_years"] >= LATER_HORIZON_YEARS:
+    later_years = int(prepared.model["economics"]["later_payback_years"])
+    if not answer.feasible or prepared.model["economics"]["horizon_years"] >= later_years:
         return
     late = [one for one in answer.scenarios if one.id != BASELINE and one.payback_cumulative_years is None]
     if not late:
         return
     model = copy.deepcopy(prepared.model)
-    model["economics"]["horizon_years"] = LATER_HORIZON_YEARS
+    model["economics"]["horizon_years"] = later_years
     # парк от горизонта не зависит, берем тот же, что в ответе: с бюджетом и прогоном смены он мог быть задан
     fleets = {key: own.sizing.fleet for key, own in result.own.items()}
     longer = _run(request, prepared, model, fleets)
     if not longer.feasible:
         return
-    answer.later_horizon_years = LATER_HORIZON_YEARS
+    answer.later_horizon_years = later_years
+    horizon = prepared.model["economics"]["horizon_years"]
     for one in late:
         one.payback_later_years = longer.scenarios[one.id].payback_cumulative
+        if one.payback_later_years is not None and one.verdict is not None:
+            one.verdict = _later_verdict(one.verdict, one.payback_later_years, horizon)
+
+
+def _later_verdict(verdict: Verdict, later: float, horizon: int) -> Verdict:
+    """Окупается дольше горизонта: интервал по ТЗ "более 5 лет", а не "не окупается", и в выводе
+    срок из досчета теми же словами, что на экране и в отчетах (reports/content.py, payback_words)."""
+    about = f"примерно за {about_years(later, horizon)}, дольше горизонта расчета в {horizon} лет"
+    text = verdict.text.replace(
+        "не окупается за горизонт расчета: стоимость операции", f"окупится {about}: за горизонт стоимость операции"
+    )
+    return verdict.model_copy(update={"band": f"более {horizon} лет", "text": text})
 
 
 @dataclass
@@ -693,14 +1002,21 @@ def _to_schema(
         if places == 0:
             # План без стеллажей или с отрезанными стеллажами: прогону смены некуда везти груз,
             # и не сходится любой робот. Причина в плане, а не в решении
+            from app.services import plan as plan_service  # noqa: PLC0415
+
+            typical = request.plan is not None and not request.plan.edited and request.plan.template != "custom"
+            advice = (
+                "Типовая схема на такой площади не вмещает стеллажи: ворота, буфер и станции занимают ее "
+                f"целиком. Нужно от {plan_service.zone_minimum_m2():.0f} м2. Увеличьте площадь на первом шаге "
+                "или нарисуйте план сам"
+                if typical
+                else "Вернитесь к плану и поставьте стеллажи или выберите типовую планировку"
+            )
             return CalculationResult(
                 feasible=False,
                 cause="plan",
-                message=(
-                    f"{head}парк не покрывает {demand}, потому что план не заполнен: "
-                    "на нем нет стеллажей, до которых робот может доехать. "
-                    "Вернитесь к плану и поставьте стеллажи или выберите типовую планировку"
-                ),
+                message=f"{head}парк не покрывает {demand}, потому что план не заполнен: "
+                f"на нем нет стеллажей, до которых робот может доехать. {advice}",
                 **common,
             )
         # отбор «товар к человеку» на плане без станций отбора не сходится из-за плана, а не робота:
@@ -712,7 +1028,7 @@ def _to_schema(
                 message=(
                     f"{head}парк не покрывает {demand}: на вашем плане нет станций отбора. "
                     "Для этой задачи нужна робозона со станциями: выберите на шаге плана "
-                    "типовую планировку «товар к человеку» или поставьте станции"
+                    'типовую планировку "товар к человеку" или поставьте станции'
                 ),
                 **common,
             )
@@ -728,7 +1044,7 @@ def _to_schema(
     robots = [_by_id(model["robots"], choice.robot_id) for choice in choices]
     sizing = _facility_sizing(result, choices, from_simulation)
     baseline_tco = result.scenarios[BASELINE].tco
-    return CalculationResult(
+    calculated = CalculationResult(
         feasible=True,
         sizing=sizing,
         scenarios=[
@@ -743,7 +1059,7 @@ def _to_schema(
                 ),
                 None
                 if scenario_id == BASELINE
-                else _amortization(scenario_id, result, choices, robots, request.raas_buyout),
+                else _amortization(model, scenario_id, result, choices, robots, request.raas_buyout),
                 model,
             )
             for scenario_id in (BASELINE, PURCHASE, RAAS)
@@ -789,6 +1105,29 @@ def _to_schema(
         payment_problems=problems,
         **common,
     )
+    calculated.unit_costs = unit_cost.compute(
+        calculated.tasks, calculated.shared, facility, model["economics"]["horizon_years"]
+    )
+    calculated.supplier_questions = supplier_questions.build(
+        calculated.sizing, _conditional_robots(model, choices, request.facility_id)
+    )
+    return calculated
+
+
+def _conditional_robots(model: dict, choices: list[TaskChoice], facility_id: str) -> list[str]:
+    """Названия выбранных роботов, которые подходят задаче только при условии: производитель не подтвердил,
+    что робот делает эту работу (data/catalog/uses.csv). Про них у поставщика спрашиваем отдельно."""
+    from app.engine.selection import CONDITIONAL  # noqa: PLC0415
+    from app.services.selection import catalog  # noqa: PLC0415
+
+    rows = {row["id"]: row for row in catalog(facility_id)}
+    found = []
+    for choice in choices:
+        robot = _by_id(model["robots"], choice.robot_id)
+        row = rows.get(robot.get("catalog_id"), {})
+        if row.get("uses", {}).get(choice.operation_id, "").startswith(CONDITIONAL):
+            found.append(row["product"].split(" (")[0])
+    return list(dict.fromkeys(found))
 
 
 def _source_names(facility: dict) -> Callable[[str], str]:
@@ -927,6 +1266,9 @@ def _sizing(result: Comparison, from_simulation: bool) -> Sizing:
         people_per_shift_after=s.people_per_shift_after,
         worker_cost_rub_year=s.worker_cost,
         operator_cost_rub_year=s.operator_cost,
+        packing_fte=s.packing_fte,
+        packing_per_shift=s.packing_per_shift,
+        packing_places=s.packing_places,
     )
 
 
@@ -969,6 +1311,9 @@ def _facility_sizing(result: FacilityResult, choices: list[TaskChoice], from_sim
         people_per_shift_after=sum(s.people_per_shift_after for s in parts) + shared.posts,
         worker_cost_rub_year=sum(s.worker_cost * s.fte_before for s in parts) / before if before else 0.0,
         operator_cost_rub_year=shared.operator_cost,
+        packing_fte=sum(s.packing_fte for s in parts),
+        packing_per_shift=sum(s.packing_per_shift for s in parts),
+        packing_places=sum(s.packing_places for s in parts),
     )
 
 
@@ -1107,10 +1452,15 @@ def _tco_parts(scenario) -> list[TcoPart]:
 
 
 def _amortization(
-    scenario_id: str, result: FacilityResult, choices: list[TaskChoice], robots: list[dict], raas_buyout: bool
+    model: dict,
+    scenario_id: str,
+    result: FacilityResult,
+    choices: list[TaskChoice],
+    robots: list[dict],
+    raas_buyout: bool,
 ) -> Amortization:
-    """Амортизация линейная: при покупке вложения на срок службы робота, при аренде разовый платеж
-    за внедрение на срок договора, а после выкупа цена выкупа на остаток срока службы.
+    """Амортизация линейная: при покупке вложения на срок амортизации робота, при аренде разовый платеж
+    за внедрение на срок договора, а после выкупа цена выкупа на остаток срока амортизации.
 
     Когда задач несколько, каждая списывается на срок своего робота, а в год складываются суммы.
     Срок пишем, только если он у всех роботов один."""
@@ -1123,20 +1473,23 @@ def _amortization(
     if scenario_id == PURCHASE:
         return Amortization(
             base_rub=scenario.capex_total,
-            years=common([robot["service_life_years"] for robot in robots]),
+            years=common([robot["amortization_years"] for robot in robots]),
             per_year_rub=first,
         )
     terms = [robot["raas"]["contract_months"] // 12 for robot in robots]
     out = Amortization(base_rub=scenario.capex_total, years=common(terms), per_year_rub=first)
     horizon = len(scenario.years)
     if raas_buyout and all(term < horizon for term in terms):
-        rests = [robot["service_life_years"] - term for robot, term in zip(robots, terms, strict=True)]
+        rests = [robot["amortization_years"] - term for robot, term in zip(robots, terms, strict=True)]
         prices = [
-            result.tasks[choice.key].sizing.fleet * robot["price_rub"] * buyout_share(robot)
+            result.tasks[choice.key].sizing.fleet
+            * robot["price_rub"]
+            * buyout_share(robot)
+            * vat_factor(model, "buyout")
             for choice, robot in zip(choices, robots, strict=True)
         ]
         out.after_buyout_base_rub = sum(prices)
-        # срок службы кончился к выкупу: списывать выкупленное не на что, срок не пишем
+        # срок амортизации кончился к выкупу: списывать выкупленное не на что, срок не пишем
         out.after_buyout_years = common(rests) if all(rest > 0 for rest in rests) else None
         out.after_buyout_per_year_rub = sum(
             price / rest if rest > 0 else 0.0 for price, rest in zip(prices, rests, strict=True)
@@ -1159,6 +1512,12 @@ def _ru(value: float) -> str:
     return f"{value:.1f}".replace(".", ",")
 
 
+def _rates(fte: float) -> str:
+    """Ставки целыми, как в ролике и выводе разбора: 8 ставок, а не 8,1"""
+    count = round(fte)
+    return f"{count} {names.plural(count, 'ставка', 'ставки', 'ставок')}"
+
+
 def _verdict(
     scenario_id: str,
     scenario: Scenario,
@@ -1171,7 +1530,33 @@ def _verdict(
     saved = baseline_tco - scenario.tco
     payback = scenario.payback_cumulative
 
-    if payback is None:
+    if s.fleet == 0:
+        return Verdict(
+            band="роботов нет",
+            text=(
+                "Роботов 0: вкладывать не во что, люди работают как раньше, поэтому "
+                f"{NAMES[scenario_id].lower()} совпадает с вариантом без роботов. "
+                "Проверьте объем работы и выбранное решение"
+            ),
+            risks=[],
+        )
+    first = scenario.years[0].effect if scenario.years else 0.0
+    if scenario_id == RAAS:
+        # Аренда как найм: каждый год сравниваем платежи, сервис и присмотр с людьми, которых она заменяет
+        text = (
+            f"Аренда выгоднее людей с первого года: экономия {_ru(first / 1e6)} млн рублей в год после платежей"
+            if first > 0
+            else f"В первый год аренда дороже людей на {_ru(-first / 1e6)} млн рублей"
+        )
+        text += (
+            f", внедрение {_ru(scenario.investment_year0 / 1e6)} млн рублей вернется за {_ru(payback)} года"
+            if payback is not None and scenario.investment_year0 > 0
+            else ""
+        )
+        text += (
+            f". За горизонт операция {'дешевеет' if saved >= 0 else 'дорожает'} на {_ru(abs(saved) / 1e6)} млн рублей."
+        )
+    elif payback is None:
         text = (
             f"На этих данных {NAMES[scenario_id].lower()} не окупается за горизонт расчета: "
             f"стоимость операции с роботами выше на {_ru(-saved / 1e6)} млн рублей."
@@ -1197,9 +1582,10 @@ def _verdict(
         )
     if s.fte_after > 0:
         risks.append(
-            f"Часть людей остается на операции: {_ru(s.fte_after)} ставки из {_ru(s.fte_before)}. Эффект держится "
+            f"Часть людей остается на операции: {_rates(s.fte_after + s.operators_fte)} из {round(s.fte_before)} "
+            "вместе с присмотром за роботами. Эффект держится "
             "на выработке человека на станции после роботизации: у производителей она в 2-3 раза выше "
-            "нынешней, мы взяли осторожно. Поправить можно в «Что мы приняли за вас», сдвиг виден в «Что будет, если»"
+            'нынешней, мы взяли осторожно. Поправить можно в "Что мы приняли за вас", сдвиг виден в "Что будет, если"'
         )
     if not from_plan:
         risks.append(
@@ -1208,7 +1594,7 @@ def _verdict(
         )
     if not from_simulation:
         risks.append("Производительность робота посчитана без очередей и ожидания, это уточнит прогон смены")
-    if scenario.years and scenario.years[0].ramp > 0:
+    if scenario.years and scenario.years[0].ramp >= RAMP_WORTH_NAMING_RUB:
         risks.append(
             f"Выход на режим: в первый год экономия меньше на {_ru(scenario.years[0].ramp / 1e6)} млн рублей. "
             "Сколько месяцев роботы работают не на полную, никто не публикует, это наше допущение"

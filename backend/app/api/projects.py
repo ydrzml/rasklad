@@ -4,6 +4,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.api.reports import FILE_RESPONSES, Kind, send
 from app.auth.dependencies import require_user
 from app.db import get_session
 from app.schemas.projects import (
@@ -203,6 +204,47 @@ def get_version(project_id: int, number: int, session: SessionDep, user: UserDep
         return projects.get_version(session, user, project_id, number)
     except projects.NotFound as error:
         raise _not_found(error) from error
+
+
+@router.get(
+    "/{project_id}/versions/{number}/report/{kind}",
+    response_class=Response,
+    summary="Отчет PDF или таблицы Excel по сохраненной версии",
+    description="Цифры из сохраненного результата, расчет не повторяется: отчет выходит таким же, как в день "
+    "сохранения, с номером версии, датой расчета, версией модели и данных. Если нормативы с тех пор поменялись, "
+    "разделов, которые считаются заново (что будет, если, смена, подготовка склада), в нем нет.",
+    responses={
+        **NOT_FOUND,
+        **FILE_RESPONSES,
+        409: {"description": "В версии нет сохраненных цифр: ее нужно пересчитать как новую версию"},
+    },
+)
+def version_report(project_id: int, number: int, kind: Kind, session: SessionDep, user: UserDep) -> Response:
+    try:
+        report = projects.version_report(session, user, project_id, number)
+    except projects.NotFound as error:
+        raise _not_found(error) from error
+    except projects.NoResult as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
+    return send(report, kind)
+
+
+@router.post(
+    "/{project_id}/versions/{number}/recalculate",
+    response_model=Version,
+    status_code=status.HTTP_201_CREATED,
+    summary="Пересчитать версию как новую",
+    description="Тот же ввод считается на текущих нормативах и каталоге и сохраняется новой версией. "
+    "Старая версия не меняется.",
+    responses={**NOT_FOUND, 422: {"description": "На текущих нормативах расчет не получается"}},
+)
+def recalculate(project_id: int, number: int, session: SessionDep, user: UserDep) -> Version:
+    try:
+        return projects.recalculate(session, user, project_id, number)
+    except projects.NotFound as error:
+        raise _not_found(error) from error
+    except projects.CannotCalculate as error:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)) from error
 
 
 @router.post(

@@ -1,0 +1,557 @@
+/* Шаг 5 по выбору человека. Цвета и отступы из набора (tokens.css), цвет способа через --tone */
+
+/* "Как посчитано": все подробности ниже итога, по строкам */
+.u-econ-more {
+  margin-top: var(--s-6);
+}
+
+/* Шаг 5: итог по выбору с шага 4, карточки "без роботов" и выбранных способов, окно про другой */
+.u-chosen {
+  margin-top: var(--s-5);
+}
+
+.u-chosen-head {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.u-chosen-sub {
+  max-width: 80ch;
+  margin: var(--s-1) 0 var(--s-4);
+  font-size: 19px;
+  line-height: 1.4;
+}
+
+.u-chosen-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+
+.u-chosen-cards[data-count="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.u-chosen-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  border-radius: var(--r-xl);
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.u-chosen-card.is-now {
+  background: var(--paper-cool);
+}
+
+.u-chosen-card.is-best {
+  box-shadow: inset 0 0 0 2px var(--tone);
+}
+
+.u-chosen-card header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.u-chosen-card header i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--tone);
+}
+
+.u-chosen-card h3 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.u-chosen-badge {
+  margin-left: auto;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--tone);
+  color: var(--paper);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.u-chosen-note {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+/* Крупно у всех карточек одно число: сколько уйдет за горизонт. Цифры одного смысла, их можно
+   сравнивать на глаз; экономия строкой под числом */
+.u-chosen-total {
+  display: grid;
+  gap: 2px;
+  margin: var(--s-1) 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.u-chosen-total b {
+  color: var(--ink);
+  font-size: 30px;
+  font-weight: 600;
+}
+
+.u-chosen-total small,
+.u-chosen-card dd small {
+  color: var(--ink-faint);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.u-chosen-gain {
+  color: var(--tone);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.u-chosen-card.is-now .u-chosen-gain {
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+
+.u-chosen-gain.is-minus {
+  color: var(--warn);
+}
+
+.u-chosen-card dl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.u-chosen-card dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-2);
+  font-size: 15px;
+}
+
+.u-chosen-card dt {
+  color: var(--ink-soft);
+}
+
+.u-chosen-card dd {
+  margin: 0;
+  text-align: right;
+}
+
+.u-chosen-more {
+  margin: 0;
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.u-chosen-other {
+  display: grid;
+  justify-items: start;
+  gap: var(--s-1);
+  margin-top: var(--s-3);
+  padding: var(--s-4) var(--s-5);
+  border-left: 4px solid var(--tone);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--tone) 7%, var(--paper));
+}
+
+.u-chosen-other h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.u-chosen-other p {
+  max-width: 85ch;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+  .u-chosen-cards,
+  .u-chosen-cards[data-count="2"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .u-chosen-head {
+    font-size: 26px;
+  }
+}
+
+.u-chosen-budget {
+  display: grid;
+  gap: var(--s-1);
+  margin-bottom: var(--s-3);
+  padding: var(--s-3) var(--s-5);
+  border-left: 4px solid var(--warn);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--warn) 8%, var(--paper));
+}
+
+.u-chosen-budget h3 {
+  margin: 0;
+  color: var(--warn);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.u-chosen-budget p {
+  max-width: 90ch;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+/* Окно бюджета: влезает спокойно, на грани и не влезает тревожнее */
+.u-chosen-budget.is-fit {
+  border-left-color: var(--sc-rent);
+  background: color-mix(in srgb, var(--sc-rent) 7%, var(--paper));
+}
+
+.u-chosen-budget.is-fit h3 {
+  color: var(--sc-rent);
+}
+
+.u-chosen-budget.is-edge {
+  background: color-mix(in srgb, var(--warn) 5%, var(--paper));
+}
+
+/* Карточки итога как вкладки: щелчок открывает подробности прямо под карточками */
+.u-chosen-card.is-tab {
+  cursor: pointer;
+  transition:
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.u-chosen-card.is-tab:hover {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 45%, transparent);
+}
+
+.u-chosen-card.is-tab:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* выгодный отмечен меткой, рамка только у открытой карточки: две рамки путали бы */
+.u-chosen-card.is-tab.is-best:not(.is-selected) {
+  box-shadow: var(--hair);
+}
+
+.u-chosen-card.is-tab.is-selected {
+  background: color-mix(in srgb, var(--tone) 6%, var(--paper));
+  box-shadow: inset 0 0 0 2px var(--tone);
+}
+
+.u-chosen-card.is-now.is-tab.is-selected {
+  background: var(--paper-cool);
+}
+
+.u-chosen-detail {
+  margin-top: var(--s-3);
+}
+
+.u-summary.is-inline {
+  margin-top: 0;
+}
+
+/* План на 5 лет: кнопка внизу шага, внутри окна вывод, маленький график и таблица по годам */
+.u-yplan-bar {
+  margin-top: var(--s-5);
+  padding-top: var(--s-4);
+  box-shadow: inset 0 1px 0 var(--line);
+}
+
+.u-yplan-sub {
+  margin: var(--s-4) 0 var(--s-2);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.u-yplan-advice {
+  max-width: 62ch;
+  margin: 0 0 var(--s-3);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.u-yplan-chart {
+  display: block;
+  width: 100%;
+  max-height: 210px;
+  min-width: 640px;
+}
+
+.u-yplan-grid {
+  stroke: var(--line);
+}
+
+.u-yplan-tick {
+  fill: var(--ink-faint);
+  font-size: 12px;
+}
+
+.u-yplan-line path {
+  fill: none;
+  stroke: var(--tone);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.u-yplan-line.is-now path {
+  stroke-dasharray: 6 4;
+  stroke-width: 2;
+}
+
+.u-yplan-end {
+  fill: var(--ink);
+  font-size: 13px;
+}
+
+.u-yplan-dot circle {
+  fill: var(--sc-buy);
+  stroke: var(--paper);
+  stroke-width: 2;
+}
+
+.u-yplan-dot text {
+  fill: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.u-yplan-note {
+  max-width: 90ch;
+  margin: var(--s-2) 0 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.u-yplan-more {
+  margin-top: var(--s-3);
+}
+
+.u-yplan-more summary {
+  color: var(--blue);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.u-yplan-more[open] summary {
+  margin-bottom: var(--s-2);
+}
+
+.u-yplan-scroll {
+  overflow-x: auto;
+}
+
+.u-yplan-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.u-yplan-table th,
+.u-yplan-table td {
+  padding: 10px var(--s-3);
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+  vertical-align: top;
+}
+
+.u-yplan-table thead th {
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.u-yplan-table thead th i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 2px;
+  background: var(--tone);
+}
+
+.u-yplan-table th:first-child {
+  text-align: left;
+}
+
+.u-yplan-table tbody th {
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.u-yplan-table td .mono {
+  font-size: 17px;
+}
+
+.u-yplan-table td small {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-faint);
+  font-size: 12.5px;
+}
+
+.u-yplan-table td small .mono {
+  font-size: inherit;
+}
+
+.u-yplan-table tr.is-marked {
+  background: var(--blue-tint);
+}
+
+.u-yplan-mark {
+  display: block;
+  margin-top: 2px;
+  color: var(--blue);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* под карточкой у покупки пояснения над цифрами бывает нет: без пустой строки и черты */
+.u-chosen-detail .u-answer-sub:empty {
+  display: none;
+}
+
+.u-chosen-detail .u-answer-sub:empty + .u-answer-facts {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.u-chosen-detail .u-answer-sub {
+  margin-top: 0;
+  font-size: 17px;
+}
+
+/* "Год аренды, потом выкуп": свой фиолетовый, не зеленый как аренда, знак штрихованный и подпись "допущение" */
+.u-yplan-table .is-trial {
+  --tone: var(--sc-trial);
+}
+
+.u-yplan-table thead th.is-trial i {
+  background: repeating-linear-gradient(135deg, var(--tone) 0 3px, transparent 3px 5px);
+  box-shadow: inset 0 0 0 1px var(--tone);
+}
+
+.u-yplan-tag {
+  display: block;
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* Под карточками итога: что они переключают и ссылка к плану на 5 лет внизу шага */
+.u-chosen-under {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-1) var(--s-3);
+  margin: var(--s-2) 0 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.u-chosen-plan {
+  color: var(--blue);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.u-yplan-bar {
+  scroll-margin-top: 120px;
+}
+
+/* Низ карточки-вкладки: одно место у всех трех. Выбранная говорит, что все ниже по ней,
+   остальные зовут показать. Так видно, что карточка нажимается и что от нее меняется */
+.u-chosen-pick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: auto 0 0;
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line);
+  color: var(--blue);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.u-chosen-pick::after {
+  content: "→";
+  font-weight: 400;
+}
+
+.u-chosen-card.is-selected .u-chosen-pick {
+  color: var(--tone);
+}
+
+.u-chosen-card.is-now.is-selected .u-chosen-pick {
+  color: var(--ink);
+}
+
+.u-chosen-card.is-selected .u-chosen-pick::after {
+  content: none;
+}
+
+.u-chosen-card.is-selected .u-chosen-pick::before {
+  content: "✓";
+}
+
+/* Окно бюджета: что показать вместо невлезающей покупки */
+.u-chosen-budget-do {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-4);
+  margin-top: var(--s-1);
+}
+
+/* Как посчитаны карточки: свертка сразу под ними */
+.u-chosen-how {
+  margin-top: var(--s-2);
+}
+
+.u-chosen-how > .u-fold {
+  margin-top: 0;
+}
+
+/* План на 5 лет: выбранное переключателем шага 5 ярче, остальное для сравнения */
+.u-yplan-line.is-dim path {
+  opacity: 0.4;
+  stroke-width: 1.75;
+}
+
+.u-yplan-table thead th.is-picked {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* якоря шага не прячутся под липкой полосой переключателя */
+.u-econ [id] {
+  scroll-margin-top: 88px;
+}

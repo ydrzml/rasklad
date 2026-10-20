@@ -35,7 +35,7 @@ const RATING_NAMES: Record<string, string> = {
   A: "проверено: производитель и независимая проверка",
   B: "подтверждено: сходятся два типа источников",
   C: "один источник",
-  D: "слабо: только организатор или только СМИ",
+  D: "слабо: только каталог ФЦ БАС или только СМИ",
   E: "спорно: источники расходятся",
   F: "нет данных, допущение команды",
 };
@@ -218,7 +218,7 @@ export function NormsPanel() {
                   <Trust level={norm.trust} title={RATING_NAMES[norm.trust]} />,
                   <span className="a-clamp" title={norm.source}>
                     {norm.source}
-                    {norm.date && <span className="a-faint"> · {norm.date}</span>}
+                    {norm.date && <span className="a-faint a-date"> · {dayText(norm.date)}</span>}
                   </span>,
                   <span className="a-faint a-clamp" title={norm.effect}>
                     {norm.effect}
@@ -477,4 +477,9 @@ function show(value: unknown): string {
   if (typeof value === "number") return number(value);
   const text = String(value);
   return text.length > 80 ? `${text.slice(0, 80)}…` : text;
+}
+
+// дата как в каталоге: 2026-09-24 это 24.09.2026, 2026-09 это 09.2026
+function dayText(iso: string): string {
+  return /^\d{4}-\d{2}(-\d{2})?$/.test(iso) ? iso.split("-").reverse().join(".") : iso;
 }

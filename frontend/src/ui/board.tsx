@@ -217,7 +217,7 @@ export function Board(props: BoardProps) {
             <path d="M3 7.5h9" />
           </IconButton>
           <IconButton label="Вписать лист, клавиша F" onClick={() => setView(fitView())}>
-            <path d="M2.5 5.5v-3h3M9.5 2.5h3v3M12.5 9.5v3h-3M5.5 12.5h-3v-3" />
+            <path d="M7.5 1.5v3M7.5 10.5v3M1.5 7.5h3M10.5 7.5h3M7.5 5.8a1.7 1.7 0 1 0 .01 0" />
           </IconButton>
           {corner}
         </div>
@@ -376,9 +376,40 @@ export function Menu({ x, y, items, onClose }: { x: number; y: number; items: Me
 
 /* Панелька действий над выбранным объектом, как в редакторах из игр: не надо помнить про
    правую кнопку или двойной щелчок, все, что можно сделать с объектом, лежит у него над головой. */
-export function Actions({ x, y, items }: { x: number; y: number; items: MenuItem[] }) {
+/* Панелька над выбранным. Центр над объектом, но целиком в листе и левее окна свойств (avoid):
+   у рядов четыре кнопки, и последняя уходила под окно справа */
+export function Actions({
+  x,
+  y,
+  items,
+  avoid,
+}: {
+  x: number;
+  y: number;
+  items: MenuItem[];
+  avoid?: HTMLElement | null;
+}) {
+  const box = useRef<HTMLDivElement>(null);
+  const [left, setLeft] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const node = box.current;
+    const sheet = node?.offsetParent;
+    if (!node || !sheet) return;
+    const width = node.offsetWidth;
+    const area = sheet.getBoundingClientRect();
+    let right = area.width - 8;
+    const side = avoid?.getBoundingClientRect();
+    if (side && side.width > 0 && side.left > area.left && side.left < area.right) right = side.left - area.left - 8;
+    setLeft(Math.max(8, Math.min(x - width / 2, right - width)));
+  }, [x, y, items, avoid]);
   return (
-    <div className="u-actions" role="toolbar" aria-label="Что сделать с объектом" style={{ left: x, top: y }}>
+    <div
+      ref={box}
+      className="u-actions is-placed"
+      role="toolbar"
+      aria-label="Что сделать с объектом"
+      style={{ left: left ?? x, top: y, visibility: left == null ? "hidden" : undefined }}
+    >
       {items.map((item, index) =>
         item === "line" ? (
           <span key={index} className="u-actions-line" />

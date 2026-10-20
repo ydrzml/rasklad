@@ -18,6 +18,7 @@ from app.engine.economics.scenarios import by_id
 from app.engine.model_config import Provenance, load_model
 from app.errors import NotFound
 from app.services.calculation import model_with_overrides
+from app.services.memo import Memo
 from app.settings import settings
 
 DEFAULT_TEMPLATE = "one_side"
@@ -103,6 +104,16 @@ def stations_needed(model: dict, facility: dict, operation: dict) -> int:
     return math.ceil(design / rate)
 
 
+def packing_needed(model: dict, facility: dict, operation: dict) -> int:
+    """Сколько мест упаковки поставить у станций: пиковый поток штук с резервом на выработку упаковщика.
+    Тот же счет, что у экономики (engine/economics/scenarios.py, packing). Нет упаковки: ноль."""
+    pack = operation.get("packing")
+    if not pack or not operation.get("productivity_after"):
+        return 0
+    design = peak_demand(operation, facility) * (1 + model["economics"]["peak_reserve_share"])
+    return math.ceil(design * pack["pieces_per_line"] / pack["productivity"])
+
+
 def generate(
     facility_id: str,
     operation_ids: list[str],
@@ -120,11 +131,16 @@ def generate(
         (stations_needed(model, facility, by_id(facility["operations"], task)) for task in operation_ids),
         default=0,
     )
+    packing = max(
+        (packing_needed(model, facility, by_id(facility["operations"], task)) for task in operation_ids),
+        default=0,
+    )
     picked = custom_template(custom or {}) if template_id == CUSTOM else template(template_id)
     # Робозона под отбор занимает часть склада, а не весь: на 10 000 м2 путь до станции выходил 53 м,
     # и прогон просил вдвое больше роботов, чем ставят на таком потоке (docs/decisions.md)
     area = picking_zone_m2(facility) if template_id == ROBOT_ZONE else facility["active_area_m2"]
-    if width_m and length_m:
+    own_size = bool(width_m and length_m)
+    if own_size:
         # человек поставил свои габариты: пропорция шаблона уступает им, площадь берем из них
         picked, area = dict(picked, aspect=width_m / length_m), width_m * length_m
     plan = engine.generate(
@@ -134,6 +150,8 @@ def generate(
         stations,
         ceiling_m=facility["constraints"].get("ceiling_m", 0.0),
         margin_m=LOT_MARGIN_M,
+        packing=packing,
+        fit=not own_size,
     )
     # шаблон кладет одну зону, а редактор правит ряды: раскладываем сразу
     return engine.rows_of(plan, constants())
@@ -141,9 +159,21 @@ def generate(
 
 def picking_zone_m2(facility: dict) -> float:
     """Площадь робозоны под штучный отбор: часть зоны работы роботов, которую назвал человек
-    (по умолчанию от плотности рынка, config/model.yaml, picking_zone_share)."""
+    (по умолчанию от плотности рынка, config/model.yaml, picking_zone_share), но не меньше той,
+    где типовая робозона вмещает стеллажи (zone_minimum_m2), и не больше всей зоны.
+
+    Пример, даркстор 1 500 м2 при доле 10%: 150 м2 мало, ворота, буфер и станции съедают всю
+    зону. Берем минимум 609 м2, это 40% даркстора (у Яндекс Лавки робозона 28% площади)."""
     share = facility.get("picking_zone_share") or 1.0
-    return float(round(facility["active_area_m2"] * min(1.0, share)))
+    area = facility["active_area_m2"]
+    return float(round(min(area, max(area * min(1.0, share), zone_minimum_m2()))))
+
+
+def zone_minimum_m2() -> float:
+    """Наименьшая робозона по типовой схеме, в которой между воротами и станциями встают
+    хотя бы два блока стеллажей (engine/plan.py, storage_minimum)."""
+    width, length = engine.storage_minimum(template(ROBOT_ZONE), constants())
+    return width * length
 
 
 def fits_picking(plan: engine.Plan) -> bool:
@@ -193,8 +223,15 @@ def serpentine(plan: engine.Plan, zone_id: str, first: str = "") -> engine.Plan:
     return replace(plan, items=kept + lanes, edited=True)
 
 
+# Замер большого плана идет секунды, а один расчет шага 5 мерил его четыре раза, и столько же
+# каждый запрос рядом: способы оплаты, "Что будет, если", готовность, смена. Замер зависит только от
+# плана и констант склада (они читаются один раз), поэтому держим его по отпечатку плана. Замер
+# только читают: ни расчет, ни прогон его не меняют
+_MEASURES: Memo[engine.Measures] = Memo(limit=8)
+
+
 def measure(plan: engine.Plan) -> engine.Measures:
-    return engine.measure(plan, constants())
+    return _MEASURES.get(digest(plan), lambda: engine.measure(plan, constants()))
 
 
 def to_dict(plan: engine.Plan) -> dict:

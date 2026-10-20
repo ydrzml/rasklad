@@ -10,6 +10,8 @@ import { CrashGuard } from "./ui/crash";
 // Лендинг для гостя. Выбрали вариант А, старый удален; прежний адрес /a ведет сюда
 const Landing = lazy(() => import("./features/landing-a/LandingA").then((m) => ({ default: m.LandingA })));
 const Login = lazy(() => import("./features/login/Login").then((m) => ({ default: m.Login })));
+// Новый пароль по ссылке из письма
+const Reset = lazy(() => import("./features/login/Reset").then((m) => ({ default: m.Reset })));
 const App = lazy(() => import("./app/App").then((m) => ({ default: m.App })));
 const Shared = lazy(() => import("./app/Shared").then((m) => ({ default: m.Shared })));
 const Cabinet = lazy(() => import("./features/cabinet/Cabinet").then((m) => ({ default: m.Cabinet })));
@@ -20,6 +22,12 @@ const Admin = lazy(() => import("./features/admin/Admin").then((m) => ({ default
 const Privacy = lazy(() => import("./features/privacy/Privacy").then((m) => ({ default: m.Privacy })));
 // Как мы считаем: методика картинками, на ее разделы ссылаются подвал мастера и главная вошедшего
 const Method = lazy(() => import("./features/method/Method").then((m) => ({ default: m.Method })));
+// Как читается экономика: три сценария, показатели, допущения на демо-расчете, ссылка из методики
+const Economics = lazy(() => import("./features/economics/EconomicsPage").then((m) => ({ default: m.EconomicsPage })));
+// Каталог роботов для гостя: что есть по каждому объекту, только чтение
+const Catalog = lazy(() => import("./features/catalog/Catalog").then((m) => ({ default: m.Catalog })));
+// Готовые разборы для гостя: три посчитанных кейса, только просмотр
+const Cases = lazy(() => import("./features/cases/Cases").then((m) => ({ default: m.Cases })));
 const NotFound = lazy(() => import("./features/notfound/NotFound").then((m) => ({ default: m.NotFound })));
 
 function Front() {
@@ -34,6 +42,7 @@ function Page() {
   const path = window.location.pathname;
   if (path.startsWith("/calc")) return <App />;
   if (path.startsWith("/share/")) return <Shared />;
+  if (path === "/login/reset") return <Reset />;
   if (path.startsWith("/login")) return <Login />;
   if (path.startsWith("/projects")) return <Cabinet />;
   if (path === "/home") return <Home />;
@@ -41,9 +50,13 @@ function Page() {
   if (path.startsWith("/admin")) return <Admin />;
   if (path === "/privacy") return <Privacy />;
   if (path === "/method") return <Method />;
+  if (path === "/economics") return <Economics />;
+  if (path === "/catalog") return <Catalog />;
+  if (path === "/cases" || path.startsWith("/cases/")) return <Cases />;
   // лендинг для гостя, вошедшего сразу ведем на его главную
   if (path === "/" || path === "/index.html") return <Front />;
-  if (path === "/a" || path === "/a/") {
+  // прежние адреса вариантов лендинга ведут на "/"
+  if (["/a", "/a/", "/v1", "/v2"].includes(path)) {
     window.location.replace("/");
     return null;
   }

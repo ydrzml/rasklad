@@ -39,21 +39,21 @@ def test_plan_fits_picking_same_examples_as_front():
 
 
 def test_default_zone_share_is_formula_fleet_times_market_density():
-    """28% склада по умолчанию: парк по формуле 56 Ronavi M на 50 м2 на робота, до 100 м2."""
+    """10% склада по умолчанию: парк по формуле 20 Ronavi M на 50 м2 на робота = 1 000 м2, кратно 100 м2."""
     model, _ = calculation.model_with_overrides({})
     facility = next(f for f in model["facilities"] if f["id"] == "warehouse")
     fleet = evaluate(model, "warehouse", "piece_picking", "ronavi-m").sizing.fleet
     density = model["engine"]["geometry"]["picking_m2_per_robot"]
     area = min(facility["active_area_m2"], math.ceil(fleet * density / 100) * 100)
-    assert fleet == 56
-    assert area == 2800
+    assert fleet == 20
+    assert area == 1000
     assert facility["picking_zone_share"] == pytest.approx(area / facility["active_area_m2"])
-    assert plan_service.picking_zone_m2(facility) == 2800
+    assert plan_service.picking_zone_m2(facility) == 1000
 
 
 def test_robot_zone_is_built_on_the_picking_part_and_follows_the_share():
     zone = plan_service.measure(_plan("robot_zone", ["piece_picking"]))
-    assert 2700 <= zone.area_m2 <= 2900
+    assert 900 <= zone.area_m2 <= 1100
     wider = plan_service.generate(
         "warehouse", ["piece_picking"], "robot_zone", {"facilities.warehouse.picking_zone_share": 0.5}
     )
@@ -81,30 +81,32 @@ def test_only_picking_leaves_a_forklift_plan():
 
 
 def test_pallet_demo_with_shift_does_not_change():
-    """docs/example/request.json: 9 роботов, 41,39 млн на старте, покупка окупается за 1,33 года."""
+    """docs/example/request.json: 9 роботов, 33,04 млн на старте без НДС, покупка окупается за 1,06 года
+    (режим датасета 2 смены по 11 ч, 365 дней; на пятидневке 2 смены по 8 ч, 250 дней было 13 роботов,
+    45,01 млн и 2,38 года). Роботы 9 * 2,7 / 1,22 = 19,92 млн, интеграция 5 * 0,9 / 1,22 = 3,69 млн."""
     body = json.loads((ROOT / "docs/example/request.json").read_text(encoding="utf-8"))
     result = calculation.calculate(CalculationRequest(**body))
     purchase = next(s for s in result.scenarios if s.id == "purchase")
     assert result.sizing.fleet == 9
-    assert round(purchase.capex_total_rub / 1e6, 2) == 41.39
-    assert round(purchase.payback_cumulative_years, 2) == 1.33
+    assert round(purchase.capex_total_rub / 1e6, 2) == 33.04
+    assert round(purchase.payback_cumulative_years, 2) == 1.06
     assert result.picking_zones == []
 
 
 def test_picking_on_forklift_plan_is_sized_on_the_robot_zone():
-    """Отбор и паллеты на Г-образном плане под погрузчик: отбор по робозоне 2 800 м2, паллеты по плану.
-    До правки прогон давал 108 Ronavi M на этом плане и 119 на робозоне во весь склад."""
+    """Отбор и паллеты на Г-образном плане под погрузчик: отбор по робозоне 1 000 м2, паллеты по плану.
+    При 100 000 строк прогон давал 108 Ronavi M на этом плане и 119 на робозоне во весь склад."""
     corner = plan_service.to_dict(_plan("corner", ["pallet_transport", "piece_picking"]))
     both = calculation.calculate(CalculationRequest(tasks=[PALLETS, PICKING], plan=corner, use_simulation=True))
     alone = calculation.calculate(CalculationRequest(tasks=[PALLETS], plan=corner, use_simulation=True))
     fleets = {part.operation_id: part.sizing.fleet for part in both.tasks}
     # паллеты считаются по плану человека, как и без отбора
     assert fleets["pallet_transport"] == alone.sizing.fleet
-    # отбор в коридоре рынка: 5-14 роботов на станцию, станций 10
-    assert 50 <= fleets["piece_picking"] <= 80
+    # отбор на 4 станции: на малой робозоне 3-7 роботов на станцию, у Amazon с Kiva 6-9
+    assert 12 <= fleets["piece_picking"] <= 28
     [zone] = both.picking_zones
     assert zone.operation_id == "piece_picking"
-    assert zone.area_m2 == 2800
+    assert zone.area_m2 == 1000
     # без плана отбор идет по той же робозоне
     bare = calculation.calculate(CalculationRequest(tasks=[PICKING], use_simulation=True))
     assert bare.sizing.fleet == fleets["piece_picking"]
@@ -123,8 +125,12 @@ def test_picking_with_stations_at_far_wall_is_sized_like_the_robot_zone():
     assert [one.operation_id for one in on_far.picking_zones] == ["piece_picking"]
 
 
-def test_picking_robot_without_station_data_is_not_calculated():
-    """У Ronavi H1500 в config нет станции отбора: экономику отбора не считаем, говорим почему."""
+def test_picking_robot_without_station_data_is_not_calculated(monkeypatch):
+    """Если в config у робота нет станции отбора, экономику отбора не считаем, говорим почему.
+    У всех роботов, которых подбор не исключает, станция теперь есть, поэтому убираем ее у Ronavi H1500."""
+    model, provenance = calculation.load_full_model(calculation.settings.config_dir)
+    next(r for r in model["robots"] if r["id"] == "ronavi-h1500")["station_price_rub"] = 0
+    monkeypatch.setattr(calculation, "_model", lambda: (model, provenance))
     result = calculation.calculate(
         CalculationRequest(tasks=[{"operation_id": "piece_picking", "robot_id": "ronavi-h1500", "share": 1}])
     )

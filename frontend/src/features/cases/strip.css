@@ -1,0 +1,66 @@
+/* Полоса готовых разборов на шаге 1. Тихая, на подложке: главное на шаге выбор объекта */
+
+.k-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3) var(--s-4);
+  margin: 0 0 var(--s-5);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--blue-tint);
+}
+
+.k-strip-text {
+  display: grid;
+  flex: 1 1 260px;
+  gap: 2px;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.k-strip-text b {
+  font-weight: 600;
+}
+
+.k-strip-text span {
+  color: var(--ink-soft);
+}
+
+.k-strip-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.k-strip-links a {
+  display: grid;
+  gap: 2px;
+  min-width: 150px;
+  padding: 10px var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--paper);
+  box-shadow: var(--hair);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: box-shadow 0.15s ease;
+}
+
+.k-strip-links a:hover,
+.k-strip-links a:focus-visible {
+  box-shadow: var(--hair-blue);
+}
+
+.k-strip-links small {
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+@media (max-width: 640px) {
+  .k-strip-links a {
+    flex: 1 1 100%;
+  }
+}

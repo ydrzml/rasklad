@@ -266,3 +266,14 @@ def test_merged_texts_go_on_separate_lines():
     floor = next(item for item in found.items if item.id == "floor")
     lines = floor.why.split("\n")
     assert [line.split(":")[0] for line in lines] == ["Первый", "Второй"]
+
+
+def test_organizer_source_is_named_plainly():
+    """На экране и в PDF тип источника "организатор" называем "материалы задачи"."""
+    from app.services.readiness import _spec
+
+    spec = _spec({"source": "Примеры_решений_типы_объектов.docx", "value": "ровный пол", "source_type": "организатор"})
+    assert spec.source == "материалы задачи: Примеры_решений_типы_объектов.docx"
+    assert spec.trust == "D"
+    maker = _spec({"source": "https://ronavi-robotics.ru/x", "value": "от +5", "source_type": "производитель"})
+    assert maker.source.startswith("производитель: ")

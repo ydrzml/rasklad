@@ -13,10 +13,14 @@ from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.reports import clinic as clinic_report
+from app.reports import content
 from app.schemas import projects as schemas
-from app.schemas.economics import CalculationRequest
+from app.schemas.clinic import MoneyRequest, MoneyResult
+from app.schemas.economics import CalculationRequest, CalculationResult
 from app.services import calculation, catalog
-from app.services.versions import data_version, model_version
+from app.services import staff as staff_service
+from app.services.versions import data_note, data_version, model_version, readable_note
 from app.storage.models import Folder, Project, ProjectFile, ProjectVersion, Share, User
 
 MAX_STATE_BYTES = 2 * 1024 * 1024
@@ -77,6 +81,11 @@ class CannotCalculate(Exception):
     """Вариант с правкой не посчитался: смена длиннее суток, неизвестное значение и тому подобное."""
 
 
+class NoResult(Exception):
+    """В версии нет сохраненных цифр, по которым собрать отчет: ее сохранили без результата или в старом виде.
+    Сообщение показываем человеку как есть."""
+
+
 def list_projects(session: Session, user: User) -> list[schemas.ProjectSummary]:
     counts = (
         select(ProjectVersion.project_id, func.count().label("versions")).group_by(ProjectVersion.project_id).subquery()
@@ -113,7 +122,8 @@ def _figures(result: dict[str, Any] | None) -> schemas.Figures | None:
     purchase = next((s for s in scenarios if isinstance(s, dict) and s.get("id") == "purchase"), {})
     return schemas.Figures(
         fleet=(result.get("sizing") or {}).get("fleet"),
-        payback_years=purchase.get("payback_cumulative_years"),
+        # у медучреждения окупаемость покупки одна, без накопленной
+        payback_years=purchase.get("payback_cumulative_years", purchase.get("payback_years")),
         tco_rub=purchase.get("tco_rub"),
         horizon_years=result.get("horizon_years"),
     )
@@ -121,12 +131,26 @@ def _figures(result: dict[str, Any] | None) -> schemas.Figures | None:
 
 def create(session: Session, user: User, body: schemas.ProjectCreate) -> schemas.Project:
     _check_limits(session, user, projects=1, versions=1 if body.state is not None else 0)
-    project = Project(owner_id=user.id, name=body.name.strip(), facility_type=body.facility_type)
+    project = Project(owner_id=user.id, name=_free_name(session, user, body.name), facility_type=body.facility_type)
     session.add(project)
     if body.state is not None:
         _add_version(project, body.state, body.result, body.note)
     session.commit()
     return get(session, user, project.id)
+
+
+def _free_name(session: Session, user: User, wanted: str) -> str:
+    """Название без повтора среди своих проектов: мастер называет проект по объекту и задачам, и два
+    расчета одного склада в списке не различить. Повтор получает номер: "Склад (2)"."""
+    name = wanted.strip()[:200] or "Проект"
+    taken = set(session.scalars(select(Project.name).where(Project.owner_id == user.id)))
+    number = 2
+    found = name
+    while found in taken:
+        suffix = f" ({number})"
+        found = name[: 200 - len(suffix)] + suffix
+        number += 1
+    return found
 
 
 def get(session: Session, user: User, project_id: int) -> schemas.Project:
@@ -143,10 +167,7 @@ def get(session: Session, user: User, project_id: int) -> schemas.Project:
 
 def get_version(session: Session, user: User, project_id: int, number: int) -> schemas.Version:
     project = _own(session, user, project_id)
-    version = next((v for v in project.versions if v.number == number), None)
-    if version is None:
-        raise NotFound(f"версия {number}")
-    return _version(session, version)
+    return _version(session, _number(project, number))
 
 
 def update(session: Session, user: User, project_id: int, body: schemas.ProjectUpdate) -> schemas.Project:
@@ -220,26 +241,31 @@ def copy(session: Session, user: User, project_id: int, body: schemas.ProjectCop
     version = None
     if last is not None and (body.changes or body.people is not None):
         state = {**last.state, "overrides": {**(last.state.get("overrides") or {}), **body.changes}}
+        staff_note = ""
         if body.people is not None:
             state["staff"] = _scaled_staff(last.state.get("staff"), body.people)
             state["staffTouched"] = True
+        elif _moves_volume(body.changes):
+            state["staff"], staff_note = _staff_for_volume(last.state, state)
         state.pop("savedAs", None)
         version = ProjectVersion(
             number=1,
-            note=_variant_note(source, last, body.changes, body.people),
+            note=(_variant_note(source, last, body.changes, body.people) + staff_note)[:500],
             state=state,
             result=_recalculate(state),
             model_version=model_version(),
             data_version=data_version(),
+            data_note=data_note(),
         )
     elif last is not None:
         version = ProjectVersion(
             number=1,
-            note=f"Копия проекта «{source.name}», версия {last.number}",
+            note=f'Копия проекта "{source.name}", версия {last.number}',
             state=last.state,
             result=last.result,
             model_version=last.model_version,
             data_version=last.data_version,
+            data_note=last.data_note,
         )
     if source.folder_id is None:
         folder = Folder(owner_id=user.id, name=source.name)
@@ -248,7 +274,7 @@ def copy(session: Session, user: User, project_id: int, body: schemas.ProjectCop
         source.folder_id = folder.id
     duplicate = Project(
         owner_id=user.id,
-        name=(body.name or f"{source.name} (копия)").strip()[:200],
+        name=_free_name(session, user, body.name or f"{source.name} (копия)"),
         facility_type=source.facility_type,
         folder_id=source.folder_id,
     )
@@ -264,6 +290,78 @@ def copy(session: Session, user: User, project_id: int, body: schemas.ProjectCop
         )
     session.commit()
     return get(session, user, duplicate.id)
+
+
+def recalculate(session: Session, user: User, project_id: int, number: int) -> schemas.Version:
+    """Посчитать сохраненную версию заново на текущих нормативах и каталоге. Получается новая версия
+    с тем же вводом, старая остается как была: ее цифры и отчет не меняются (ТЗ, п. 3.1.5)."""
+    project = _own(session, user, project_id)
+    source = _loaded(session, _number(project, number))
+    _check_limits(session, user, versions=1)
+    state = {key: value for key, value in source.state.items() if key != "savedAs"}
+    version = _add_version(project, state, _recalculate(state), f"Версия {number}, пересчитана на текущих нормативах")
+    session.commit()
+    return _version(session, version)
+
+
+def version_report(
+    session: Session, user: User, project_id: int, number: int
+) -> content.Report | clinic_report.ClinicReport:
+    """Отчет по сохраненной версии своего проекта: цифры из сохранения, без пересчета"""
+    project = _own(session, user, project_id)
+    return _saved_report(session, project, _number(project, number))
+
+
+def shared_report(session: Session, token: str) -> content.Report | clinic_report.ClinicReport:
+    """Отчет по версии, открытой по ссылке: те же цифры, что видно на странице ссылки"""
+    found = session.scalar(select(Share).where(Share.token == token))
+    version = next((v for v in found.project.versions if v.number == found.version_number), None) if found else None
+    if version is None:
+        raise NotFound("ссылка")
+    return _saved_report(session, found.project, version)
+
+
+def _saved_report(
+    session: Session, project: Project, version: ProjectVersion
+) -> content.Report | clinic_report.ClinicReport:
+    loaded = _loaded(session, version)
+    if not loaded.result:
+        raise NoResult(
+            f"В версии {loaded.number} нет сохраненных цифр: ее сохранили до того, как мы стали их хранить. "
+            "Пересчитайте ее как новую версию, отчет соберется по новой"
+        )
+    if CLINIC_REQUEST in (loaded.state or {}):
+        return _clinic_report(project, loaded)
+    try:
+        result = CalculationResult.model_validate(loaded.result)
+        request = request_from(loaded.state)
+    except (ValidationError, KeyError, TypeError) as error:
+        raise NoResult(
+            f"Версия {loaded.number} сохранена в старом виде, отчет по ней не собрать. Пересчитайте ее как новую версию"
+        ) from error
+    summary = _version_summary(loaded)
+    saved = content.Saved(
+        project=project.name,
+        number=loaded.number,
+        saved_at=_aware(loaded.saved_at),
+        same_data=summary.same_data,
+    )
+    try:
+        return content.build_saved(request, result, saved, loaded.data_version, loaded.data_note)
+    except content.NotFeasible as error:
+        raise NoResult(f"Расчет в версии {loaded.number} не сошелся, отчет по нему не собрать: {error}") from error
+
+
+def _aware(moment: datetime) -> datetime:
+    # SQLite отдает время без пояса, Postgres с поясом. Сохраняет сервер, его время UTC
+    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
+
+
+def _number(project: Project, number: int) -> ProjectVersion:
+    version = next((v for v in project.versions if v.number == number), None)
+    if version is None:
+        raise NotFound(f"версия {number}")
+    return version
 
 
 def delete(session: Session, user: User, project_id: int) -> None:
@@ -350,6 +448,16 @@ def shared(session: Session, token: str) -> schemas.SharedCalculation:
     )
 
 
+def picks_of(state: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    """Решения по задачам из снимка: picks, у снимков постарше choices или одно robotId первой задачи"""
+    picks = state.get("picks")
+    if isinstance(picks, dict):
+        return picks
+    task_ids = list(state.get("taskIds") or [])
+    choices = state.get("choices") or ({task_ids[0]: state["robotId"]} if task_ids and state.get("robotId") else {})
+    return {task: [{"robotId": robot, "share": 1}] for task, robot in choices.items() if robot}
+
+
 def request_from(state: dict[str, Any]) -> CalculationRequest:
     """Запрос расчета из сохраненного ввода, как его собирает мастер (frontend/src/app/saving.ts, requestFrom).
     Решения задач лежат в picks (у смешанного парка по два с долей), у снимков постарше в choices,
@@ -357,10 +465,7 @@ def request_from(state: dict[str, Any]) -> CalculationRequest:
     task_ids = list(state.get("taskIds") or [])
     # задачи, снятые с расчета галочкой на шаге экономики: остаются выбранными, но не считаются
     excluded = {task for task in (state.get("excluded") or []) if isinstance(task, str)}
-    picks = state.get("picks")
-    if not isinstance(picks, dict):
-        choices = state.get("choices") or ({task_ids[0]: state["robotId"]} if task_ids and state.get("robotId") else {})
-        picks = {task: [{"robotId": robot, "share": 1}] for task, robot in choices.items() if robot}
+    picks = picks_of(state)
     tasks = [
         {"operation_id": task, "robot_id": pick["robotId"], "share": pick.get("share", 1)}
         for task in task_ids
@@ -376,12 +481,43 @@ def request_from(state: dict[str, Any]) -> CalculationRequest:
         overrides=state.get("overrides") or {},
         staff=state.get("staff"),
         plan=state.get("plan"),
-        raas_buyout=True,
         use_simulation=True,
+        budget_rub=state.get("budget"),
     )
 
 
+# Медучреждение сохраняет в state запрос итога как есть: по нему пересчет и отчет, без разбора полей мастера
+CLINIC_REQUEST = "clinicRequest"
+
+
+def _clinic_report(project: Project, loaded: ProjectVersion) -> clinic_report.ClinicReport:
+    try:
+        request = MoneyRequest.model_validate(loaded.state[CLINIC_REQUEST])
+        result = MoneyResult.model_validate(loaded.result)
+    except (ValidationError, TypeError) as error:
+        raise NoResult(
+            f"Версия {loaded.number} сохранена в старом виде, отчет по ней не собрать. Пересчитайте ее как новую версию"
+        ) from error
+    saved = content.Saved(
+        project=project.name,
+        number=loaded.number,
+        saved_at=_aware(loaded.saved_at),
+        same_data=_version_summary(loaded).same_data,
+    )
+    return clinic_report.build_saved(request, result, saved, loaded.model_version)
+
+
 def _recalculate(state: dict[str, Any]) -> dict[str, Any]:
+    if CLINIC_REQUEST in state:
+        from app.services import clinic, clinic_money
+
+        try:
+            request = MoneyRequest.model_validate(state[CLINIC_REQUEST])
+            return clinic_money.estimate(request).model_dump(mode="json")
+        except clinic.BadInput as error:
+            raise CannotCalculate(str(error)) from error
+        except ValidationError as error:
+            raise CannotCalculate("Этот расчет не получается пересчитать, откройте его в мастере") from error
     try:
         result = calculation.calculate(request_from(state))
     except calculation.Impossible as error:
@@ -400,6 +536,49 @@ def people_of(staff: Any) -> float | None:
     if not isinstance(staff, list):
         return None
     return sum(float(line.get("filled") or 0) for line in staff if isinstance(line, dict))
+
+
+def _moves_volume(changes: dict[str, float]) -> bool:
+    """Правка трогает штат по умолчанию: объем задачи в сутки, рабочие дни или как сейчас делают
+    работу (уборка машиной или вручную). Те же поля, за которыми мастер ведет штат по умолчанию
+    (frontend/src/app/App.tsx, volumeOverrides)."""
+    return any(_is_volume_path(path) for path in changes)
+
+
+def _is_volume_path(path: str) -> bool:
+    task = ".operations." in path and path.endswith((".volume_per_day", f".{calculation.MANUAL_CHOICE}"))
+    return task or path.endswith("schedule.days_per_year")
+
+
+def _staff_for_volume(before: dict[str, Any], state: dict[str, Any]) -> tuple[Any, str]:
+    """Штат копии с новым объемом, и что о нем дописать в примечание версии.
+
+    Если штат человек не трогал, мастер держит его по умолчанию под объем (services/staff.py, form):
+    копия делает то же самое, иначе один и тот же ввод давал бы в копии и в мастере разные ответы.
+    Штат, введенный руками, не трогаем: его пересчитывают полем "Людей в штате"."""
+    if before.get("staffTouched"):
+        return before.get("staff"), ". Штат прежний: его вводили руками"
+    volume = {path: value for path, value in (state.get("overrides") or {}).items() if _is_volume_path(path)}
+    try:
+        form = staff_service.form(state.get("facilityId") or "warehouse", list(state.get("taskIds") or []), volume)
+    except (KeyError, LookupError, TypeError, ValueError):
+        return before.get("staff"), ""
+    lines = [
+        {
+            "id": line.id,
+            "role": line.role,
+            "headcount": line.headcount,
+            "filled": line.filled,
+            "salary_month": line.salary_month,
+            "contractor": line.contractor,
+        }
+        for line in form.lines
+    ]
+    old = sum(float(line.get("headcount") or 0) for line in before.get("staff") or [] if isinstance(line, dict))
+    new = sum(line["headcount"] for line in lines)
+    if old and abs(new - old) > 1e-9:
+        return lines, f". Штат пересчитан под новый объем, как в мастере: {number(old)} → {number(new)} мест"
+    return lines, ""
 
 
 def _scaled_staff(staff: Any, people: float) -> list[dict[str, Any]]:
@@ -421,7 +600,7 @@ def _scaled_staff(staff: Any, people: float) -> list[dict[str, Any]]:
 
 
 def _variant_note(source: Project, last: ProjectVersion, changes: dict[str, float], people: float | None = None) -> str:
-    """Что поменяли, словами: «Вариант проекта «Склад», версия 2: перемещений паллет в сутки 3000 вместо 2000»."""
+    """Что поменяли, словами: Вариант проекта "Склад", версия 2: перемещений паллет в сутки 3000 вместо 2000."""
     fields = {field.path: field for field in parameters_of(last.state)}
     before = last.state.get("overrides") or {}
     parts = []
@@ -435,7 +614,7 @@ def _variant_note(source: Project, last: ProjectVersion, changes: dict[str, floa
         before_people = people_of(last.state.get("staff"))
         was = f" вместо {number(before_people)}" if before_people is not None else ""
         parts.append(f"людей в штате {number(people)}{was}")
-    return f"Вариант проекта «{source.name}», версия {last.number}: {', '.join(parts)}"[:500]
+    return f'Вариант проекта "{source.name}", версия {last.number}: {", ".join(parts)}'[:500]
 
 
 def parameters_of(state: dict[str, Any]) -> list:
@@ -447,7 +626,10 @@ def parameters_of(state: dict[str, Any]) -> list:
 
 
 def number(value: float) -> str:
-    return f"{value:g}".replace(".", ",")
+    """Число в комментарии версии, как на экране: 50 000, 37,5"""
+    whole, _, part = f"{round(value, 2):.2f}".rstrip("0").rstrip(".").partition(".")
+    grouped = f"{int(whole):,}".replace(",", " ") if whole.lstrip("-").isdigit() else whole
+    return f"{grouped},{part}" if part else grouped
 
 
 def _folder(folder: Folder) -> schemas.Folder:
@@ -491,6 +673,7 @@ def _add_version(project: Project, state: dict[str, Any], result: dict[str, Any]
         result=result,
         model_version=model_version(),
         data_version=data_version(),
+        data_note=data_note(),
     )
     project.versions.append(version)
     _touch(project)
@@ -527,6 +710,7 @@ def _version_summary(version: ProjectVersion) -> schemas.VersionSummary:
         saved_at=version.saved_at,
         model_version=version.model_version,
         data_version=version.data_version,
+        data_note=readable_note(version.data_note or ""),
         same_data=version.model_version == model_version() and version.data_version == data_version(),
     )
 

@@ -31,12 +31,16 @@ def swing(param: dict, scenario: str = "purchase") -> float:
 def test_sorted_by_swing_and_people_first(full):
     swings = [max(s["rub"] for s in p["swings"]) for p in full["params"]]
     assert swings == sorted(swings, reverse=True)
-    # 25 водителей погрузчиков заменяют роботы: их число и оклад двигают итог сильнее всего
-    top = [p["id"] for p in full["params"][:2]]
-    assert top == [
-        "facilities.warehouse.staff.forklift-operators.headcount",
-        "facilities.warehouse.staff.forklift-operators.salary_month",
-    ]
+    # роботы забирают работу 25 водителей погрузчиков: какую долю их работы, их число и оклад двигают итог
+    # сильнее всего. Люди двигаются целыми, но 25 -20% это ровно 20, +20% ровно 30: число людей сдвигается
+    # на те же 20%, что доля работы, и итог у них одинаковый, порядок между ними не проверяем. Оклад слабее:
+    # по нему же платим присмотру (оператор это переученный водитель), и часть сдвига уходит туда
+    top = [p["id"] for p in full["params"][:3]]
+    labor = f"{PALLETS}.labor_share"
+    headcount = "facilities.warehouse.staff.forklift-operators.headcount"
+    assert set(top[:2]) == {labor, headcount}
+    assert swing(by_id(full, labor)) == pytest.approx(swing(by_id(full, headcount)))
+    assert top[2] == "facilities.warehouse.staff.forklift-operators.salary_month"
 
 
 def test_rules_and_checks_are_not_moved(full):
@@ -78,7 +82,9 @@ def test_people_move_in_whole_persons():
 
 def test_fleet_from_shift_follows_the_formula():
     """Парк из прогона меняется во столько раз, во сколько по формуле меняется потребность.
-    Скорость +20%: по формуле 9,38 -> 7,82 робота, прогон давал 9, 9 * 7,82 / 9,38 = 7,5, вверх 8."""
+    Без плана маршрут 75 м, спрос с резервом 1900 / 22 * 1,5 * 1,15 = 148,98 в час. Скорость +20%: по формуле
+    148,98 / (3600 / (2 * 75 / 1,2 + 20) * 0,75) = 8,0 робота вместо 148,98 / 15,88 = 9,38, прогон давал 9,
+    9 * 8,0 / 9,38 = 7,68, вверх 8. Скорость -20%: 11,45 робота, 9 * 11,45 / 9,38 = 10,99, вверх 11."""
     result = post("/api/calculations/sensitivity/all", use_simulation=True)
     speed = by_id(result, "robots.ronavi-h1500.avg_speed_m_s")
     assert [cell["fleet"] for cell in speed["cells"]] == [11, 10, 9, 9, 8]
@@ -119,4 +125,4 @@ def test_excel_holds_the_full_list():
     column = [row[0] for row in sheet.iter_rows(values_only=True)]
     assert "Все числа по силе влияния" in column
     start = column.index("Все числа по силе влияния")
-    assert column[start + 3] == "Людей в штате, оператор погрузчика"
+    assert column[start + 3] == "Доля работы людей, которую забирает робот, перевозка паллет между зонами"

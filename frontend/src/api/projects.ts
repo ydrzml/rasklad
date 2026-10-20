@@ -1,4 +1,4 @@
-import { ApiError, call, json } from "./http";
+import { ApiError, call, download, json } from "./http";
 import type { components } from "./schema";
 
 export { ApiError };
@@ -53,6 +53,12 @@ export const projects = {
   removeFolder: (id: number) => call<void>(`${base}/folders/${id}`, { method: "DELETE" }),
   remove: (id: number) => call<void>(`${base}/${id}`, { method: "DELETE" }),
   version: (id: number, number: number) => call<Version>(`${base}/${id}/versions/${number}`),
+  // Отчет по сохраненной версии: цифры из сохранения, без пересчета. У версии без цифр сервер отвечает 409
+  report: (id: number, number: number, kind: "pdf" | "xlsx") =>
+    download(`${base}/${id}/versions/${number}/report/${kind}`, `otsenka-v${number}.${kind}`),
+  // Тот же ввод на текущих нормативах новой версией, старая остается как была. До полуминуты
+  recalculate: (id: number, number: number) =>
+    call<Version>(`${base}/${id}/versions/${number}/recalculate`, json("POST")),
   upload: (id: number, file: File) => {
     const form = new FormData();
     form.append("file", file);
@@ -69,3 +75,6 @@ export const facilities = () => call<Facility[]>("/api/catalog/facilities");
 
 // Расчет по ссылке, без входа
 export const shared = (token: string) => call<SharedCalculation>(`/api/share/${encodeURIComponent(token)}`);
+// Отчет по ссылке: те же сохраненные цифры, что на странице
+export const sharedReport = (token: string, kind: "pdf" | "xlsx") =>
+  download(`/api/share/${encodeURIComponent(token)}/report/${kind}`, `otsenka.${kind}`);

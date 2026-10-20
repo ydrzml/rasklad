@@ -170,3 +170,36 @@ def test_other_users_projects_are_invisible(db_client):
     sign_in(db_client, IVAN)
     still = db_client.get(base).json()
     assert still["name"] == "Склад в Подольске" and still["versions"] == 1 and len(still["files"]) == 1
+
+
+def test_same_name_gets_a_number_so_projects_can_be_told_apart(db_client):
+    """Мастер называет проект по объекту и задачам: два расчета одного склада в списке не различить."""
+    sign_in(db_client, IVAN)
+    first = new_project(db_client, state=STATE)
+    second = new_project(db_client, state=STATE)
+    third = new_project(db_client)
+    assert [first["name"], second["name"], third["name"]] == [
+        "Склад в Подольске",
+        "Склад в Подольске (2)",
+        "Склад в Подольске (3)",
+    ]
+    assert db_client.post(f"/api/projects/{first['id']}/copy").json()["name"] == "Склад в Подольске (копия)"
+    assert db_client.post(f"/api/projects/{first['id']}/copy").json()["name"] == "Склад в Подольске (копия) (2)"
+    # у другого человека свой список: его проект номер не получает
+    sign_in(db_client, MASHA)
+    assert new_project(db_client)["name"] == "Склад в Подольске"
+
+
+def test_long_repeated_name_keeps_the_number_within_the_limit(db_client):
+    sign_in(db_client, IVAN)
+    long = "Склад " + "о" * 194
+    assert db_client.post("/api/projects", json={"name": long}).json()["name"] == long
+    second = db_client.post("/api/projects", json={"name": long}).json()["name"]
+    assert len(second) == 200 and second.endswith(" (2)")
+
+
+def test_copy_note_uses_straight_quotes(db_client):
+    sign_in(db_client, IVAN)
+    project = new_project(db_client, state=STATE)
+    copy = db_client.post(f"/api/projects/{project['id']}/copy").json()
+    assert copy["current"]["note"] == 'Копия проекта "Склад в Подольске", версия 1'

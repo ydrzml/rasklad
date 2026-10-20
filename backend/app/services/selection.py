@@ -47,6 +47,7 @@ sessions: Callable[[], Session] = SessionLocal
 # Каталог, прочитанный из базы: объект -> решения. Сбрасывается после любой записи в каталог
 _snapshot: dict[str, list[dict]] | None = None
 _stamp: str | None = None
+_total: int | None = None
 CATALOG_TABLES = (SolutionRow, SolutionSpec, SolutionUse, SolutionPhoto, CatalogChange)
 
 
@@ -75,9 +76,19 @@ def catalog_stamp() -> str:
     return _stamp
 
 
+def catalog_count() -> int:
+    """Сколько решений в каталоге базы, все до одного. Это число на карточке "Другое" первого шага,
+    то же, что видит админка в строке "решений в каталоге"."""
+    global _total
+    if _total is None:
+        with sessions() as session:
+            _total = session.scalar(select(func.count()).select_from(SolutionRow))
+    return _total or 0
+
+
 def forget() -> None:
-    global _snapshot, _stamp
-    _snapshot, _stamp = None, None
+    global _snapshot, _stamp, _total
+    _snapshot, _stamp, _total = None, None, None
     catalog_prices.forget()
 
 
@@ -213,6 +224,7 @@ def _to_schema(match: selection.Match, source: dict, robots: dict, operation_id:
         registry_719=source["registry_719"] == "1",
         status=match.status,
         score=match.score,
+        at_limit=match.at_limit,
         checks=[Check(label=c.label, outcome=c.outcome, detail=c.detail) for c in match.checks],
         factors=[Factor(label=f.label, contribution=f.contribution, detail=f.detail) for f in match.factors],
         missing=match.missing,
@@ -235,7 +247,7 @@ def _to_schema(match: selection.Match, source: dict, robots: dict, operation_id:
         # цена аренды есть не у каждого робота: без нее расчет показывает только покупку
         raas_fee_rub_month=raas.get("fee_rub_month"),
         calc_note=_calc_note(robot),
-        summary=SUMMARIES.get(robot["id"] if robot else "", "") or source["uses"].get(operation_id, ""),
+        summary=SUMMARIES.get(robot["id"] if robot else "", "") or _plain_note(source["uses"].get(operation_id, "")),
         photo_url=source["photo_url"],
     )
 
@@ -252,6 +264,13 @@ def per_hour(value: str, unit: str) -> float | None:
         return None
     numbers = [float(one.replace(" ", "").replace(",", ".")) for one in _NUMBER.findall(value)]
     return max(numbers) if numbers else None
+
+
+def _plain_note(note: str) -> str:
+    """Пометка разметки ("Требует проверки:", "При условии:") нужна подбору, в описании карточки ее нет."""
+    for prefix in (selection.UNVERIFIED, selection.CONDITIONAL):
+        note = note.removeprefix(prefix)
+    return note.strip()
 
 
 def _calc_note(robot: dict | None) -> str:

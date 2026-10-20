@@ -107,6 +107,9 @@ class Solution(BaseModel):
     registry_719: bool
     status: str = Field(description="recommended рекомендуем, needs_check требует проверки, excluded не подходит")
     score: float
+    at_limit: bool = Field(
+        default=False, description="Поднимает груз впритык, запас меньше 10%: в списке после решений с запасом"
+    )
     checks: list[Check]
     factors: list[Factor]
     missing: list[str] = Field(description="Каких характеристик не хватает, чтобы решение проверить целиком")
@@ -159,6 +162,11 @@ class Parameter(BaseModel):
         default=False,
         description="Выбор да или нет: на экране две кнопки, в данных 1 да, 0 нет",
     )
+    yes_no_names: list[str] | None = Field(
+        default=None,
+        description='Подписи двух кнопок выбора: для 1 и для 0. Если нет, кнопки "Да" и "Нет"',
+    )
+
     label: str
     unit: str
     value: float

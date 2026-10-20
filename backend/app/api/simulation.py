@@ -1,10 +1,10 @@
 from urllib.parse import quote
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import Response
 
 from app.schemas.simulation import SimulationRequest, SimulationResult
-from app.services import shift_log
+from app.services import priority, shift_log
 from app.services import simulation as service
 
 router = APIRouter(prefix="/simulation", tags=["симуляция"])
@@ -21,8 +21,9 @@ router = APIRouter(prefix="/simulation", tags=["симуляция"])
         "с use_simulation."
     ),
 )
-def run(request: SimulationRequest) -> SimulationResult:
-    return service.to_schema(request)
+async def run(request: SimulationRequest, http: Request) -> SimulationResult:
+    # смену на плане страница помечает досчетом на шаге 5: там ответ на нажатие идет раньше
+    return await priority.by_header(http, service.to_schema, request)
 
 
 @router.post(

@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from app.schemas.readiness import ReadinessRequest, ReadinessResult
+from app.services import priority
 from app.services import readiness as service
 
 router = APIRouter(prefix="/readiness", tags=["готовность склада"])
@@ -17,5 +18,6 @@ router = APIRouter(prefix="/readiness", tags=["готовность склада
         "если у нее есть источник. Парк задачи берется из расчета, запрос его несет."
     ),
 )
-def readiness(request: ReadinessRequest) -> ReadinessResult:
-    return service.readiness(request)
+async def readiness(request: ReadinessRequest, http: Request) -> ReadinessResult:
+    # список шага 5 под карточкой: досчет, ответ на нажатие идет раньше (services/priority.py)
+    return await priority.background(http, service.readiness, request)

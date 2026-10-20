@@ -63,6 +63,13 @@ export function irrText(irr: number | null | undefined, npv: number | null | und
   return irr > 1 ? "больше 100%" : `${Math.round(irr * 100)}%`;
 }
 
+/* ROI по формуле ТЗ (экономия / вложения) пишем разами: 3,9 раза. В процентах он стоял рядом с чистым
+   ROI и отличался ровно на 100: проект, который только окупился, показывал 100% и 0%, и их путали */
+export function times(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  return `${value.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} раза`;
+}
+
 /* Какой сценарий с роботами раскрыть в сводке сначала: всегда покупку. Аренда переключателем
    рядом, плитка «дешевле за 5 лет» и так помечена, а бюджет говорит строкой над ответом, что можно
    взять аренду или кредит. Раньше сначала открывался тот, что дешевле за горизонт, и когда это была
@@ -120,4 +127,32 @@ export function fleetVerdict({
   if (washing)
     return `${fleet} ${plural(fleet, "робот успевает", "робота успевают", "роботов успевают")} площадь смены, это ${asked} м² в час с запасом${fleet > 1 ? `, ${fleet - 1} уже нет` : ""}`;
   return `${fleet} ${plural(fleet, "робот", "робота", "роботов")} вытягивают спрос ${asked} в час${fleet > 1 ? `, ${fleet - 1} уже не хватает` : ""}`;
+}
+
+/* Выкуп роботов в конце договора аренды: отдельный кейс рядом с арендой без выкупа. Числа считает
+   сервер (scenarios[].buyout), здесь только фраза: шаг 5, страница экономики и разборы говорят одинаково */
+export type Buyout = {
+  year: number;
+  price_rub: number;
+  rent_year_rub: number;
+  own_year_rub: number;
+  payback_years?: number | null;
+  cheaper_rub: number;
+  worth: boolean;
+};
+
+const mlnText = (rub: number) =>
+  (rub / 1_000_000).toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+export function buyoutText(buyout: Buyout): string {
+  const after = `после выкупа ${mlnText(buyout.own_year_rub)} млн ₽ в год на обслуживание вместо ${mlnText(buyout.rent_year_rub)} млн ₽ аренды`;
+  const years = buyout.payback_years;
+  const payback =
+    years == null
+      ? "выкуп не окупается"
+      : `выкуп окупится за ${years.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} года`;
+  const total = buyout.worth
+    ? `, за срок расчета с выкупом дешевле на ${mlnText(buyout.cheaper_rub)} млн ₽`
+    : ", за срок расчета выкуп не успевает окупиться";
+  return `Выкуп в конце ${buyout.year} года: ${mlnText(buyout.price_rub)} млн ₽, ${after}, ${payback}${total}.`;
 }

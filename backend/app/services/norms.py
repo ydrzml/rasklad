@@ -206,6 +206,20 @@ def fingerprint() -> str:
     return hashlib.sha256(text.encode()).hexdigest()[:12]
 
 
+def revision() -> str:
+    """Правка нормативов словами для отпечатка версии: номер и дата последней записи журнала
+    и сколько значений сейчас поправлено. Пусто, пока админка нормативы не трогала."""
+    from app.services import selection
+
+    with selection.sessions() as session:
+        last = session.scalars(select(NormChange).order_by(NormChange.id.desc()).limit(1)).first()
+        if last is None:
+            return ""
+        edited = session.scalar(select(func.count()).select_from(NormOverride))
+        when = f" от {last.at:%d.%m.%Y}" if last.at else ""
+    return f"нормативы: правка {last.id}{when}, поправлено значений {edited}"
+
+
 def listing(session: Session) -> schemas.NormList:
     model, provenance = _base()
     saved = _read_saved(session)

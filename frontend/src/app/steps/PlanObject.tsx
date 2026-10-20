@@ -30,6 +30,7 @@ import {
   ToolGroup,
   Tools,
   Tour,
+  TourAsk,
   TourOffer,
   type TourStep,
   tourSeen,
@@ -38,11 +39,30 @@ import {
 } from "../../ui";
 import { number } from "../format";
 import { type ColorBy, Editor, type Mode, type Tool as ToolName } from "../plan/Editor";
+import { PICKING_CHECK, planTodo, practiceOffered, sideHidden } from "../plan/todo";
 import { Corners } from "../plan/Corners";
 import { bounds, cellsOf, floorTone, frameOf, type Point, routeAlpha, signed } from "../plan/geometry";
 import { DEMOS, LEVEL_SCENE } from "../plan/demos";
 import { MOVES } from "../plan/ItemWindow";
 import { turnOf } from "../plan/outline";
+import { DxfDialog } from "../plan/DxfDialog";
+import {
+  builtNotes,
+  buildView,
+  type DxfBuilt,
+  type DxfChoice,
+  type DxfDrawing,
+  DXF_EXAMPLE,
+  DXF_MAX_MB,
+  dxfFileProblem,
+  dxfWaitNote,
+  initialLayers,
+  initialRoles,
+  placeUnderlay,
+  planFromDxf,
+  rolesToSend,
+  unitOf,
+} from "../plan/dxf";
 import { fitNote as noteOf, fitToBuilding, readFile, straighten, useUnderlay } from "../plan/underlay";
 import { View3d } from "../plan/View3d";
 
@@ -70,7 +90,6 @@ type Props = {
 const OWN = "custom";
 const ROBOT_ZONE = "robot_zone";
 // строка проверок про отбор: она поясняет, а не просит поправить план, поэтому в "Осталось" не идет
-const PICKING_CHECK = "План под отбор";
 // проезд уже 2,5 м погрузчику не годится (ему нужно от 3 м), значит зона под роботов
 
 // Нарисованное пропадет: спрашиваем окном набора, фокус на отмене
@@ -115,7 +134,10 @@ export function PlanObject({
             {
               label: PICKING_CHECK,
               ok: fitsPicking,
-              detail: fitsPicking ? "" : `роботу отбора до станций далеко, отбор посчитаем по робозоне ${zone}`.trim(),
+              // простыми словами: что мы сделали и что от человека ничего не нужно
+              detail: fitsPicking
+                ? ""
+                : `для отбора мы выделили компактную робозону${zone ? ` ${zone}` : ""} у станций: на этом плане роботы ездили бы до станций слишком далеко. Делать ничего не нужно, паллеты и уборка считаются по вашему плану`,
             },
           ]
         : []),
@@ -128,6 +150,16 @@ export function PlanObject({
   const underlay = useUnderlay();
   // картинка ждет, пока сервер построит здание по названным размерам: тогда ее подгоняем к нему
   const [pending, setPending] = useState<string | null>(null);
+  // чертеж DXF: разобранный файл живет, пока открыт шаг, чтобы слои можно было поменять
+  const [dxf, setDxf] = useState<{ drawing: DxfDrawing; label: string; file: File; choice: DxfChoice } | null>(null);
+  const [dxfOpen, setDxfOpen] = useState(false);
+  // stale: план, который был на листе до перестройки. Новый план сервер присылает не сразу, и если на
+  // листе уже был свой план без правок, ряды и ворота легли бы на старый и пропали с приходом нового
+  const [pendingDxf, setPendingDxf] = useState<{ choice: DxfChoice; stale: Plan } | null>(null);
+  // план по слоям чертежа ждет, пока сервер построит пустое здание тех же размеров
+  const [pendingBuilt, setPendingBuilt] = useState<{ built: DxfBuilt; choice: DxfChoice; stale: Plan } | null>(null);
+  // что взяли из чертежа и что пропустили: стоит в колонке справа, пока человек не закроет
+  const [buildNotes, setBuildNotes] = useState<string[]>([]);
   const [fitNote, setFitNote] = useState("");
   // углы здания на исходной картинке, пока человек их правит; null значит, что не правит
   const [corners, setCorners] = useState<Point[] | null>(null);
@@ -179,6 +211,8 @@ export function PlanObject({
   } | null>(null);
   // план только что построили любым из трех способов: спрашиваем, хочет ли человек практику
   const [askPractice, setAskPractice] = useState(false);
+  // легенда цвета справа: нужна немногим, поэтому свернута, пока ее не попросят
+  const [legend, setLegend] = useState(false);
   // карточка взятого инструмента и ее высота: вровень с кнопкой инструмента слева
   const [tip, setTip] = useState<{ tool: ToolName; top: number } | null>(null);
   // "больше не показывать" у каждого инструмента свое: выключили у Рядов, у Ворот карточка осталась
@@ -214,6 +248,8 @@ export function PlanObject({
   );
 
   const put = underlay.put;
+  // план пришел из чертежа и человек его еще не правил: тогда метка "из чертежа", а не "план поправлен"
+  const [fromDrawing, setFromDrawing] = useState(false);
   // какую картинку уже взяли в работу: эффект не должен подгонять ее дважды
   const fitting = useRef<string | null>(null);
   useEffect(() => {
@@ -236,6 +272,37 @@ export function PlanObject({
       })
       .catch(() => setFitNote("Не удалось прочитать картинку. PDF сначала сохраните как картинку"));
   }, [pending, plan, put, narrow]);
+
+  // чертеж DXF ждет, пока сервер построит здание по его размерам: тогда кладем его под лист
+  useEffect(() => {
+    if (!pendingDxf || !dxf || !plan || plan === pendingDxf.stale || plan.template !== OWN || plan.edited) return;
+    const hall = bounds(cellsOf(plan));
+    if (!hall) return;
+    const { choice } = pendingDxf;
+    const view = buildView(dxf.drawing, choice.on, choice.unit, choice.roles);
+    void Promise.resolve().then(() => {
+      setPendingDxf(null);
+      if (!view) return;
+      put(placeUnderlay(view, hall, choice.unit, 0.55, dxf.label));
+      setFitNote(`Чертеж ${dxf.label} лежит под планом в масштабе. Здание ${view.hall.w} × ${view.hall.h} м`);
+    });
+  }, [pendingDxf, dxf, plan, put]);
+
+  useEffect(() => {
+    if (!pendingBuilt || !dxf || !plan || plan === pendingBuilt.stale || plan.template !== OWN || plan.edited) return;
+    const hall = bounds(cellsOf(plan));
+    if (!hall) return;
+    const { built, choice } = pendingBuilt;
+    // чертеж, который пришлось развернуть, под листом не лежит: картинка осталась бы повернутой
+    const view = built.turn_deg ? null : buildView(dxf.drawing, choice.on, choice.unit, choice.roles);
+    void Promise.resolve().then(() => {
+      setPendingBuilt(null);
+      setFromDrawing(true);
+      onChangePlan(planFromDxf(plan, built, hall));
+      if (view) put(placeUnderlay(view, hall, choice.unit, 0.55, dxf.label));
+      setBuildNotes(builtNotes(built));
+    });
+  }, [pendingBuilt, dxf, plan, put, onChangePlan]);
 
   if (!plan) return <p className="muted">Строим план...</p>;
 
@@ -286,16 +353,92 @@ export function PlanObject({
       .catch(() => window.alert("Не удалось прочитать файл"));
   };
 
+  // Чертеж DXF: сервер разбирает файл, человек выбирает слои, потом чертеж ложится под лист.
+  // Вернуть текст ошибки, чтобы карточка показала ее под кнопкой, а не окном поверх всего
+  const openDxf = async (file: File): Promise<string> => {
+    try {
+      const drawing = await api.planDxf(file);
+      setDxf({
+        drawing,
+        label: file.name,
+        file,
+        choice: { on: initialLayers(drawing), unit: unitOf(drawing), roles: initialRoles(drawing) },
+      });
+      setDxfOpen(true);
+      return "";
+    } catch (failure) {
+      return failure instanceof Error ? failure.message : "Не удалось разобрать чертеж. Попробуйте еще раз";
+    }
+  };
+  const applyDxf = async (choice: DxfChoice) => {
+    setDxfOpen(false);
+    if (!dxf) return;
+    setDxf({ ...dxf, choice });
+    const view = buildView(dxf.drawing, choice.on, choice.unit, choice.roles);
+    if (!view) return;
+    if (!chosen) {
+      if (!(await rebuild(OWN, { width_m: view.hall.w, length_m: view.hall.h, docks: [], racks: "none" }, true)))
+        return;
+      put(null);
+      setFitNote("");
+      setPendingDxf({ choice, stale: plan });
+      return;
+    }
+    const hall = bounds(cellsOf(plan));
+    if (!hall) return;
+    put(placeUnderlay(view, hall, choice.unit, underlay.value?.opacity ?? 0.55, dxf.label));
+    setFitNote(
+      view.hall.w === hall.w && view.hall.h === hall.h
+        ? `Чертеж ${dxf.label} лежит под планом в масштабе`
+        : `Здание на чертеже ${view.hall.w} × ${view.hall.h} м, на плане ${hall.w} × ${hall.h} м. Углы совмещены по юго-западу`,
+    );
+  };
+  // План по слоям: сервер строит здание, ряды и ворота, а человек правит их дальше на листе
+  const buildDxf = async (choice: DxfChoice): Promise<string> => {
+    if (!dxf) return "";
+    let built: DxfBuilt;
+    try {
+      built = await api.planDxfBuild(dxf.file, rolesToSend(dxf.drawing, choice), choice.unit.factor);
+    } catch (failure) {
+      return failure instanceof Error ? failure.message : "Не удалось построить план. Попробуйте еще раз";
+    }
+    setDxf({ ...dxf, choice });
+    setDxfOpen(false);
+    if (!(await rebuild(OWN, { width_m: built.width_m, length_m: built.length_m, docks: [], racks: "none" }, true)))
+      return "";
+    put(null);
+    setFitNote("");
+    setBuildNotes([]);
+    setPendingBuilt({ built, choice, stale: plan });
+    return "";
+  };
+  const dxfDialog =
+    dxf && dxfOpen ? (
+      <DxfDialog
+        drawing={dxf.drawing}
+        label={dxf.label}
+        choice={dxf.choice}
+        onUnderlay={(choice) => void applyDxf(choice)}
+        onBuild={buildDxf}
+        onCancel={() => setDxfOpen(false)}
+        wait={dxfWaitNote(dxf.file)}
+      />
+    ) : null;
+
   if (!chosen)
     return (
-      <Start
-        templates={templates}
-        withStations={withStations}
-        start={start}
-        onTemplate={(id) => void rebuild(id)}
-        onOwn={(custom) => void rebuild(OWN, custom)}
-        onPhoto={fromPhoto}
-      />
+      <>
+        <Start
+          templates={templates}
+          withStations={withStations}
+          start={start}
+          onTemplate={(id) => void rebuild(id)}
+          onOwn={(custom) => void rebuild(OWN, custom)}
+          onPhoto={fromPhoto}
+          onDxf={openDxf}
+        />
+        {dxfDialog}
+      </>
     );
 
   // Инструменты по группам: хранение, ворота, движение. Линия движения в самом конце: она
@@ -319,8 +462,9 @@ export function PlanObject({
   // границы ступеней слоя «далеко от ворот» считает сервер, здесь только подписи
   const bands = measures?.route_map.bands_m ?? [];
 
-  // следующий шаг плана для строки под листом и подсвеченный инструмент
-  const next = mode === "furnish" ? nextStep(plan, measures, Boolean(underlay.value), order) : null;
+  // строка над листом: что сделать сейчас, и инструмент, который подсветить слева
+  const todo = planTodo(plan, measures, { photo: Boolean(underlay.value), narrow });
+  const next = mode === "furnish" && todo?.next ? todo : null;
 
   const switchMode = (next: Mode) => {
     setMode(next);
@@ -353,6 +497,7 @@ export function PlanObject({
   // relay: у зоны лежала змейка, а ряды встали иначе. Полосы кладет заново сервер, и это та же
   // правка: отмена вернет план до нее одним шагом
   const commit = (next: Plan, relay?: string) => {
+    setFromDrawing(false);
     setPast([...past.slice(-60), plan]);
     setFuture([]);
     onChangePlan(next);
@@ -464,7 +609,7 @@ export function PlanObject({
           {
             target: ".u-draft-main",
             title: "Сверьте стены",
-            text: "Проверьте, что стены здания легли на стены картинки. Не совпали: нажмите «Обвести контур» справа и поставьте точки на углы.",
+            text: 'Проверьте, что стены здания легли на стены картинки. Не совпали: нажмите "Обвести контур" справа и поставьте точки на углы.',
             practice: { done: outlineOk === photoSrc },
           },
         ]
@@ -474,29 +619,29 @@ export function PlanObject({
       title: rowTool === "row" ? "Поставьте ряд" : "Поставьте ряды",
       text:
         rowTool === "row"
-          ? "Возьмите «Ряд» в колонке слева и протяните один ряд стеллажей на свободном месте."
+          ? 'Возьмите "Ряд" в колонке слева и протяните один ряд стеллажей на свободном месте.'
           : photoSrc
-            ? "Возьмите «Ряды» в колонке слева и протяните прямоугольник поверх рядов на картинке."
-            : "Возьмите «Ряды» в колонке слева и протяните прямоугольник по полу там, где у вас стеллажи.",
+            ? 'Возьмите "Ряды" в колонке слева и протяните прямоугольник поверх рядов на картинке.'
+            : 'Возьмите "Ряды" в колонке слева и протяните прямоугольник по полу там, где у вас стеллажи.',
       practice: { done: grew("racks") },
     },
     {
       target: ".u-draft-main",
       title: "Поставьте ворота",
-      text: "Возьмите «Ворота» в колонке слева и ведите вдоль наружной стены там, где ворота стоят у вас.",
+      text: 'Возьмите "Ворота" в колонке слева и ведите вдоль наружной стены там, где ворота стоят у вас.',
       practice: { done: grew("dock") },
     },
     {
       target: ".u-draft-main",
       title: "Поставьте буфер",
-      text: "Буфер это площадка у ворот, где груз ждет приемки или отгрузки. Возьмите «Буфер у ворот» слева и протяните вплотную к воротам.",
+      text: 'Буфер это площадка у ворот, где груз ждет приемки или отгрузки. Возьмите "Буфер у ворот" слева и протяните вплотную к воротам.',
       practice: { done: grew("buffer") },
     },
     {
       target: ".u-draft-main",
       title: "Посмотрите проверки",
       text: practiceFrom?.restore
-        ? "Под листом числа, которые уйдут в подбор роботов, и проверки плана. После «Готово» ваш план вернется таким, каким был до практики."
+        ? 'Под листом числа, которые уйдут в подбор роботов, и проверки плана. После "Готово" ваш план вернется таким, каким был до практики.'
         : "Под листом числа, которые уйдут в подбор роботов, и проверки плана. Непройденная говорит, что поправить.",
       practice: {
         done:
@@ -530,7 +675,9 @@ export function PlanObject({
   };
 
   // на телефоне чертеж только смотрят, учить там нечему
-  const tourShown = !narrow && (tourOn ?? tourWanted(TOUR_KEY));
+  // При первом входе спрашиваем, пройти ли обучение. Пока человек не ответил, tourOn пустой
+  const askShown = !narrow && tourOn === null && tourWanted(TOUR_KEY);
+  const tourShown = !narrow && tourOn === true;
   // Все инструменты: шаг на кнопку, подсвечена сама кнопка, в карточке ее сценка. На шагах здания
   // режим переключается сам, чтобы кнопка была на экране
   const toolStep = (name: ToolName, inMode: Mode, title?: string, text?: ReactNode, scene?: ReactNode) => ({
@@ -582,7 +729,7 @@ export function PlanObject({
       step: {
         target: ".u-draft > .u-side .u-modes",
         title: "Цвет на плане",
-        text: "«Высота пола» красит поднятые части склада, «Путь до ворот» каждую клетку по длине пути до буфера у ворот: темнее значит дальше, красные клетки недоступны.",
+        text: '"Высота пола" красит поднятые части склада, "Путь до ворот" каждую клетку по длине пути до буфера у ворот: темнее значит дальше, красные клетки недоступны.',
       },
       mode: null,
     },
@@ -592,7 +739,7 @@ export function PlanObject({
             step: {
               target: ".u-draft > .u-side",
               title: "Фото плана",
-              text: "Картинка лежит под чертежом. Прозрачность ползунком, «Обвести контур» ставит точки на углы здания и выпрямляет картинку, «Найти заново» ищет стены еще раз, «Убрать» снимает картинку.",
+              text: 'Картинка лежит под чертежом. Прозрачность ползунком, "Обвести контур" ставит точки на углы здания и выпрямляет картинку, "Найти заново" ищет стены еще раз, "Убрать подложку" снимает картинку.',
             },
             mode: null,
           },
@@ -635,22 +782,33 @@ export function PlanObject({
   const practicing = tourShown && tourKind === "basics" && tourAt >= TOUR.length;
   // шаг сделан: рамка гаснет, пульсирует уже "Дальше" в карточке
   const waiting = practicing && !tourSteps[tourAt]?.practice?.done ? waits[tourAt - TOUR.length] : null;
-  // Обучение уже прошли или закрыли, а план только что построили любым способом: спрашиваем про практику
-  const offerShown =
-    !narrow &&
-    !tourShown &&
-    !toursOff() &&
-    askPractice &&
-    tourWanted(PRACTICE_KEY) &&
-    mode === "furnish" &&
-    !solid &&
-    !corners;
+  // Обучение еще не предлагали при этом входе, а план только что построили любым способом: спрашиваем про
+  // практику. Если человек уже ответил на "Пройти обучение?", второе окно подряд не показываем
+  const offerShown = practiceOffered({
+    narrow,
+    answered: tourOn !== null,
+    busy: tourShown || askShown,
+    off: toursOff(),
+    built: askPractice,
+    wanted: tourWanted(PRACTICE_KEY),
+    onSheet: mode === "furnish" && !solid && !corners,
+  });
 
   const origin = underlay.value
-    ? "План по вашему фото"
+    ? underlay.value.exact
+      ? "План по вашему чертежу"
+      : "План по вашему фото"
     : plan.template === OWN
       ? "План по вашей анкете"
-      : `Типовая схема «${template?.name ?? plan.template}»`;
+      : `Типовая схема "${template?.name ?? plan.template}"`;
+  // "типовой" только у типовой схемы: план по анкете, чертежу или фото человек задал сам
+  const badge = underlay.value
+    ? underlay.value.exact
+      ? "по чертежу"
+      : "по фото"
+    : plan.template === OWN
+      ? "по анкете"
+      : "типовой план";
   const size = measures ? `${number(measures.width_m, 0)} × ${number(measures.length_m, 0)} м` : "";
 
   const bad = measures ? measures.checks.filter((check) => !check.ok).length : 0;
@@ -673,6 +831,7 @@ export function PlanObject({
 
   return (
     <section className="u-drawing">
+      {dxfDialog}
       {/* Над чертежом одной строкой: что за план, откуда он и как начать с нуля. Кнопки крупные и
           стоят рядом с заголовком, а не ссылкой над ним */}
       <div className="u-plan-head" ref={headRef}>
@@ -684,7 +843,13 @@ export function PlanObject({
               , <span className="mono">{size}</span>
             </>
           )}
-          {plan.edited ? <Badge tone="blue">план поправлен</Badge> : <Badge>как построила программа</Badge>}
+          {plan.edited && fromDrawing ? (
+            <Badge>из чертежа</Badge>
+          ) : plan.edited ? (
+            <Badge tone="blue">план поправлен</Badge>
+          ) : (
+            <Badge>{badge}</Badge>
+          )}
         </p>
         <span className="u-spacer" />
         {!narrow && (
@@ -709,14 +874,33 @@ export function PlanObject({
           пояснение, поэтому строка спокойная: паллеты и уборка идут по этому плану */}
       {withStations && !fitsPicking && (
         <div className="u-plan-warn">
-          <Alert tone="note">Для отбора нужна робозона: стеллажи вплотную, станции рядом</Alert>
+          <Alert tone="note">
+            Отбор посчитаем по компактной робозоне{zone ? ` ${zone}` : ""} у станций, делать ничего не нужно. Хотите
+            поставить ее на план вместо своей схемы: кнопка справа
+          </Alert>
           <Button kind="ghost" onClick={() => void rebuild(ROBOT_ZONE)}>
             Перейти на робозону
           </Button>
         </div>
       )}
 
-      <div className={full ? "u-draft is-full" : "u-draft"}>
+      {/* одна фраза над листом: обычно достаточно проверить ворота и ряды и идти дальше */}
+      {todo && (
+        <p className={todo.next ? "u-plan-todo is-next" : "u-plan-todo"} aria-live="polite">
+          {todo.text}
+        </p>
+      )}
+
+      <div
+        className={[
+          "u-draft",
+          full && "is-full",
+          sideHidden({ legend, tour: tourShown, photo: Boolean(underlay.value), corners: Boolean(corners) }) &&
+            "is-calm",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         <Tools>
           {!narrow && modeSwitch}
           {groups.map((group) =>
@@ -785,7 +969,6 @@ export function PlanObject({
               rackTypes={rackTypes}
               side={side}
               onPreview={preview}
-              next={next?.text}
               hud={
                 measures && (
                   <div className="u-hud" aria-live="polite">
@@ -838,19 +1021,40 @@ export function PlanObject({
                 ]}
                 onChange={(next) => setSolid(next === "solid")}
               />
+              <button
+                type="button"
+                className={legend ? "u-legend-toggle is-on" : "u-legend-toggle"}
+                aria-pressed={legend}
+                onClick={() => setLegend(!legend)}
+              >
+                Легенда
+              </button>
             </div>
           )}
         </div>
 
         <div className="u-side" ref={setSide}>
+          {buildNotes.length > 0 && (
+            <div className="u-dxf-notes">
+              <h3>Что взяли из чертежа</h3>
+              <ul>
+                {buildNotes.map((note) => (
+                  <li key={note}>{note}</li>
+                ))}
+              </ul>
+              <Button kind="ghost" onClick={() => setBuildNotes([])}>
+                Понятно
+              </Button>
+            </div>
+          )}
           {underlay.value && (
             <>
-              <h3>Фото плана</h3>
+              <h3>{underlay.value.exact ? "Чертеж DXF" : "Фото плана"}</h3>
               {corners ? (
                 <>
                   <p>
                     {doubt
-                      ? "На картинке два похожих контура, например план и таблица под ним. Если точки стоят не на углах здания, перенесите их и нажмите «Готово»."
+                      ? 'На картинке два похожих контура, например план и таблица под ним. Если точки стоят не на углах здания, перенесите их и нажмите "Готово".'
                       : "Поставьте точки на все наружные углы здания: щелчок по стороне добавляет точку, двойной щелчок по точке убирает. Картинка выпрямится, а здание станет этим контуром. Если план лежит боком, поверните."}
                   </p>
                   <div className="u-bar is-even">
@@ -884,15 +1088,23 @@ export function PlanObject({
                     />
                   </label>
                   <div className="u-bar is-even">
+                    {/* чертеж DXF лежит в точном масштабе: контур не обводят и стены не ищут */}
+                    {underlay.value.exact && dxf && (
+                      <Button kind="ghost" onClick={() => setDxfOpen(true)}>
+                        Слои и единицы
+                      </Button>
+                    )}
                     {/* на телефоне лист только смотрят, контур там не обвести */}
-                    {!narrow && (
+                    {!narrow && !underlay.value.exact && (
                       <Button kind="ghost" onClick={editCorners}>
                         Обвести контур
                       </Button>
                     )}
-                    <Button kind="ghost" onClick={refit}>
-                      Найти заново
-                    </Button>
+                    {!underlay.value.exact && (
+                      <Button kind="ghost" onClick={refit}>
+                        Найти заново
+                      </Button>
+                    )}
                     <Button
                       kind="ghost"
                       onClick={() => {
@@ -900,7 +1112,7 @@ export function PlanObject({
                         setFitNote("");
                       }}
                     >
-                      Убрать
+                      Убрать подложку
                     </Button>
                   </div>
                 </>
@@ -911,8 +1123,7 @@ export function PlanObject({
             <>
               {/* Высоту стеллажей цветом больше не показываем: на складе они почти всегда одной высоты,
                   верхний ярус стоит числом под листом, а стеллаж выше потолка ловит проверка */}
-              <h3>Цветом на плане</h3>
-              <p className="u-side-note">Чем окрашен пол на чертеже</p>
+              <h3>Легенда</h3>
               <Modes
                 label="Что показать цветом"
                 value={colorBy === "route" ? "route" : "level"}
@@ -925,7 +1136,7 @@ export function PlanObject({
 
               {colorBy !== "route" ? (
                 <>
-                  <p className="u-side-cap">Уровни пола в здании и потолок над ними</p>
+                  <p className="u-side-cap">Высота пола и потолка</p>
                   <Legend
                     rows={levels.map((one, index) => ({
                       id: String(index),
@@ -934,17 +1145,11 @@ export function PlanObject({
                       value: `потолок ${number(one.ceiling_m, 1)} м`,
                     }))}
                   />
-                  <p>
-                    Чтобы поднять часть склада, в режиме «Здание» протяните секцию поверх зала и поставьте ей отметку
-                    пола. Между разными отметками робот ездит только по пандусу.
-                  </p>
+                  {levels.length > 1 && <p>Между разными высотами пола робот ездит только по пандусу.</p>}
                 </>
               ) : (
                 <>
-                  <p>
-                    Путь от этой точки до буфера у ворот по проездам, с объездом рядов. Темнее значит дальше. Пока
-                    объект тянут, пол красится заранее.
-                  </p>
+                  <p>Сколько ехать от этого места до ворот. Темнее значит дальше.</p>
                   {/* шкала одной полосой: семь строк легенды делали колонку выше листа */}
                   <div
                     className="u-scale"
@@ -969,7 +1174,7 @@ export function PlanObject({
                 </>
               )}
               <GateLegend plan={plan} />
-              <p>Зарядку ставит программа: у стены, рядом с буфером и так, чтобы не мешать проезду.</p>
+              <p>Зарядку ставит программа, ее можно передвинуть.</p>
             </>
           )}
         </div>
@@ -1013,7 +1218,7 @@ export function PlanObject({
           <Meter
             label="площадь пола"
             value={measures ? number(measures.area_m2, 0) : "—"}
-            unit="м2"
+            unit="м²"
             hint="Площадь здания по секциям пола"
             delta={deltas.area_m2}
           />
@@ -1046,6 +1251,22 @@ export function PlanObject({
             setAskPractice(false);
             setTourOn(false);
             setTourAt(-1);
+          }}
+        />
+      )}
+      {askShown && (
+        <TourAsk
+          target=".u-draft-main"
+          onYes={() => {
+            setTourKind("basics");
+            setTourStart(0);
+            setTourOn(true);
+          }}
+          onNo={(never) => {
+            if (never) tourSeen(TOUR_KEY);
+            // как после закрытого обучения: практику при этом входе не предлагаем
+            setAskPractice(false);
+            setTourOn(false);
           }}
         />
       )}
@@ -1097,53 +1318,6 @@ export function PlanObject({
   }
 }
 
-/* Что сделать дальше: первое незакрытое дело по порядку, в котором план собирают. Сначала
-   зоны хранения, потом ворота, потом то, что сказали проверки сервера. Готовый план молчит,
-   и в строке остается справка режима. */
-function nextStep(
-  plan: Plan,
-  measures: PlanMeasures | null,
-  photo: boolean,
-  order: ToolName[],
-): { text: ReactNode; tool?: ToolName } | null {
-  if (!measures) return null;
-  const key = (tool: ToolName) => `клавиша ${order.indexOf(tool) + 1}`;
-  const has = (kind: string) => plan.items.some((item) => item.kind === kind);
-  if (!has("racks"))
-    return {
-      tool: "racks",
-      text: (
-        <>
-          <b>Дальше.</b>{" "}
-          {photo
-            ? "Протяните ряды стеллажей по картинке: инструмент «Ряды»"
-            : "Протяните ряды стеллажей по пустому полу: инструмент «Ряды»"}
-          , {key("racks")}. Один ряд ставит инструмент «Ряд», {key("row")}
-        </>
-      ),
-    };
-  if (!measures.docks)
-    return {
-      tool: "dock",
-      text: (
-        <>
-          <b>Дальше.</b> Протяните ворота вдоль наружной стены: инструмент «Ворота», {key("dock")}. Щелчок ставит одни
-          ворота
-        </>
-      ),
-    };
-  const open = measures.checks.find((check) => !check.ok && check.label !== PICKING_CHECK);
-  if (open)
-    return {
-      text: (
-        <>
-          <b>Осталось.</b> {open.detail || open.label}
-        </>
-      ),
-    };
-  return null;
-}
-
 /* Стартовый экран шага: три пути к плану, от быстрого к точному. Типовая схема для тех, кто
    не хочет заполнять, анкета для своего склада, фото плана для тех, у кого он есть. */
 function Start({
@@ -1153,6 +1327,7 @@ function Start({
   onTemplate,
   onOwn,
   onPhoto,
+  onDxf,
 }: {
   templates: PlanTemplate[];
   /* выбран штучный отбор: у схем пометка, что пойдет по ним, а что по робозоне */
@@ -1161,6 +1336,7 @@ function Start({
   onTemplate: (id: string) => void;
   onOwn: (answers: CustomAnswers) => void;
   onPhoto: (file: File, size: { width_m: number; length_m: number }) => void;
+  onDxf: (file: File) => Promise<string>;
 }) {
   // размеры здания общие у анкеты и фото: назвал в одной карточке, во второй они те же
   const [size, setSize] = useState({ width_m: start.width_m, length_m: start.length_m });
@@ -1210,8 +1386,11 @@ function Start({
         <div className="u-start-card">
           <span className="u-start-tag mono">3 · точнее всего</span>
           <h3>По фото плана</h3>
-          <p>План из БТИ, скриншот из карт или фото схемы. Картинка ляжет под чертеж, по ней обведете зоны.</p>
-          <PhotoForm size={size} onSize={setSize} onPhoto={onPhoto} />
+          <p>
+            План из БТИ, скриншот из карт или фото схемы. Картинка ляжет под чертеж, по ней обведете зоны. Чертеж из
+            AutoCAD, сохраненный как DXF, ляжет в точном масштабе.
+          </p>
+          <PhotoForm size={size} onSize={setSize} onPhoto={onPhoto} onDxf={onDxf} />
         </div>
       </div>
       {intro && (
@@ -1224,11 +1403,11 @@ function Start({
               text: (
                 <>
                   <span className="u-tour-line">
-                    «Типовая планировка»: одна из четырех схем, размеры из площади объекта, расчет грубее.
+                    "Типовая планировка": одна из четырех схем, размеры из площади объекта, расчет грубее.
                   </span>
-                  <span className="u-tour-line">«Свой склад»: размеры, стены с воротами и ряды по вашим ответам.</span>
+                  <span className="u-tour-line">"Свой склад": размеры, стены с воротами и ряды по вашим ответам.</span>
                   <span className="u-tour-line">
-                    «По фото плана»: картинка ляжет под чертеж, по ней обведете стены и поставите ряды.
+                    "По фото плана": картинка ляжет под чертеж, по ней обведете стены и поставите ряды.
                   </span>
                   <span className="u-tour-line">Любой план потом правится, начать заново можно всегда.</span>
                 </>
@@ -1321,7 +1500,7 @@ function SizeFields({
 }
 
 /* Анкета «Свой склад». Ворота можно поставить на несколько стен сразу, у каждой свое число.
-   Кто не похож ни на одну схему, отвечает «без стеллажей» и рисует на пустом здании. */
+   Кто не похож ни на одну схему, отвечает "без стеллажей" и рисует на пустом здании. */
 type Size = { width_m: number; length_m: number };
 
 function OwnForm({
@@ -1398,13 +1577,46 @@ function PhotoForm({
   size,
   onSize,
   onPhoto,
+  onDxf,
 }: {
   size: Size;
   onSize: (size: Size) => void;
   onPhoto: (file: File, size: Size) => void;
+  onDxf: (file: File) => Promise<string>;
 }) {
   const file = useRef<HTMLInputElement>(null);
+  const cad = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState("");
+  const [wait, setWait] = useState("");
+  const isCad = (picked: File) => /\.(dxf|dwg)$/i.test(picked.name);
+  // чертеж разбирает сервер, это занимает секунды: на кнопке видно, что идет работа, а ошибка стоит под ней.
+  // Не тот формат и слишком большой файл отказываем сразу, не отправляя
+  const sendCad = async (picked: File) => {
+    const problem = dxfFileProblem(picked);
+    setFailure(problem);
+    if (problem) return;
+    setBusy(true);
+    setWait(dxfWaitNote(picked));
+    setFailure(await onDxf(picked));
+    setWait("");
+    setBusy(false);
+  };
+  const openExample = async () => {
+    setBusy(true);
+    setFailure("");
+    try {
+      const response = await fetch(DXF_EXAMPLE);
+      if (!response.ok) throw new Error(String(response.status));
+      const blob = await response.blob();
+      setBusy(false);
+      await sendCad(new File([blob], DXF_EXAMPLE.split("/").pop() ?? "sklad-demo.dxf"));
+    } catch {
+      setBusy(false);
+      setFailure("Не удалось открыть пример. Проверьте связь и попробуйте еще раз");
+    }
+  };
   return (
     <div className="u-form">
       <SizeFields value={size} onChange={onSize} />
@@ -1422,7 +1634,8 @@ function PhotoForm({
           event.preventDefault();
           setOver(false);
           const picked = event.dataTransfer.files?.[0];
-          if (picked) onPhoto(picked, size);
+          if (picked && isCad(picked)) void sendCad(picked);
+          else if (picked) onPhoto(picked, size);
         }}
       >
         <svg viewBox="0 0 120 76" aria-hidden="true">
@@ -1448,11 +1661,47 @@ function PhotoForm({
           if (picked) onPhoto(picked, size);
         }}
       />
+      <input
+        ref={cad}
+        type="file"
+        accept=".dxf,.dwg"
+        hidden
+        onChange={(event) => {
+          const picked = event.target.files?.[0];
+          event.target.value = "";
+          if (picked) void sendCad(picked);
+        }}
+      />
+      {failure && (
+        <p className="u-dxf-error" role="alert">
+          {failure}
+        </p>
+      )}
+      {wait && (
+        <p className="u-dxf-wait" role="status">
+          {wait}
+        </p>
+      )}
       <div className="u-form-go">
         <Button kind="ghost" onClick={() => file.current?.click()}>
           Выбрать картинку
         </Button>
+        <Button kind="ghost" disabled={busy} onClick={() => cad.current?.click()}>
+          {busy ? "Разбираем чертеж..." : "Загрузить чертеж DXF"}
+        </Button>
       </div>
+      <p className="u-dxf-hint">Чертеж: только DXF до {DXF_MAX_MB} МБ. Файл DWG сначала сохраните в AutoCAD как DXF</p>
+      {/* пример склада лежит рядом с сайтом: его можно открыть сразу или скачать и посмотреть слои в AutoCAD */}
+      <p className="u-dxf-hint">
+        Нет чертежа под рукой?{" "}
+        <button type="button" className="u-textbtn" disabled={busy} onClick={() => void openExample()}>
+          Открыть пример склада
+        </button>{" "}
+        или{" "}
+        <a href={DXF_EXAMPLE} download>
+          скачать его
+        </a>
+      </p>
     </div>
   );
 }
@@ -1464,12 +1713,12 @@ function GateLegend({ plan }: { plan: Plan }) {
   const count = (role: string) => docks.filter((item) => (item.role || "both") === role).length;
   return (
     <>
-      <p className="u-side-cap">Ворота по назначению и сколько их</p>
+      <p className="u-side-cap">Ворота</p>
       <Legend
         rows={[
-          { id: "in", color: "var(--dock-in)", name: "ворота приемки", value: String(count("receiving")) },
-          { id: "out", color: "var(--dock-out)", name: "ворота отгрузки", value: String(count("shipping")) },
-          { id: "both", color: "var(--paper)", name: "и приемка, и отгрузка", value: String(count("both")) },
+          { id: "in", color: "var(--dock-in)", name: "приемка", value: String(count("receiving")) },
+          { id: "out", color: "var(--dock-out)", name: "отгрузка", value: String(count("shipping")) },
+          { id: "both", color: "var(--paper)", name: "приемка и отгрузка", value: String(count("both")) },
         ].filter((row) => row.value !== "0")}
       />
     </>
@@ -1490,12 +1739,12 @@ const TOUR: TourStep[] = [
   {
     target: ".u-draft .u-modes",
     title: "Два режима",
-    text: "«Здание» это пол здания: его размеры, контур, вырезы и поднятые части. «Обстановка» это то, что стоит на полу: стеллажи, ворота, проезды, перегородки. Инструменты ниже меняются вместе с режимом.",
+    text: '"Здание" это пол здания: его размеры, контур, вырезы и поднятые части. "Обстановка" это то, что стоит на полу: стеллажи, ворота, проезды, перегородки. Инструменты ниже меняются вместе с режимом.',
   },
   {
     target: ".u-draft > .u-tools",
     title: "Инструменты",
-    text: "Возьмите инструмент и протяните по листу. Цифра слева это клавиша, она берет инструмент без мыши. После одной вещи инструмент возвращается к «Выбрать», Shift держит его в руке.",
+    text: 'Возьмите инструмент и протяните по листу. Клавиши 1-9 берут инструмент без мыши, номер виден в подсказке кнопки. После одной вещи инструмент возвращается к "Выбрать", Shift держит его в руке.',
   },
   {
     target: ".u-draft-main .u-board",
@@ -1510,12 +1759,12 @@ const TOUR: TourStep[] = [
   {
     target: ".u-draft-views",
     title: "План и объем",
-    text: "«План» это вид сверху, здесь чертят. «Объем» показывает тот же склад под углом с высотой стеллажей и пола, его только смотрят. Кнопка в углу листа разворачивает его на весь экран.",
+    text: '"План" это вид сверху, здесь чертят. "Объем" показывает тот же склад под углом с высотой стеллажей и пола, его только смотрят. Кнопка в углу листа разворачивает его на весь экран.',
   },
   {
     target: ".u-draft > .u-side",
     title: "Цвет на плане и легенды",
-    text: "«Высота пола» красит поднятые части склада, «Путь до ворот» темнее там, куда роботу дальше ехать. Ниже уровни пола с потолком и ворота по назначению с числом. Зарядку ставит программа, ее можно передвинуть.",
+    text: '"Высота пола" красит поднятые части склада, "Путь до ворот" темнее там, куда роботу дальше ехать. Ниже уровни пола с потолком и ворота по назначению с числом. Зарядку ставит программа, ее можно передвинуть.',
   },
   {
     target: ".u-plan-foot",

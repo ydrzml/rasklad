@@ -7,6 +7,7 @@
 Так при повторном открытии проекта видно, считали ли его на тех же нормативах, что стоят сейчас."""
 
 import hashlib
+import re
 from functools import cache
 from pathlib import Path
 
@@ -19,6 +20,31 @@ from app.settings import settings
 def model_version() -> str:
     model = yaml.safe_load((settings.config_dir / "model.yaml").read_text(encoding="utf-8"))
     return str(model["meta"]["version"])
+
+
+def data_note() -> str:
+    """Тот же отпечаток словами, его видно на экране версии и в отчете: версия модели и файлов,
+    сколько решений в каталоге и номер его правки, номер и дата последней правки нормативов"""
+    from app.services import norms, selection
+
+    count, last = selection.catalog_stamp().split(":")
+    parts = [
+        f"модель {model_version()}, файлы {_files_version()}",
+        f"каталог: решений {count}, правка {last}",
+        norms.revision() or "нормативы: как в файлах, правок в админке нет",
+    ]
+    return "; ".join(parts)
+
+
+def readable_note(note: str) -> str:
+    """Отпечаток словами без служебного: часть "модель 0.2, файлы 49326edaf0a3" человеку ничего не говорит,
+    версию модели и так показываем отдельно. В базе запись остается целиком, для проверки."""
+    parts = [part for part in note.split("; ") if part and not part.startswith("модель ")]
+    return "; ".join(re.sub(CATALOG_PART, r"решений в каталоге \1, правка каталога \2", part) for part in parts)
+
+
+# так data_note пишет каталог: "каталог: решений 190, правка 6"
+CATALOG_PART = r"^каталог: решений (\d+), правка (\d+)$"
 
 
 def data_version() -> str:

@@ -1,0 +1,804 @@
+/* Готовые разборы. Цвета, тени и отступы из набора (tokens.css, ui.css). Мини-план в карточке
+   на сетке по токенам темы: в темной теме лист темный, как вся карточка */
+
+.k-page {
+  padding-bottom: var(--s-6);
+}
+
+/* Три карточки рядом. Карточка целиком ссылка: прозрачная ссылка лежит поверх, кнопка повтора над ней */
+.k-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-4);
+  margin-bottom: var(--s-6);
+}
+
+.k-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  border-radius: var(--r-xl);
+  background: var(--paper);
+  box-shadow:
+    var(--hair),
+    0 18px 44px -32px color-mix(in srgb, var(--shadow) 45%, transparent);
+  overflow: hidden;
+  transition:
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.k-card:hover,
+.k-card:has(.k-card-link:focus-visible) {
+  box-shadow: var(--hair-blue), var(--lift);
+  transform: translateY(-2px);
+}
+
+.k-card-link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+.k-card-link:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.k-card-sheet {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 10;
+  min-width: 0;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(color-mix(in srgb, var(--blue) 6%, transparent) 1px, transparent 1px) 0 0 / 100% 16px,
+    linear-gradient(90deg, color-mix(in srgb, var(--blue) 6%, transparent) 1px, transparent 1px) 0 0 / 16px 100%,
+    var(--paper-cool);
+}
+
+/* чертеж вписан в лист целиком, какой бы формы ни был склад */
+.k-card-sheet svg {
+  position: absolute;
+  inset: var(--s-4) var(--s-3) var(--s-3);
+  display: block;
+  width: calc(100% - 2 * var(--s-3));
+  height: calc(100% - var(--s-4) - var(--s-3));
+  overflow: visible;
+}
+
+.k-card-idx {
+  position: absolute;
+  top: var(--s-2);
+  left: var(--s-3);
+  color: var(--blue);
+  font-size: 13px;
+}
+
+.k-card-wait {
+  color: var(--ink-faint);
+  font-size: 14px;
+}
+
+.k-card-body {
+  display: grid;
+  align-content: start;
+  gap: var(--s-1);
+  padding: var(--s-4);
+}
+
+.k-card-body h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.k-card-about {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.k-card-robot {
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: 14px;
+}
+
+/* Чей реальный склад повторяет разбор: его цифры и факт, источник мелко под строкой */
+.k-card-twin {
+  margin: 0;
+  padding-left: var(--s-2);
+  border-left: 2px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.k-card-twin small {
+  display: block;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.k-card-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+  margin: var(--s-3) 0 0;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}
+
+.k-card-facts dt {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.k-card-facts dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
+  margin: 2px 0 0;
+}
+
+.k-card-facts dd .mono {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.k-card-facts small {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.k-card-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--s-3);
+  color: var(--blue);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.k-card-fail {
+  margin: var(--s-3) 0 0;
+  color: var(--warn);
+  font-size: 15px;
+}
+
+.k-retry {
+  position: relative;
+  z-index: 2;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--blue);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Разбор: назад к списку, итог числами и что дано */
+.k-back {
+  display: inline-block;
+  margin: var(--s-3) 0 0;
+  color: var(--blue);
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.k-back:hover {
+  text-decoration: underline;
+}
+
+.k-small-head {
+  margin: 0 0 calc(-1 * var(--s-2));
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.k-given {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.k-given > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-3);
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.k-given dt {
+  color: var(--ink-soft);
+}
+
+.k-given dd {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.k-block {
+  margin-top: var(--s-6);
+}
+
+.k-chart {
+  margin-top: var(--s-4);
+  padding: var(--s-4);
+}
+
+.k-chart h3 {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 var(--s-3);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.k-chart h3 span {
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.k-real {
+  max-inline-size: 75ch;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.k-real p {
+  margin: 0 0 var(--s-2);
+}
+
+.k-method {
+  display: inline-block;
+  margin-top: var(--s-3);
+  color: var(--blue);
+  font-size: 15px;
+}
+
+/* Источники сверки: строки как в "Откуда цифры", вся строка ведет на материал */
+.k-sources {
+  display: grid;
+  margin: var(--s-3) 0 0;
+  padding: 0;
+  list-style: none;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair);
+  overflow: hidden;
+}
+
+.k-sources li + li {
+  border-top: 1px solid var(--line);
+}
+
+.k-sources a {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 12px var(--s-3);
+  color: var(--ink);
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.k-sources a:hover,
+.k-sources a:focus-visible {
+  background: var(--blue-tint);
+}
+
+.k-sources-name {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.k-sources-name small {
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.k-sources-go {
+  display: inline-flex;
+  color: var(--blue);
+  transform: rotate(-45deg);
+}
+
+.k-files-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.k-files-error {
+  color: var(--warn);
+  font-size: 14px;
+}
+
+/* Два других разбора теми же карточками, что на списке */
+.k-cards.is-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 0;
+}
+
+/* Свой объект: полоса на всю ширину колонки на чертежной сетке. Текст и кнопка слева,
+   07 справа стоит на линии маршрута целиком */
+/* .u-main .k-own: общее правило страницы ставит секциям display: block, сетку держим сильнее */
+.u-main .k-own {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--s-5);
+  margin-top: var(--s-6);
+  padding: var(--s-5) var(--s-5) 0;
+  border-radius: var(--r-xl);
+  background:
+    linear-gradient(color-mix(in srgb, var(--blue) 7%, transparent) 1px, transparent 1px) 0 0 / 100% 20px,
+    linear-gradient(90deg, color-mix(in srgb, var(--blue) 7%, transparent) 1px, transparent 1px) 0 0 / 20px 100%,
+    var(--blue-tint);
+  box-shadow: var(--hair);
+  overflow: hidden;
+}
+
+.k-own-text {
+  align-self: center;
+  padding-bottom: var(--s-5);
+}
+
+.k-own h2 {
+  margin: 0 0 var(--s-2);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.k-own p {
+  max-inline-size: 60ch;
+  margin: 0 0 var(--s-4);
+  color: var(--ink-soft);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.k-own .u-btn {
+  min-height: 52px;
+  padding-inline: var(--s-5);
+  font-size: 17px;
+}
+
+.k-own-robot {
+  position: relative;
+  width: 240px;
+  padding-bottom: var(--s-3);
+}
+
+.k-own-robot svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+/* пунктир маршрута, по которому 07 приехал: от края полосы к его колесам */
+.k-own-route {
+  position: absolute;
+  right: 0;
+  bottom: var(--s-3);
+  left: calc(-1 * var(--s-6));
+  border-bottom: 2px dashed color-mix(in srgb, var(--route) 70%, transparent);
+}
+
+/* Почему так: три коротких абзаца в колонке рядом с "Что дано" */
+.k-why {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.k-why h3 {
+  margin: 0 0 2px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.k-why p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* Другие разборы внизу разбора: компактно, мини-план слева */
+.k-cards.is-compact .k-card {
+  grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
+  grid-template-rows: none;
+}
+
+.k-cards.is-compact .k-card-sheet {
+  aspect-ratio: auto;
+  min-height: 180px;
+  border-right: 1px solid var(--line);
+  border-bottom: 0;
+}
+
+.k-cards.is-compact .k-card-body {
+  padding: var(--s-3) var(--s-4);
+}
+
+.k-cards.is-compact .k-card-body h2 {
+  font-size: 18px;
+}
+
+.k-cards.is-compact .k-card-about,
+.k-cards.is-compact .k-card-twin {
+  display: none;
+}
+
+.k-cards.is-compact .k-card-facts {
+  margin-top: var(--s-2);
+  padding-top: var(--s-2);
+}
+
+.k-cards.is-compact .k-card-facts dd .mono {
+  font-size: 17px;
+}
+
+.k-cards.is-compact .k-card-go {
+  margin-top: var(--s-2);
+}
+
+/* Как платить: четыре карточки в ряд, цвет сценария тот же, что в графике */
+.k-pay {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+
+.k-pay-card {
+  --tone: var(--sc-buy);
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: var(--s-4);
+  border-radius: var(--r-xl);
+  background: var(--paper);
+  box-shadow:
+    var(--hair),
+    0 18px 44px -32px color-mix(in srgb, var(--shadow) 45%, transparent);
+}
+
+.k-pay-card.is-rent {
+  --tone: var(--sc-rent);
+}
+
+.k-pay-card.is-best {
+  box-shadow:
+    inset 0 0 0 2px var(--blue),
+    0 18px 44px -32px color-mix(in srgb, var(--shadow) 45%, transparent);
+}
+
+.k-pay-card header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+.k-pay-card header i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--tone);
+}
+
+.k-pay-card h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.k-pay-note {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.k-pay-badges {
+  min-height: 20px;
+  margin: 0 0 var(--s-2);
+  color: var(--blue);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.k-pay-card dl {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+}
+
+.k-pay-card dt {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.k-pay-card dd {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 2px 0 0;
+}
+
+.k-pay-card dd .mono {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.k-pay-card dd small {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.k-pay-bar {
+  display: block;
+  height: 8px;
+  margin-top: var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--line);
+  overflow: hidden;
+}
+
+.k-pay-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--tone);
+}
+
+.k-own-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+@media (max-width: 1100px) {
+  .k-pay {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .k-cards,
+  .k-cards.is-two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .k-card {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    grid-template-rows: none;
+  }
+
+  .k-card-sheet {
+    aspect-ratio: auto;
+    border-right: 1px solid var(--line);
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .k-pay {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .k-cards.is-compact .k-card {
+    grid-template-columns: minmax(0, 120px) minmax(0, 1fr);
+  }
+
+  .k-cards.is-compact .k-card-sheet {
+    min-height: 140px;
+  }
+
+  .k-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .k-card-sheet {
+    aspect-ratio: 16 / 10;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .k-cards.is-two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .u-main .k-own {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--s-4);
+  }
+
+  .k-own-text {
+    padding-bottom: 0;
+  }
+
+  .k-own h2 {
+    font-size: 24px;
+  }
+
+  /* на телефоне 07 не помещается рядом с текстом, а над ним сдвигал бы кнопку вниз */
+  .k-own-robot {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .k-card {
+    transition: none;
+  }
+
+  .k-card:hover {
+    transform: none;
+  }
+}
+
+/* Экономика коротко: график трех сценариев и вывод рядом */
+.k-econ {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--s-4);
+}
+
+.k-econ-side {
+  display: grid;
+  gap: var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--r-xl);
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+/* Сверка с внедрениями и отчет: два мелких блока в один ряд, на телефоне друг под другом */
+.k-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--s-5);
+}
+
+.k-pair > .k-block {
+  margin-top: var(--s-6);
+}
+
+@media (max-width: 860px) {
+  .k-econ,
+  .k-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .k-pair {
+    gap: 0;
+  }
+}
+
+/* /cases: строка под заголовком меняется три раза и стоит на последней. Карточки видны сразу */
+.k-lead {
+  display: grid;
+  min-height: 3em;
+  max-inline-size: 64ch;
+}
+
+.k-lead span {
+  grid-area: 1 / 1;
+  animation: k-lead 1.7s ease both;
+  animation-delay: calc(var(--i) * 1.7s);
+}
+
+.k-lead span:last-child {
+  animation-name: k-lead-stay;
+}
+
+@keyframes k-lead {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  15%,
+  85% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes k-lead-stay {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .k-lead span {
+    grid-area: auto;
+    animation: none;
+  }
+}
+
+/* на списке картинка ниже, чтобы цифры карточек влезали в 768 по высоте */
+.k-cards:not(.is-compact) .k-card-sheet {
+  aspect-ratio: 2 / 1;
+}
+
+.k-card-why {
+  margin: var(--s-2) 0 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+/* Шапка разбора и списка: название и одна строка, компактно, чтобы первый экран влез без прокрутки */
+.k-title {
+  margin: var(--s-2) 0 var(--s-3);
+}
+
+.k-title h1 {
+  margin: 0;
+  font-size: clamp(26px, 3vw, 36px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.k-title p {
+  margin: 4px 0 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
+.k-title .k-twin {
+  max-inline-size: 90ch;
+  margin-top: var(--s-2);
+  padding-left: var(--s-2);
+  border-left: 2px solid var(--line);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.k-twin a {
+  color: inherit;
+  white-space: nowrap;
+}
+
+.k-twin-result {
+  max-inline-size: 90ch;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.k-list-title p {
+  font-size: 17px;
+  line-height: 1.45;
+}

@@ -1,0 +1,292 @@
+/* Каталог роботов для гостя. Цвета, тени и отступы из набора (tokens.css, ui.css), своих цветов нет */
+
+.c-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--s-4);
+  margin-bottom: var(--s-4);
+}
+
+.c-top .u-hero {
+  margin: 0;
+}
+
+/* Три объекта плитками: сколько решений и что по объекту можно сделать */
+.c-objects {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-2);
+}
+
+.c-object {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  column-gap: var(--s-1);
+  row-gap: 4px;
+  padding: var(--s-3) var(--s-4);
+  border: 0;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    box-shadow var(--slow) var(--ease),
+    background var(--slow) var(--ease);
+}
+
+.c-object:hover {
+  box-shadow: var(--hair), var(--lift);
+}
+
+.c-object:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.c-object.is-on {
+  background: var(--blue-tint);
+  box-shadow: var(--hair-blue);
+}
+
+.c-object-name {
+  grid-column: 1 / -1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.c-object-count {
+  font-size: 32px;
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.c-object-unit {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.c-object-mode {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--warn);
+}
+
+.c-object-mode.is-full {
+  color: var(--go);
+}
+
+.c-object-note {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.c-other {
+  margin: var(--s-2) 0 var(--s-5);
+  max-inline-size: 75ch;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.c-page .u-bar {
+  margin-bottom: var(--s-2);
+}
+
+.c-count {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-2);
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.c-list {
+  min-height: 240px;
+}
+
+/* Карточка: цифра, ее значение и буква оценки в одну строку */
+.c-key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.c-key .u-trust {
+  padding: 2px 5px;
+}
+
+.c-card-act {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  margin-top: auto;
+  padding-top: var(--s-2);
+}
+
+.c-calc {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--blue);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.c-calc:hover {
+  color: var(--blue-press);
+}
+
+/* Панель подробностей */
+.c-details {
+  display: grid;
+  gap: var(--s-1);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.c-details h3 {
+  margin: var(--s-3) 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.c-details p {
+  margin: 0;
+  max-inline-size: 70ch;
+}
+
+.c-details-photo {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.c-details-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: var(--s-2);
+}
+
+.c-details-sub,
+.c-source,
+.c-legend {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.c-legend {
+  margin-bottom: var(--s-3) !important;
+}
+
+.c-uses {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.c-uses li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+}
+
+.c-uses b {
+  font-weight: 500;
+}
+
+@media (max-width: 760px) {
+  .c-top {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .c-objects {
+    grid-template-columns: 1fr;
+  }
+
+  /* на телефоне плитки короче: число и что можно сделать, пояснение есть в карточках */
+  .c-objects {
+    gap: var(--s-1);
+  }
+
+  .c-object {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    padding: var(--s-2) var(--s-3);
+  }
+
+  .c-object-name {
+    grid-column: 1;
+    font-size: 16px;
+    color: var(--ink);
+  }
+
+  .c-object-count {
+    font-size: 22px;
+  }
+
+  .c-object-note {
+    display: none;
+  }
+}
+
+/* Поиск и фильтры одной строкой на широком экране, подпись над каждым полем */
+.c-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.6fr) repeat(4, minmax(0, 1fr));
+  align-items: end;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-3);
+}
+
+.c-filter {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.c-filter > span {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.c-filter .u-search {
+  min-width: 0;
+  height: 38px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1100px) {
+  .c-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .c-filter-search {
+    grid-column: 1 / -1;
+  }
+}
+
+.c-card .u-card-keys {
+  font-size: 13px;
+  color: var(--ink-soft);
+}

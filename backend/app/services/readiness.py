@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 
 from app.engine import plan as plan_engine
 from app.engine import readiness as engine
-from app.engine.economics.scenarios import by_id, implementation_costs
+from app.engine.economics.scenarios import by_id, communications, fixed_scale, implementation_costs, vat_factor
 from app.schemas.readiness import ReadinessItem, ReadinessRequest, ReadinessResult, ReadinessRobot
 from app.services import plan as plan_service
 from app.services import simulation
@@ -28,6 +28,8 @@ SOURCE_FIELDS = ("operating_conditions", "connectivity", "charging_infrastructur
 # Оценка одной строки источника по шкале проекта (docs/data-sources.md, "Оценка достоверности"):
 # только производитель или интегратор это C, только организатор или СМИ это D
 TRUST_BY_TYPE = {"производитель": "C", "интегратор": "C", "эксплуатант": "C", "организатор": "D", "СМИ": "D"}
+# Как тип источника называем на экране: слово "организатор" человеку ничего не говорит
+SHOWN_TYPE = {"организатор": "материалы задачи"}
 # Кого слушаем первым, если источников несколько
 PREFERRED = ("производитель", "организатор", "интегратор", "эксплуатант", "СМИ")
 
@@ -53,7 +55,12 @@ def _sources() -> dict[tuple[str, str], list[dict[str, str]]]:
 def _spec(row: dict[str, str]) -> engine.Spec:
     url = row["source"] if row["source"].startswith("http") else ""
     where = site(url) if url else row["source"]
-    return engine.Spec(row["value"], TRUST_BY_TYPE.get(row["source_type"], "D"), f"{row['source_type']}: {where}", url)
+    return engine.Spec(
+        row["value"],
+        TRUST_BY_TYPE.get(row["source_type"], "D"),
+        f"{SHOWN_TYPE.get(row['source_type'], row['source_type'])}: {where}",
+        url,
+    )
 
 
 def site(url: str) -> str:
@@ -135,15 +142,17 @@ def _plan_facts(drawn: plan_engine.Plan) -> engine.PlanFacts:
     )
 
 
-def _budget_note(model: dict, provenance: dict, facility_id: str, operation_ids: list[str]) -> str:
+def _budget_note(model: dict, provenance: dict, facility_id: str, operation_ids: list[str], fleet: int) -> str:
     """Что на подготовку уже стоит в экономике. Инфраструктура как в расчете объекта: максимум
-    по задачам, она делается один раз (docs/decisions.md, "Решение выбирается на каждую задачу")."""
+    по задачам, она делается один раз (docs/decisions.md, "Решение выбирается на каждую задачу"),
+    от размера проекта и без НДС; связь от числа роботов, тоже без НДС."""
     facility = by_id(model["facilities"], facility_id)
     infra = max(
         implementation_costs(facility, by_id(facility["operations"], task))["infrastructure_rub"]
         for task in operation_ids
     )
-    link = facility["implementation"]["communications_rub_year"]
+    infra *= fixed_scale(facility, fleet) * vat_factor(model, "infrastructure")
+    link = _link(model, facility, fleet)
     base = f"facilities.{facility_id}.implementation"
     infra_trust = getattr(provenance.get(f"{base}.infrastructure_rub"), "trust", "F")
     link_trust = getattr(provenance.get(f"{base}.communications_rub_year"), "trust", "F")
@@ -152,6 +161,11 @@ def _budget_note(model: dict, provenance: dict, facility_id: str, operation_ids:
         f"{infra_trust}) и связь {engine.money(link)} в год (оценка {link_trust}). Источников у этих чисел "
         "нет: это наши допущения, их заменит смета по этому списку"
     )
+
+
+def _link(model: dict, facility: dict, fleet: int) -> float:
+    """Связь в год, как в расчете: от числа роботов и без НДС (engine/economics/scenarios.py, communications)."""
+    return communications(facility, fleet) * vat_factor(model, "communications")
 
 
 def readiness(request: ReadinessRequest) -> ReadinessResult:
@@ -192,7 +206,7 @@ def readiness(request: ReadinessRequest) -> ReadinessResult:
     found = engine.collect(
         _plan_facts(drawn),
         robots,
-        facility["implementation"]["communications_rub_year"],
+        _link(model, facility, sum(choice.fleet for task in request.tasks for choice in task.robots)),
         engine.Spec(
             "", communications.trust if communications else "F", communications.source if communications else ""
         ),
@@ -201,5 +215,11 @@ def readiness(request: ReadinessRequest) -> ReadinessResult:
         items=[ReadinessItem(**vars(item)) for item in found.items],
         counts=found.counts,
         plan_edited=drawn.known,
-        budget_note=_budget_note(model, provenance, request.facility_id, [task.operation_id for task in request.tasks]),
+        budget_note=_budget_note(
+            model,
+            provenance,
+            request.facility_id,
+            [task.operation_id for task in request.tasks],
+            sum(choice.fleet for task in request.tasks for choice in task.robots),
+        ),
     )

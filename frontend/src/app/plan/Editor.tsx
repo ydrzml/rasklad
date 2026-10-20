@@ -3,7 +3,18 @@ import { createPortal } from "react-dom";
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
 import type { Direction, Plan, PlanItem, PlanMeasures, PlanSection, RackType } from "../../api/client";
-import { Actions, Board, Dim, Hint, Menu, type MenuItem, type Point as BoardPoint, step, type View } from "../../ui";
+import {
+  Actions,
+  Board,
+  Dim,
+  Hint,
+  IconButton,
+  Menu,
+  type MenuItem,
+  type Point as BoardPoint,
+  step,
+  type View,
+} from "../../ui";
 import {
   bounds,
   type Cells,
@@ -45,14 +56,19 @@ import {
   withRoom,
 } from "./geometry";
 import { GroupWindow, ItemWindow, ManyWindow, nameOf, RowWindow, SectionWindow } from "./ItemWindow";
+import { Keys } from "./Keys";
 import {
+  type Clip,
+  clipOf,
   copiedMany,
   countOf,
+  everything,
   joined,
   lineOf,
   manyOf,
   membersOf,
   partOf,
+  pasted,
   pickedOf,
   shiftedMany,
   toggled,
@@ -180,11 +196,7 @@ const HINTS: Record<Tool, ReactNode> = {
       <b>Вырез.</b> Протяните там, где пола быть не должно: двор, выступ, угол буквы Г
     </>
   ),
-  select: (
-    <>
-      <b>Обстановка.</b> Щелчок: действия над объектом, Shift+щелчок или рамка: несколько, Alt: без прилипания
-    </>
-  ),
+  select: <>Щелкните ряд или ворота, чтобы поправить</>,
   row: (
     <>
       <b>Ряд.</b> Протяните там, где стоит ряд стеллажей: встанет ровно один ряд. С Shift инструмент остается в руке
@@ -296,6 +308,7 @@ const LEAST: Record<string, number> = {
 // линия движения поверх всего: это разметка на полу, ее стрелки должны быть видны
 const DRAW_ORDER = ["racks", "aisle", "buffer", "charge", "ramp", "station", "blocked", "flow"];
 const DOUBLE_MS = 350;
+const NOTICE_MS = 4500; // сколько сообщение на листе висит, пока его не заменит другое
 const PREVIEW_MS = 350; // сколько объект должен постоять под мышью, чтобы спросить сервер
 const SMALL_PX = 60; // меньше этого на экране у объекта остаются только угловые ручки, и те снаружи
 
@@ -345,6 +358,23 @@ export function Editor(props: Props) {
   const [vertex, setVertex] = useState<{ sid: string; index: number } | null>(null);
   // правка из колонки справа не встала: ряд уперся в стену или соседа. Говорим это в окне
   const [refused, setRefused] = useState("");
+  // Что скопировано: Ctrl+C кладет сюда, Ctrl+V ставит копию. Живет, пока открыт лист
+  const [clip, setClip] = useState<Clip | null>(null);
+  // Сообщение на самом листе: правка не встала или делать нечего. Счетчик нужен, чтобы та же фраза
+  // показалась снова, если человек повторил то же самое
+  const [notice, setNotice] = useState<{ text: string; n: number } | null>(null);
+  const [help, setHelp] = useState(false);
+  const tell = (text: string) => setNotice((now) => ({ text, n: (now?.n ?? 0) + 1 }));
+  // отказ говорим и в окне справа, и на листе: окно может быть закрыто или за краем экрана
+  const refuse = (text: string) => {
+    setRefused(text);
+    tell(text);
+  };
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(null), NOTICE_MS);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
   const [preview, setPreview] = useState<{ key: string; measures: PlanMeasures } | null>(null);
   const [fresh, setFresh] = useState("");
   // Размер цифрами, как в SketchUp: сразу после того, как вещь поставили или растянули, цифры
@@ -406,7 +436,7 @@ export function Editor(props: Props) {
         setVertex(null);
         setSection(id, { points: [] });
       } else
-        setRefused(
+        refuse(
           "Здание целиком не удалить: без пола нет склада. Размер меняют за края, начать с нуля можно над чертежом",
         );
       return;
@@ -453,7 +483,7 @@ export function Editor(props: Props) {
     const gone = new Set(rows.map((one) => one.id));
     const others = plan.items.filter((one) => !gone.has(one.id));
     if (!next.every((one) => fits(one, cells, others, "", "racks"))) {
-      setRefused("Так ряды не встанут: упираются в стену или в соседа. Ряды остались как были");
+      refuse("Так ряды не встанут: упираются в стену или в соседа. Ряды остались как были");
       return;
     }
     setRefused("");
@@ -465,7 +495,7 @@ export function Editor(props: Props) {
     const band = bandOf({ ...row, ...patch }, rowDefault);
     const rect = resizeRow(row, { length: change.length, band: band !== bandOf(row, rowDefault) ? band : undefined });
     if (!fits(rect, cells, plan.items, row.id, "racks")) {
-      setRefused("Так ряд не встанет: упирается в стену или в соседа");
+      refuse("Так ряд не встанет: упирается в стену или в соседа");
       return;
     }
     setRefused("");
@@ -485,6 +515,7 @@ export function Editor(props: Props) {
           return addItem({ ...item, ...spot, id: newId(item.kind), auto: false, group: "" });
       }
     }
+    refuse("Копии рядом места нет: вокруг стены или соседи");
   };
 
   /* Копия группы рядом, на свободном месте: те же ряды с тем же проездом */
@@ -512,6 +543,7 @@ export function Editor(props: Props) {
           return;
         }
       }
+    refuse("Копии рядом места нет: вокруг стены или соседи");
   };
 
   // ряды, взятые из группы по одному: змейку этой группы сервер кладет заново по оставшимся
@@ -538,7 +570,37 @@ export function Editor(props: Props) {
           return;
         }
       }
-    setRefused("Копии рядом места нет: вокруг стены или соседи");
+    refuse("Копии рядом места нет: вокруг стены или соседи");
+  };
+
+  // Ctrl+C: выбранное уходит в буфер. Ворота и зарядку не копируем: ворота встают только в стену,
+  // зарядку ставит программа
+  const copyUnits = (units: string[]) => {
+    if (build) return tell("Копировать можно в режиме Обстановка");
+    if (!units.length) return tell("Сначала выберите, что копировать");
+    const found = clipOf(plan.items, units);
+    if (!found) return tell("Ворота и зарядку не копируем: ворота встают только в стену, зарядку ставит программа");
+    setClip(found);
+    tell("Скопировано. Ctrl+V поставит копию туда, где мышь");
+  };
+  const copySelected = () => copyUnits(many.length ? many : picked ? [picked] : []);
+
+  // Ctrl+V: копия встает под мышью, а если там занято, на ближайшее свободное место рядом
+  const pasteAt = (at: Point | null) => {
+    if (build) return tell("Вставлять можно в режиме Обстановка");
+    if (!clip) return tell("Нечего вставлять: сначала скопируйте выбранное, Ctrl+C");
+    const found = pasted(clip, at, (list) => list.every((one) => fits(one, cells, plan.items, "", one.kind)), newId);
+    if (!found) return refuse("Сюда вставить не получится: вокруг стены или соседи");
+    setRefused("");
+    commit({ ...plan, items: [...plan.items, ...found.items] });
+    props.onPick(pickedOf(found.units));
+  };
+
+  const selectAll = () => {
+    if (build) return;
+    const all = everything(plan.items);
+    if (all) props.onPick(all);
+    else tell("На листе пока нечего выбирать");
   };
 
   // Новый ряд берет стеллажи у соседнего: на одном складе они обычно одного типа
@@ -645,7 +707,7 @@ export function Editor(props: Props) {
     setVertex(null);
     const points = withoutCorner(cornersOf(section), index);
     if (points) setSection(section.id, { ...frameOf(points), points });
-    else setRefused("Точку не убрать: у здания меньше трех углов не бывает");
+    else refuse("Точку не убрать: у здания меньше трех углов не бывает");
   };
   const closes = (at: Point) => trace.length >= 3 && Math.hypot(at.x - trace[0].x, at.y - trace[0].y) * view.s <= 12;
 
@@ -962,7 +1024,14 @@ export function Editor(props: Props) {
 
   /* План, который получится, если отпустить сейчас. null значит, что ничего не изменится или
      встать нельзя: красный пунктир, объект вернется назад. */
+  const blocked = useRef(false);
   const after = (done: Drag): { plan: Plan; picked?: string; relay?: string } | null => {
+    // blocked отличает "встать нельзя" от "ничего не изменилось": о первом человеку говорим
+    blocked.current = false;
+    const stop = () => {
+      blocked.current = true;
+      return null;
+    };
     if (done.mode === "box") return null;
     if (done.mode === "docks") {
       const items = done.rects.map((rect) => born("dock", rect));
@@ -994,10 +1063,10 @@ export function Editor(props: Props) {
       }
       if (done.tool === "row" || done.tool === "racks") {
         const rows = bornRows(done.tool, done.from, done.to ?? done.from, snap);
-        if (!rows.every((one) => fits(one, cells, plan.items, "", "racks"))) return null;
+        if (!rows.every((one) => fits(one, cells, plan.items, "", "racks"))) return stop();
         return { plan: { ...plan, items: [...plan.items, ...rows] }, picked: rows[0].group || rows[0].id };
       }
-      if (!fits(snap, cells, plan.items, "", kindOf(done.tool))) return null;
+      if (!fits(snap, cells, plan.items, "", kindOf(done.tool))) return stop();
       const item = born(done.tool, snap);
       return { plan: { ...plan, items: [...plan.items, item] }, picked: item.id };
     }
@@ -1033,7 +1102,7 @@ export function Editor(props: Props) {
             )
           : fits(next, cells, others, "", one.kind);
       });
-      if (!ok) return null;
+      if (!ok) return stop();
       return { plan: { ...plan, items: plan.items.map((one) => moved.get(one.id) ?? one) }, relay: relayMany(units) };
     }
     const rows = group(done.id);
@@ -1062,7 +1131,7 @@ export function Editor(props: Props) {
         const stamp = stampNow();
         next = relay(rows, layout, done.id, (index) => `${done.id}-r${index}-${stamp}`);
       }
-      if (!next.every((one) => fits(one, cells, others, "", "racks"))) return null;
+      if (!next.every((one) => fits(one, cells, others, "", "racks"))) return stop();
       const lanes = new Set(lanesOf(plan.items, done.id).map((one) => one.id));
       const [dx, dy] = [snap.x - box.x, snap.y - box.y];
       const moved = done.mode === "move";
@@ -1085,7 +1154,7 @@ export function Editor(props: Props) {
       item.kind === "dock"
         ? dockFits(cells, snap, doorSide(cells, item), otherDocks(item.id))
         : fits(snap, cells, plan.items, item.id, item.kind);
-    if (!ok) return null;
+    if (!ok) return stop();
     // передвинул зарядку сам: теперь это его место, программа его не трогает
     const patch = { ...snap, ...(item.kind === "charge" ? { auto: false } : {}) };
     return { plan: { ...plan, items: withZone(plan.items, item, patch) }, relay: relayOf(item, patch, plan.items) };
@@ -1109,6 +1178,13 @@ export function Editor(props: Props) {
     }
     const next = after(done);
     if (!next) {
+      // объект отпустили там, где он не встанет: он вернулся, и говорим почему
+      if (blocked.current)
+        tell(
+          done.mode === "paint"
+            ? "Здесь не поставить: упирается в стену или в соседа"
+            : "Сюда не встанет: упирается в стену или в соседа. Объект остался на месте",
+        );
       if (done.mode === "paint" && done.on) props.onPick(done.on);
       // щелкнули по одному из выбранных и не сдвинули: выбран он один
       if (done.mode === "move" && done.tap && (!done.snap || same(done.snap, frame(manyItems)))) props.onPick(done.tap);
@@ -1216,8 +1292,10 @@ export function Editor(props: Props) {
       found.push({ label: "Развернуть", hint: "R", onPick: () => turnLane(item, false) });
       found.push({ label: "Повернуть", hint: "Shift+R", onPick: () => turnLane(item, true) });
     }
-    if (item.kind !== "dock" && item.kind !== "charge")
+    if (item.kind !== "dock" && item.kind !== "charge") {
+      found.push({ label: "Копировать", hint: "Ctrl+C", onPick: () => copyUnits([item.id]) });
       found.push({ label: "Дублировать", hint: "Ctrl+D", onPick: () => duplicate(item) });
+    }
     if (item.kind === "charge" && !item.auto)
       found.push({ label: "Место программе", onPick: () => setItem(item.id, { auto: true }) });
     if (found.length) found.push("line");
@@ -1228,12 +1306,14 @@ export function Editor(props: Props) {
   const groupActions = (id: string): MenuItem[] => [
     { label: "Повернуть ряды", hint: "R", onPick: () => setGroup(id, { turn: true }) },
     snakeAction(id),
+    { label: "Копировать", hint: "Ctrl+C", onPick: () => copyUnits([id]) },
     { label: "Дублировать", hint: "Ctrl+D", onPick: () => duplicateGroup(id) },
     "line",
     { label: "Удалить ряды", hint: "Del", danger: true, onPick: () => remove(id) },
   ];
 
   const manyActions = (units: string[]): MenuItem[] => [
+    { label: "Копировать", hint: "Ctrl+C", onPick: () => copyUnits(units) },
     { label: "Дублировать", hint: "Ctrl+D", onPick: () => duplicateMany(units) },
     "line",
     { label: "Удалить", hint: "Del", danger: true, onPick: () => removeMany(units) },
@@ -1265,7 +1345,7 @@ export function Editor(props: Props) {
         ? [{ label: "Убрать контур", hint: "Del", danger: true, onPick: () => remove(section.id) }]
         : [];
 
-  const context = (_point: BoardPoint, event: ReactMouseEvent<SVGSVGElement>) => {
+  const context = (point: BoardPoint, event: ReactMouseEvent<SVGSVGElement>) => {
     if (still) return;
     const box = wrap.current?.getBoundingClientRect();
     if (!box) return;
@@ -1274,7 +1354,11 @@ export function Editor(props: Props) {
     const y = Math.min(event.clientY - box.top, box.height - 250);
     const item = build ? undefined : plan.items.find((one) => one.id === id);
     const section = build ? plan.sections.find((one) => one.id === sid) : undefined;
+    const there = toWorld(point);
     const undoRedo: MenuItem[] = [
+      ...(clip && !build
+        ? [{ label: "Вставить сюда", hint: "Ctrl+V", onPick: () => pasteAt(there) } satisfies MenuItem, "line" as const]
+        : []),
       { label: "Отменить", hint: "Ctrl+Z", onPick: props.onUndo },
       { label: "Повторить", hint: "Ctrl+Shift+Z", onPick: props.onRedo },
     ];
@@ -1329,6 +1413,28 @@ export function Editor(props: Props) {
       if (trace.length) setTrace([]);
       else if (tool !== props.tools[0]) props.onTool(props.tools[0]);
       else props.onPick("");
+      return;
+    }
+    // Ctrl+A, Ctrl+C, Ctrl+V по коду клавиши: работают и на русской раскладке
+    if (ctrl && event.code === "KeyA") {
+      event.preventDefault();
+      selectAll();
+      return;
+    }
+    // выделенный на странице текст копирует браузер, не лист
+    if (ctrl && event.code === "KeyC" && !window.getSelection()?.toString()) {
+      event.preventDefault();
+      copySelected();
+      return;
+    }
+    if (ctrl && event.code === "KeyV") {
+      event.preventDefault();
+      pasteAt(hover);
+      return;
+    }
+    if (!ctrl && event.key === "?") {
+      event.preventDefault();
+      setHelp(true);
       return;
     }
     if (typed && typed.id === picked && !ctrl) {
@@ -1485,11 +1591,7 @@ export function Editor(props: Props) {
       <span>сетка {step(view.s)} м</span>
     </>
   ) : (
-    <span>
-      {still
-        ? "чертеж здесь только смотрят: править удобнее на компьютере"
-        : "колесо: масштаб · пробел с мышью: сдвиг листа"}
-    </span>
+    <span>{still ? "поправить план можно на компьютере" : "колесо: масштаб · пробел с мышью: сдвиг листа"}</span>
   );
 
   // ворота встают по щелчку, поэтому место под курсором показываем заранее, как постройку в игре
@@ -1631,19 +1733,35 @@ export function Editor(props: Props) {
         }
         // в прогоне смены лист двигают и приближают, как в редакторе; на телефоне только смотрят
         still={props.still}
-        corner={props.corner}
+        corner={
+          <>
+            {props.corner}
+            {!still && (
+              <IconButton label="Горячие клавиши, клавиша ?" onClick={() => setHelp(true)}>
+                <path d="M5.6 5.7a1.9 1.9 0 1 1 2.9 1.6c-.7.5-1 .9-1 1.7M7.5 11.2v.3" />
+              </IconButton>
+            )}
+          </>
+        }
         overlay={
           <>
             {props.layer?.(view, area)}
             {props.hud}
             {barAt && chosenActions && (
               <Actions
-                x={Math.min(Math.max(barAt.x + barAt.w / 2, 150), area.w - 150)}
+                x={barAt.x + barAt.w / 2}
                 y={Math.max(96, barAt.y - 14)}
                 items={chosenActions}
+                avoid={panel ? props.side : null}
               />
             )}
             {menu && <Menu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}
+            {notice && (
+              <div key={notice.n} className="u-toast" role="status">
+                {notice.text}
+              </div>
+            )}
+            {help && !still && <Keys onClose={() => setHelp(false)} />}
             {panel && props.side && createPortal(panel, props.side)}
           </>
         }
@@ -2215,8 +2333,12 @@ function door(item: PlanItem, rect: Rect, s: number, side: string) {
 }
 
 function shape(item: PlanItem, rect: Rect, s: number, colorBy: ColorBy, row: number, cross: number) {
-  const label = (text: string) =>
-    rect.w * s > 70 && rect.h * s > 22 ? (
+  // подпись влезает в свой прямоугольник: длинная "зарядка · ставит программа" налезала на буфер у
+  // ворот. Если не влезает длинная, берем короткую, если и она нет, без подписи
+  const fits = (text: string) => rect.w * s > Math.max(70, text.length * 6.8 + 10) && rect.h * s > 22;
+  const label = (long: string, short?: string) => {
+    const text = fits(long) ? long : short && fits(short) ? short : null;
+    return text ? (
       <text
         x={rect.w / 2}
         y={rect.h / 2}
@@ -2228,6 +2350,7 @@ function shape(item: PlanItem, rect: Rect, s: number, colorBy: ColorBy, row: num
         {text}
       </text>
     ) : null;
+  };
   const base = { "data-id": item.id, width: rect.w, height: rect.h };
   switch (item.kind) {
     case "racks": {
@@ -2264,7 +2387,7 @@ function shape(item: PlanItem, rect: Rect, s: number, colorBy: ColorBy, row: num
       return (
         <>
           <rect {...base} className="u-charge" strokeDasharray={`${4 / s} ${3 / s}`} />
-          {label(item.auto ? "зарядка · ставит программа" : "зарядка")}
+          {label(item.auto ? "зарядка · ставит программа" : "зарядка", "зарядка")}
         </>
       );
     case "station":
@@ -2293,6 +2416,40 @@ function shape(item: PlanItem, rect: Rect, s: number, colorBy: ColorBy, row: num
       );
     }
     default:
+      // места упаковки и конвейер ставит программа у станций отбора: роботы их объезжают, как перегородку.
+      // Конвейер это схема: в расчет не входит, а сортировку и отгрузку мы не считаем вовсе
+      if (item.role === "packing")
+        return (
+          <>
+            <rect {...base} className="u-packing">
+              <title>Место упаковки: упаковщики считаются в расчете, до роботов и после те же</title>
+            </rect>
+            {label("упаковка")}
+          </>
+        );
+      if (item.role === "conveyor") {
+        const tall = rect.h >= rect.w;
+        return (
+          <>
+            <rect {...base} className="u-conveyor">
+              <title>Конвейер к отгрузке, схема: в расчет не входит, сортировку и отгрузку не считаем</title>
+            </rect>
+            {(tall ? rect.h : rect.w) * s > 160 && (
+              <text
+                x={rect.w / 2}
+                y={rect.h / 2}
+                fontSize={11 / s}
+                className="u-tag"
+                textAnchor="middle"
+                dominantBaseline="central"
+                transform={tall ? `rotate(-90 ${rect.w / 2} ${rect.h / 2})` : undefined}
+              >
+                конвейер к отгрузке, схема
+              </text>
+            )}
+          </>
+        );
+      }
       // закрытая зона это место на полу без стен: штриховка и пунктир, а не сплошная стена
       return item.role === "zone" ? (
         <>

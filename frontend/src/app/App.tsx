@@ -16,17 +16,41 @@ import type {
   StaffLine,
   StaffReview,
 } from "../api/client";
-import { api } from "../api/client";
+import {
+  api,
+  type ClinicCheck,
+  type ClinicFinance,
+  type ClinicFit,
+  type ClinicMoney,
+  type ClinicMoneyRequest,
+  type ClinicRobots,
+} from "../api/client";
 import { account, ApiError, projects } from "../api/projects";
-import { autoTemplate, forPlan, planBuilds, troubleOf, withoutPayment, withoutRobot } from "./flow";
+import { autoTemplate, forPlan, planBuilds, shouldCount, troubleOf, withoutPayment, withoutRobot } from "./flow";
 import { defaultTemplate, pickingZoneM2, planFitsPicking, zoneShare } from "./steps/peak";
-import { ActionBar, ActionMore, ask, Button, choose, Footer, Header, Hero, Tick, type Step } from "../ui";
+import { bestToPick } from "./steps/pickBest";
+import { latestOnly } from "./latest";
+import {
+  ActionBar,
+  ActionMore,
+  Alert,
+  ask,
+  Button,
+  choose,
+  Footer,
+  Header,
+  Hero,
+  Tick,
+  type Step,
+  Waiting,
+} from "../ui";
 import { ServerDown } from "../ui/crash";
 import "./app.css";
 import { mln, overDay } from "./format";
 import { plural } from "./steps/economicsNames";
 import { ChooseFacility } from "./steps/ChooseFacility";
 import { ChooseSolutions } from "./steps/ChooseSolution";
+import { savedWays, type PayWay } from "./steps/paymentWays";
 import { Economics } from "./steps/Economics";
 import { FacilitySolutions } from "./steps/FacilitySolutions";
 import { ImportFile } from "./steps/ImportFile";
@@ -48,31 +72,49 @@ import {
   saveAfterLogin,
   tasksOf,
 } from "./saving";
+import { CLINIC } from "./steps/ChooseFacility";
+import { ClinicResult } from "./steps/ClinicResult";
+import type { ClinicQuotes } from "../api/client";
+import { ClinicCustomer } from "./clinic/ClinicCustomer";
+import { restoreClinicQuotes } from "./clinic/customer";
+import { scenarioOf } from "./clinic/processes";
+import { asBuilding, type Building } from "./clinic/building";
+import { ClinicPlan } from "./clinic/ClinicPlan";
+import { restoreClinicPlan, type ClinicPlan as ClinicPlanState } from "./clinic/plan";
+import { ClinicSolutions } from "./clinic/ClinicSolutions";
+import { restoreClinicFinance } from "./clinic/finance";
+import { restoreClinicSizing, type ClinicSizing } from "./clinic/optimization";
+import { CLINIC_TASKS, DEFAULT_CLEANER, DEFAULT_DELIVERY, clinicChoices } from "./clinic/selection";
 import { shortName } from "./steps/ChooseSolution";
+import { swapByNorm, swapText, type StaffSwap } from "./staffSwap";
 
 const STEPS = ["Объект", "Параметры", "План объекта", "Решение", "Экономика"];
 const LAST = STEPS.length - 1;
 // Путь аэропорта и медучреждения: объект, параметры, решения. Плана и экономики у них нет,
 // номера шагов те же, что у склада, чтобы адрес ?step=4 везде значил список решений.
 const SHORT = [0, 1, 3];
+// Медучреждение: полный путь, только план это корпус по этажам, а вместо экономики итог (тот же номер 4)
+const CLINIC_FLOW = [0, 1, 2, 3, 4];
 const FULL = [0, 1, 2, 3, 4];
+// пауза перед проверкой корпуса: двигают мышью, сервер зовем, когда рука остановилась
+const BUILDING_CHECK_MS = 400;
 
 const TITLES = [
   {
-    title: "Объект, задачи и кто их сегодня делает",
-    lead: "Выберите объект и отметьте работу, которую заберут роботы. Вводить ничего не нужно: значения уже стоят, а поправить их можно на любом шаге.",
+    title: "Объект и работа для роботов",
+    lead: "Выберите объект и отметьте, что заберут роботы. Цифры уже стоят, поправить их можно на любом шаге.",
   },
   {
     title: "Параметры объекта",
-    lead: "Две вещи: размер объекта с объемом задач и кто эту работу делает сегодня. Остальное уже проставлено по отраслевым данным.",
+    lead: "Размер склада, объем работы и кто ее делает сегодня. Цифры уже стоят по отраслевым данным: поправьте то, что знаете.",
   },
   {
     title: "План вашего склада",
-    lead: "Перенесите свой склад: размеры, ворота, зоны хранения. От плана зависит длина маршрута, а от нее производительность робота и размер парка. Шаг можно пропустить.",
+    lead: "От плана зависит путь робота, а от пути сколько роботов нужно.",
   },
   {
     title: "Решение из каталога",
-    lead: "Показываем, что подходит, что требует проверки и почему. У каждого решения видно, каких данных не хватает.",
+    lead: "Сверху то, что подходит вашему складу. Ниже то, что нужно уточнить у поставщика, и то, что не подходит.",
   },
   {
     title: "Экономика трех сценариев",
@@ -84,11 +126,19 @@ const TITLES = [
 const SHORT_TITLES: Record<number, { title: string; lead: string }> = {
   1: {
     title: "Параметры объекта",
-    lead: "Значения из датасета организатора с допустимыми границами. Поправьте то, что знаете про свой объект: от этих чисел зависит проверка решений.",
+    lead: "Отраслевые значения с допустимыми границами. Поправьте то, что знаете про свой объект: от этих чисел зависит проверка решений.",
   },
   3: {
     title: "Решения под ваши задачи",
     lead: "Что подходит, что требует проверки и почему. У каждой характеристики источник, дата и оценка доверия.",
+  },
+  2: {
+    title: "План корпуса",
+    lead: "Этажи, помещения, двери и лифты. По этому плану роботы ездят в прогоне смены. Можно начать с типового корпуса и поправить.",
+  },
+  4: {
+    title: "Итог для медучреждения",
+    lead: "Сколько роботов, сколько вложить, когда окупится и что с людьми. Смена прогнана на вашем корпусе.",
   },
 };
 
@@ -127,7 +177,17 @@ type Saved = {
   excluded?: string[];
   // бюджет на старте в рублях, если человек его назвал. Пусто: ничего не ограничивает
   budget?: number | null;
+  // нижняя граница "готовы вложить в покупку от" (шаг 4, вариант ?v=e). Верхняя граница это budget
+  budgetFrom?: number | null;
+  // как человек рассматривает оплату, отмечено на шаге решения. У старых снимков поля нет: свои и аренда
+  payWays?: PayWay[];
   plan: Plan | null;
+  // корпус медучреждения по этажам (docs/medical.md). У склада его нет
+  building?: Building | null;
+  clinicPlan?: ClinicPlanState | null;
+  clinicFinance?: ClinicFinance;
+  clinicQuotes?: ClinicQuotes;
+  clinicSizing?: ClinicSizing | null;
   answers: CustomAnswers | null;
   planChosen: boolean;
   reached: number;
@@ -316,7 +376,7 @@ function Wizard() {
   const [step, setStep] = useState(() => {
     const reached = saved.reached ?? 0;
     const wanted = Math.min(stepFromUrl() ?? reached, reached);
-    return wanted === LAST && !saved.calcStarted ? LAST - 1 : wanted;
+    return wanted === LAST && !saved.calcStarted && saved.facilityId !== CLINIC ? LAST - 1 : wanted;
   });
   const [facilities, setFacilities] = useState<Facility[]>([]);
   // Подбор у каждой задачи свой: сервер проверяет решения под ее груз, проезды и ярусы
@@ -328,6 +388,11 @@ function Wizard() {
   // Решение на каждую задачу. Старый снимок знает одно решение, это решение первой задачи
   const [picks, setPicks] = useState<Picks>(() => picksOf(saved));
   const choices = useMemo(() => choicesOf({ picks }), [picks]);
+  const clinicRobotId = choices.floor_delivery ?? DEFAULT_DELIVERY;
+  const clinicCleanerId = choices.cleaning ?? DEFAULT_CLEANER;
+  const buildingSelectionKey = JSON.stringify([taskIds, clinicRobotId, clinicCleanerId]);
+  const [clinicRobots, setClinicRobots] = useState<ClinicRobots | null>(null);
+  const [clinicFitFor, setClinicFitFor] = useState<{ of: Building; fit: ClinicFit } | null>(null);
   // Какая задача открыта на шаге решения: задачи идут по очереди
   const [activeTask, setActiveTask] = useState<string>("");
   // План объекта. Сначала генерация, потом правка: он приходит готовым по шаблону планировки,
@@ -335,6 +400,27 @@ function Wizard() {
   const [templates, setTemplates] = useState<PlanTemplate[]>([]);
   const [rackTypes, setRackTypes] = useState<RackType[]>([]);
   const [plan, setPlan] = useState<Plan | null>(saved.plan ?? null);
+  // Корпус медучреждения: свой план по этажам. Сначала типовой, потом правит человек
+  const [building, setBuilding] = useState<Building | null>(() => asBuilding(saved.building));
+  const [clinicFinance, setClinicFinance] = useState<ClinicFinance>(() => restoreClinicFinance(saved.clinicFinance));
+  const [clinicQuotes, setClinicQuotes] = useState<ClinicQuotes>(() => restoreClinicQuotes(saved.clinicQuotes));
+  const [clinicSizing, setClinicSizing] = useState<ClinicSizing | null>(() => restoreClinicSizing(saved.clinicSizing));
+  const [clinicPlan, setClinicPlan] = useState<ClinicPlanState | null>(() =>
+    restoreClinicPlan(saved.clinicPlan, asBuilding(saved.building)),
+  );
+  // ответ проверки помнит, какой корпус проверяли: после правки старый ответ не пускает дальше,
+  // пока не пришел новый
+  const [checked, setChecked] = useState<{
+    of: Building;
+    selectionKey: string;
+    check: ClinicCheck | null;
+    error: string;
+  } | null>(null);
+  const buildingCheck =
+    checked && checked.of === building && checked.selectionKey === buildingSelectionKey ? checked.check : null;
+  const [templateError, setTemplateError] = useState("");
+  const [templateTry, setTemplateTry] = useState(0);
+  const buildingError = (checked && checked.of === building ? checked.error : "") || templateError;
   const [measures, setMeasures] = useState<PlanMeasures | null>(null);
   // сервер не принял план при замере: причина его словами, ее видно в проверках плана
   const [planRefused, setPlanRefused] = useState("");
@@ -342,6 +428,8 @@ function Wizard() {
   const [roles, setRoles] = useState<Role[]>([]);
   // роли, которые нужны выбранным задачам: их строки в штате не меняют выбором другой роли
   const [requiredRoles, setRequiredRoles] = useState<string[]>([]);
+  // штат правили руками, а как сейчас делают работу поменялось: что предлагаем поставить по норме
+  const [staffSwap, setStaffSwap] = useState<StaffSwap<StaffLine> | null>(null);
   const [staff, setStaff] = useState<StaffLine[]>(saved.staff ?? []);
   // Пока пользователь не трогал штат, он следует за выбранными задачами. После первой правки
   // мы его больше не перекладываем: новые роли только добавляем, введенное не теряем.
@@ -349,6 +437,10 @@ function Wizard() {
   const [staffBasis, setStaffBasis] = useState<Record<string, number> | null>(saved.staffBasis ?? null);
   const [excluded, setExcluded] = useState<string[]>(saved.excluded ?? []);
   const [budget, setBudget] = useState<number | null>(saved.budget ?? null);
+  const [budgetFrom, setBudgetFrom] = useState<number | null>(saved.budgetFrom ?? null);
+  const [payWays, setPayWays] = useState<PayWay[]>(() => savedWays(saved.payWays));
+  // "Начать подсчет" без выбранного решения: не серая кнопка, а подсказка над списком
+  const [pickNudge, setPickNudge] = useState(false);
   const [staffReview, setStaffReview] = useState<StaffReview | null>(null);
   const [result, setResult] = useState<CalculationResult | null>(null);
   // На экономику пускаем только после явного «Начать подсчет»: расчет идет до двадцати секунд,
@@ -378,6 +470,8 @@ function Wizard() {
   }, []);
   // Отчет и таблицы доступны и гостю: сохранять для этого ничего не нужно (docs/decisions.md)
   const [exporting, setExporting] = useState<"pdf" | "xlsx" | null>(null);
+  // файл скачан: на кнопке пару секунд "Готово", чтобы было видно, что получилось
+  const [exported, setExported] = useState<"pdf" | "xlsx" | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
 
@@ -411,7 +505,87 @@ function Wizard() {
   const kind = facilities.find((item) => item.id === facilityId)?.status;
   const modeled = kind === "ready";
   const short = kind === "solutions";
-  const flow = short ? SHORT : FULL;
+  // у медучреждения свой путь: корпус по этажам вместо плана склада и итог со своим запросом
+  const clinicTotal = short && facilityId === CLINIC;
+  const flow = clinicTotal ? CLINIC_FLOW : short ? SHORT : FULL;
+
+  useEffect(() => {
+    if (!clinicTotal) return;
+    const abort = new AbortController();
+    api
+      .clinicRobots(abort.signal)
+      .then(setClinicRobots)
+      .catch((failure: Error) => {
+        if (!abort.signal.aborted) setCatalogError(`Не удалось получить роботов медучреждения: ${failure.message}`);
+      });
+    return () => abort.abort();
+  }, [clinicTotal]);
+
+  // Корпуса еще нет: берем типовой с сервера, человек дальше правит его на шаге плана
+  useEffect(() => {
+    if (!clinicTotal || building) return;
+    let alive = true;
+    api
+      .clinicTemplate()
+      .then((template) => {
+        if (!alive) return;
+        setBuilding(template);
+        setTemplateError("");
+      })
+      .catch((error: unknown) => {
+        if (alive) setTemplateError(error instanceof Error ? error.message : "Не загрузили типовой корпус");
+      });
+    return () => {
+      alive = false;
+    };
+  }, [clinicTotal, building, templateTry]);
+
+  // Проверка плана после каждой правки, с паузой: от нее зависит, пускать ли к решениям и итогу
+  useEffect(() => {
+    if (!clinicTotal || !building) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      api
+        .clinicCheck(building, controller.signal, {
+          robot_id: clinicRobotId,
+          cleaner_id: taskIds.includes("cleaning") ? clinicCleanerId : null,
+          operation_ids: taskIds,
+        })
+        .then((result) => setChecked({ of: building, selectionKey: buildingSelectionKey, check: result, error: "" }))
+        .catch((error: unknown) => {
+          if (controller.signal.aborted) return;
+          setChecked({
+            of: building,
+            selectionKey: buildingSelectionKey,
+            check: null,
+            error: error instanceof Error ? error.message : "Сервер не проверил план",
+          });
+        });
+    }, BUILDING_CHECK_MS);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [clinicTotal, building, buildingSelectionKey, clinicRobotId, clinicCleanerId, taskIds]);
+  // Кому корпус не подходит совсем (уборщик не выезжает с базы, доставщик не доезжает до постов):
+  // шаг решений показывает их как "не подходит" с причиной, а не тихий ноль в итоге
+  useEffect(() => {
+    if (!clinicTotal || !building) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      api
+        .clinicFit(building, controller.signal)
+        .then((fit) => setClinicFitFor({ of: building, fit }))
+        .catch(() => {
+          // без ответа отбор не сужаем: проверка корпуса и прогон все равно назовут причину
+        });
+    }, BUILDING_CHECK_MS);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [clinicTotal, building]);
+  const clinicFit = clinicFitFor && clinicFitFor.of === building ? clinicFitFor.fit : null;
   const [facilityAnswer, setFacilityAnswer] = useState<FacilityAnswer | null>(null);
 
   const loadFacilities = useCallback(() => {
@@ -424,7 +598,8 @@ function Wizard() {
         // Объект до этой минуты сменить нельзя, список объектов еще не пришел, поэтому берем сохраненный.
         if (list.find((item) => item.id === saved.facilityId)?.status !== "solutions") return;
         setStep((current) => {
-          const nearest = SHORT.filter((index) => index <= current).at(-1) ?? 0;
+          const path = saved.facilityId === CLINIC ? CLINIC_FLOW : SHORT;
+          const nearest = path.filter((index) => index <= current).at(-1) ?? 0;
           window.history.replaceState(null, "", urlFor(nearest));
           return nearest;
         });
@@ -463,7 +638,9 @@ function Wizard() {
   const [projectId, setProjectId] = useState<number | null>(() =>
     saved.projectId && projectFromUrl(window.location.search)?.id === saved.projectId ? saved.projectId : null,
   );
-  const [projectTitle, setProjectTitle] = useState(projectId ? (saved.projectName ?? "") : "");
+  const [projectTitle, setProjectTitle] = useState(
+    projectId || saved.facilityId === CLINIC ? (saved.projectName ?? "") : "",
+  );
 
   // Все введенное одним снимком: его же кладем в браузер и в версию проекта
   const snapshot: Saved = useMemo(
@@ -479,7 +656,14 @@ function Wizard() {
       staffBasis,
       excluded,
       budget,
+      budgetFrom,
+      payWays,
       plan,
+      building,
+      clinicPlan,
+      clinicFinance,
+      clinicQuotes,
+      clinicSizing,
       answers,
       planChosen,
       reached,
@@ -499,7 +683,14 @@ function Wizard() {
       staffBasis,
       excluded,
       budget,
+      budgetFrom,
+      payWays,
       plan,
+      building,
+      clinicPlan,
+      clinicFinance,
+      clinicQuotes,
+      clinicSizing,
       answers,
       planChosen,
       reached,
@@ -676,29 +867,45 @@ function Wizard() {
 
   // Справочник ролей и штат по умолчанию. Роли в списке зависят от выбранных задач:
   // первыми стоят те, у кого эти задачи забирают работу.
-  // Объем задач и рабочие дни с правками: пока штат не трогали, он следует за ними сам
+  // Объем задач, рабочие дни и как сейчас делают работу (уборка машиной или вручную) с правками:
+  // пока штат не трогали, он следует за ними сам
   const volumeOverrides = useMemo(
     () =>
       Object.fromEntries(
         Object.entries(overrides).filter(
-          ([path]) => /\.operations\.[^.]+\.volume_per_day$/.test(path) || path.endsWith("schedule.days_per_year"),
+          ([path]) =>
+            /\.operations\.[^.]+\.(volume_per_day|by_machine)$/.test(path) || path.endsWith("schedule.days_per_year"),
         ),
       ),
     [overrides],
   );
+
   const volumeKey = JSON.stringify(volumeOverrides);
   const [staffNote, setStaffNote] = useState("");
+  // штат по умолчанию еще едет с сервера: разбор открывает мастер сразу на экономике с пустым штатом,
+  // и первый расчет без людей на секунду показывал "не окупается" и "0 → 0 человек"
+  const staffKey = JSON.stringify([facilityId, taskIds, modeled, volumeKey]);
+  const [staffAnswered, setStaffAnswered] = useState("");
+  const staffWaiting = taskIds.length > 0 && modeled && staffAnswered !== staffKey;
   useEffect(() => {
     if (taskIds.length === 0 || !modeled) return;
     api
-      .staffForm(facilityId, taskIds, staffTouched ? {} : volumeOverrides)
+      // штат правили руками: объем к нему больше не подтягиваем, но как сейчас делают работу
+      // (машиной или вручную) спрашиваем всегда, иначе задача требует одну роль, а форма ставит другую
+      .staffForm(facilityId, taskIds, staffTouched ? methodOnly(volumeOverrides) : volumeOverrides)
       .then((form) => {
         setRoles(form.roles);
         setStaffNote(staffTouched ? "" : form.note);
         setRequiredRoles(form.lines.map((line) => line.role));
-        setStaff((current) => (staffTouched ? merge(current, form.lines) : form.lines.map(strip)));
+        const defaults = form.lines.map(strip);
+        const swap = staffTouched ? swapByNorm(staff, defaults, requiredRoles) : null;
+        setStaffSwap(swap);
+        // роли, которые предлагаем поставить по норме, молча не добавляем: решает человек
+        const added = swap ? defaults.filter((line) => !swap.to.includes(line.role)) : defaults;
+        setStaff((current) => (staffTouched ? merge(current, added) : defaults));
       })
-      .catch(() => setCatalogError("Не удалось получить справочник ролей: сервер не ответил."));
+      .catch(() => setCatalogError("Не удалось получить справочник ролей: сервер не ответил."))
+      .finally(() => setStaffAnswered(staffKey));
     // staffTouched и volumeOverrides читаем, но перезапрашиваем только по ключу объема
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facilityId, taskIds, modeled, volumeKey]);
@@ -804,7 +1011,7 @@ function Wizard() {
       const updated = { ...current };
       if (next === null) delete updated[path];
       else updated[path] = next;
-      return updated;
+      return followArea(parameters, current, updated, path);
     });
 
   const editStaff = (id: string, patch: Partial<StaffLine>) => {
@@ -844,7 +1051,7 @@ function Wizard() {
       overrides,
       staff,
       plan,
-      raas_buyout: true,
+      raas_buyout: false,
       // парк по прогону смены на плане, формула рядом проверкой (docs/decisions.md)
       use_simulation: true,
       budget_rub: budget,
@@ -852,29 +1059,34 @@ function Wizard() {
     [facilityId, operationId, tasksToCount, overrides, staff, plan, budget],
   );
 
+  // У медучреждения свой итог: его считает ClinicResult и отдает наверх вместе с запросом. По нему
+  // файлы PDF и Excel (сервер, /api/reports/clinic) и сохранение в проект, как у склада
+  const [clinicDone, setClinicDone] = useState<{ request: ClinicMoneyRequest; answer: ClinicMoney } | null>(null);
+  const saveKey = clinicTotal ? JSON.stringify(clinicDone?.request ?? null) : JSON.stringify(request);
+
   // Только что сохраненный расчет не черновик: кабинет не зовет его незаконченным,
   // пока человек не поправит что-то еще. Пишем после снимка выше, поверх него
   useEffect(() => {
-    if (!savedAs || savedAs.key !== JSON.stringify(request)) return;
+    if (!savedAs || savedAs.key !== saveKey) return;
     try {
       window.localStorage.setItem(STORE, JSON.stringify({ ...snapshot, savedAs }));
     } catch {
       // без хранилища черновика и так нет
     }
-  }, [savedAs, request, snapshot]);
+  }, [savedAs, saveKey, snapshot]);
 
   // Один расчет за раз: новый отменяет прежний, иначе поздний ответ старого затер бы новый.
   // Что уже посчитано, помним, чтобы возврат на экономику не гонял смену заново.
-  const running = useRef<AbortController | null>(null);
+  const nextTurn = useRef(latestOnly()).current;
   const counted = useRef("");
   // Сохранить можно только посчитанное по текущему вводу: пока идет пересчет или он упал,
   // в result лежит прошлый ответ, и в проект ушли бы новые вводные со старыми цифрами
   const [countedKey, setCountedKey] = useState("");
   const upToDate = result !== null && error === null && !loading && countedKey === JSON.stringify(request);
+  // файлы и сохранение: у склада свежий расчет, у медучреждения готовый итог
+  const filesReady = clinicTotal ? clinicDone !== null : upToDate;
   const calculate = useCallback(() => {
-    running.current?.abort();
-    const abort = new AbortController();
-    running.current = abort;
+    const turn = nextTurn();
     const key = JSON.stringify(request);
     // тот же ввод уже считали в этой вкладке (например, до ухода на вход): берем сохраненный ответ
     const stored = storedResult(key);
@@ -889,8 +1101,10 @@ function Wizard() {
     setLoading(true);
     setError(null);
     api
-      .preview(request, abort.signal)
+      .preview(request, turn.signal)
       .then((answer) => {
+        // ответ на прежнее нажатие пришел позже нового: не затираем им цифры последнего выбора
+        if (!turn.current()) return;
         counted.current = key;
         setCountedKey(key);
         setResult(answer);
@@ -903,14 +1117,14 @@ function Wizard() {
         }
       })
       .catch((failure: Error) => {
-        if (failure.name === "AbortError") return;
+        if (failure.name === "AbortError" || !turn.current()) return;
         setError(failure.message);
         setErrorStatus(failure instanceof ApiError ? failure.status : 0);
       })
       .finally(() => {
-        if (!abort.signal.aborted) setLoading(false);
+        if (turn.current()) setLoading(false);
       });
-  }, [request]);
+  }, [request, nextTurn]);
 
   // Что мешает показать расчет и куда вести: парк не тянет спрос, невозможный ввод, сервер молчит.
   // Пока идет пересчет, помех нет: на экране ожидание, а не старое сообщение
@@ -919,14 +1133,15 @@ function Wizard() {
   const download = (kind: "pdf" | "xlsx") => {
     setExporting(kind);
     setExportError(null);
-    api
-      .report(kind, request)
+    (clinicTotal && clinicDone ? api.clinicReport(kind, clinicDone.request) : api.report(kind, request))
       .then(({ blob, name }) => {
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
         link.download = name;
         link.click();
         URL.revokeObjectURL(link.href);
+        setExported(kind);
+        window.setTimeout(() => setExported(null), 2000);
       })
       .catch((failure: Error) => setExportError(`Файл не собрался: ${failure.message}`))
       .finally(() => setExporting(null));
@@ -935,11 +1150,21 @@ function Wizard() {
   // Допущение правится прямо на экране результата, поэтому пересчитываем сами, с задержкой:
   // на каждый удар по клавише расчет не гоняем (docs/ux-flow.md, «Возврат и правка»).
   // Первый подсчет тоже уходит отсюда, кнопка его отдельно не зовет, иначе уходило бы два.
+  // Пустой штат, который человек не трогал, значит штат по умолчанию еще не пришел: ждем его
+  // список объектов еще не пришел (сразу после перезагрузки): объект не известен, штат тоже не мог прийти
+  const staffPending = (kind === undefined || staffWaiting) && staff.length === 0 && !staffTouched;
   useEffect(() => {
-    if (step !== LAST || counted.current === JSON.stringify(request)) return;
+    const due = shouldCount({
+      step,
+      last: LAST,
+      clinic: clinicTotal,
+      staffPending,
+      alreadyCounted: counted.current === JSON.stringify(request),
+    });
+    if (!due) return;
     const timer = setTimeout(calculate, 400);
     return () => clearTimeout(timer);
-  }, [step, request, calculate]);
+  }, [step, request, calculate, staffPending, clinicTotal]);
 
   const facility = facilities.find((item) => item.id === facilityId);
   const tasks = (facility?.operations ?? []).filter((task) => taskIds.includes(task.id));
@@ -1026,6 +1251,24 @@ function Wizard() {
     setPicks((current) => ({ ...current, [taskId]: [{ robotId, share: 1 }] }));
   };
   // Снять выбор нажатием на "Выбрано": у задачи с двумя решениями остается второе на весь объем
+  // Лучшее решение каждой задачи выбрано заранее, пока человек на шаге решений: карточка отмечена
+  // "Выбрано", а "Начать подсчет" не упирается в пустой выбор. Один раз на задачу: снял выбор,
+  // значит хотел другое, и второй раз мы его не ставим
+  const autoPicked = useRef(new Set<string>());
+  useEffect(() => {
+    if (step !== 3) return;
+    const fresh = taskIds.filter((id) => !autoPicked.current.has(id) && (solutions[id] ?? []).length > 0);
+    if (fresh.length === 0) return;
+    fresh.forEach((id) => autoPicked.current.add(id));
+    setPicks((current) => {
+      const next = { ...current };
+      for (const id of fresh) {
+        const best = (current[id] ?? []).length === 0 ? bestToPick(solutions[id] ?? []) : null;
+        if (best) next[id] = [{ robotId: best, share: 1 }];
+      }
+      return next;
+    });
+  }, [step, taskIds, solutions]);
   const unpick = (taskId: string, robotId: string) => {
     setActiveTask(taskId);
     setPicks((current) => {
@@ -1067,11 +1310,15 @@ function Wizard() {
   // Шаг закрыт, когда на нем сделан выбор. Вперед идем по одному шагу и только с закрытого,
   // назад можно всегда: строкой пройденного шага. Прыгнуть с объекта сразу в экономику нельзя.
   // План закрыт всегда: шаг необязательный, и даже нетронутый чертеж это готовый план.
+  const clinicSelected = clinicChoices(taskIds, choices, facilityAnswer?.solutions ?? [], clinicRobots, clinicFit);
+  const clinicTasks = taskIds.filter((id) => CLINIC_TASKS.includes(id));
+  const clinicReady = clinicTasks.length > 0 && clinicTasks.every((id) => clinicSelected[id]);
   const closed = [
     facilities.length > 0 && taskIds.length > 0,
     true,
-    true,
-    taskIds.length > 0 && left.length === 0,
+    // у медучреждения корпус с ошибками дальше не пускает: смену по нему не посчитать
+    !clinicTotal || Boolean(clinicPlan && buildingCheck?.valid),
+    clinicTotal ? clinicReady && Boolean(buildingCheck?.valid) : taskIds.length > 0 && left.length === 0,
     true,
   ];
 
@@ -1082,7 +1329,7 @@ function Wizard() {
   const previous = flow[flow.indexOf(step) - 1];
   const open = (index: number) => {
     if (!flow.includes(index)) return false;
-    if (index === LAST) return calcStarted;
+    if (index === LAST && !clinicTotal) return calcStarted;
     if (index > reached && index !== next) return false;
     return closed.slice(0, index).every(Boolean);
   };
@@ -1151,15 +1398,18 @@ function Wizard() {
   // Сохранение в проект. Первый раз создаем проект сразу с версией, дальше добавляем версии.
   // Если проект тем временем удалили в кабинете, заводим новый, а не теряем расчет.
   const save = async () => {
-    if (!result || !upToDate || saving) return;
+    if (!filesReady || saving || (!clinicTotal && !result)) return;
     if (role !== "user" && role !== "admin") {
       void askToLogin();
       return;
     }
-    const key = JSON.stringify(request);
+    const key = saveKey;
+    // медучреждение кладет в state запрос итога: по нему сервер собирает отчет и пересчитывает версию
     const body = {
-      state: snapshot as unknown as Record<string, unknown>,
-      result: result as unknown as Record<string, unknown>,
+      state: (clinicTotal && clinicDone
+        ? { ...snapshot, clinicRequest: clinicDone.request }
+        : snapshot) as unknown as Record<string, unknown>,
+      result: (clinicTotal && clinicDone ? clinicDone.answer : result) as unknown as Record<string, unknown>,
       note: "",
     };
     setSaving(true);
@@ -1245,7 +1495,7 @@ function Wizard() {
   });
   useEffect(() => {
     if (role !== "user" && role !== "admin") return;
-    if (!result || !upToDate || step !== LAST) return;
+    if (!filesReady || step !== LAST) return;
     try {
       const pressed = window.localStorage.getItem(SAVE_AFTER_LOGIN);
       window.localStorage.removeItem(SAVE_AFTER_LOGIN);
@@ -1254,7 +1504,7 @@ function Wizard() {
       return;
     }
     void saveRef.current();
-  }, [role, result, upToDate, step]);
+  }, [role, filesReady, step]);
 
   const summaries = [
     facility && tasks.length > 0
@@ -1270,15 +1520,32 @@ function Wizard() {
     ]
       .filter(Boolean)
       .join(" · "),
-    measures
-      ? `склад ${measures.width_m} на ${measures.length_m} м · маршрут ${Math.round(measures.route_m)} м · ворот ${measures.docks}` +
-        (plan?.edited || plan?.template === "custom" ? "" : " · планировка типовая")
-      : "Строим план по шаблону",
+    clinicTotal
+      ? !clinicPlan
+        ? "Выберите типовой корпус, создайте свой или загрузите план"
+        : building
+          ? `этажей ${building.floors.length} · лифтов ${building.lifts.length} · ` +
+            (buildingCheck
+              ? buildingCheck.valid
+                ? "план проверен, можно идти к решениям"
+                : `ошибок в плане: ${buildingCheck.checks.filter((one) => one.level === "error").length}, исправьте их`
+              : "проверяем план")
+          : "Загружаем типовой корпус"
+      : measures
+        ? `склад ${measures.width_m} на ${measures.length_m} м · маршрут ${Math.round(measures.route_m)} м · ворот ${measures.docks}` +
+          (plan?.edited || plan?.template === "custom" ? "" : " · планировка типовая")
+        : "Строим план по шаблону",
     [
       short
-        ? `Решений под задачи: ${facilityAnswer?.solutions.length ?? 0}. Дальше этого шага путь для объекта "${facility?.name}" пока не идет`
+        ? clinicTotal
+          ? clinicReady
+            ? buildingCheck?.valid
+              ? "Решения выбраны. Дальше смена выбранных роботов на вашем корпусе и экономика"
+              : "Проверяем корпус для выбранных роботов"
+            : `Выберите робота для каждой задачи: выбрано ${Object.keys(clinicSelected).length} из ${clinicTasks.length}`
+          : `Решений под задачи: ${facilityAnswer?.solutions.length ?? 0}. Дальше этого шага путь для объекта "${facility?.name}" пока не идет`
         : left.length === 0
-          ? `${taskIds.length > 1 ? "Решения выбраны для всех задач" : `Выбрано: ${pickedWords(picked[0], solutions)}`} · подсчет гоняет смену на вашем плане, до полуминуты`
+          ? `${taskIds.length > 1 ? "Решения выбраны для всех задач" : `Выбрано: ${pickedWords(picked[0], solutions)}, можно сменить`} · подсчет гоняет смену на вашем плане, до полуминуты`
           : taskIds.length > 1
             ? `Выбрано ${taskIds.length - left.length} из ${taskIds.length}. Осталось выбрать: ${left.map((one) => one.name.toLowerCase()).join(", ")}`
             : "Решение пока не выбрано",
@@ -1302,18 +1569,31 @@ function Wizard() {
   ];
 
   const steps: Step[] = flow.map((index) => ({
-    name: short && index === 3 ? "Решения" : STEPS[index],
+    name:
+      short && index === 3
+        ? "Решения"
+        : clinicTotal && index === 4
+          ? "Итог"
+          : clinicTotal && index === 2
+            ? "План корпуса"
+            : STEPS[index],
     // Полоса закрашена только до текущего шага: вернулся назад - полоса вернулась вместе с тобой.
     // Шаги, где человек уже был, остаются нажимаемыми, но не выглядят пройденными.
     state: index === step ? "now" : index < step ? "done" : open(index) ? "next" : "locked",
   }));
-  const title = (short && SHORT_TITLES[step]) || TITLES[step];
+  const title =
+    clinicTotal && step === 1
+      ? {
+          title: "Параметры объекта",
+          lead: "Задайте нагрузку, текущую работу и расходы вашего учреждения. Неизвестные данные будут обозначены как допущения; отраслевой пример можно загрузить отдельно.",
+        }
+      : (short && SHORT_TITLES[step]) || TITLES[step];
 
   return (
     <div className="u-page">
       <Header steps={steps} onPickStep={(position) => goTo(flow[position])} />
 
-      <main className="u-main u-wrap is-wizard">
+      <main className="u-main u-wrap is-wizard" data-step={step}>
         {/* На шаге экономики заголовок экрана это ответ словами (h1 в сводке). Пока его нет, стоит
             обычный заголовок шага: фокусу при смене шага есть куда встать */}
         {(step !== LAST || !result?.feasible) && <Hero title={title.title} lead={title.lead} compact={step > 0} />}
@@ -1333,6 +1613,18 @@ function Wizard() {
               taskIds={taskIds}
               onPickFacility={pickFacility}
               onToggleTask={toggleTask}
+              overrides={overrides}
+              clinicData={
+                facilityId === CLINIC
+                  ? {
+                      deliveryStaff: clinicFinance.delivery_staff_per_shift,
+                      drugOrders: overrides["clinic.drug_orders_per_day"],
+                      area: clinicPlan
+                        ? building?.floors.reduce((sum, floor) => sum + floor.width_m * floor.length_m, 0)
+                        : undefined,
+                    }
+                  : undefined
+              }
               zone={
                 picking && zoneRate !== null && zoneM2 !== null
                   ? {
@@ -1345,7 +1637,34 @@ function Wizard() {
             />
           ))}
 
-        {step === 1 && short && (
+        {step === 1 && clinicTotal && (
+          <ClinicCustomer
+            parameters={parameters}
+            overrides={overrides}
+            onChange={changeParameter}
+            finance={clinicFinance}
+            onFinance={setClinicFinance}
+            quotes={clinicQuotes}
+            onQuotes={setClinicQuotes}
+            building={clinicPlan ? building : null}
+            tasks={taskIds}
+            name={projectTitle}
+            onName={setProjectTitle}
+            volumeModes={
+              building
+                ? { meds: scenarioOf(building).meds.mode, supplies: scenarioOf(building).supplies.mode }
+                : { meds: "building", supplies: "building" }
+            }
+            onVolumeMode={(kind, mode) =>
+              setBuilding((current) => {
+                if (!current) return current;
+                const scenario = scenarioOf(current);
+                return { ...current, scenario: { ...scenario, [kind]: { ...scenario[kind], mode, per_day: null } } };
+              })
+            }
+          />
+        )}
+        {step === 1 && short && !clinicTotal && (
           <Parameters
             parameters={parameters}
             overrides={overrides}
@@ -1386,11 +1705,46 @@ function Wizard() {
               }}
               onKeep={() => setStaffBasis(basisNow())}
               required={requiredRoles}
+              swap={
+                staffSwap && {
+                  text: swapText(staffSwap, new Map(roles.map((role) => [role.id, role.name]))),
+                  onApply: () => {
+                    setStaff(staffSwap.lines);
+                    setStaffSwap(null);
+                  },
+                  onKeep: () => setStaffSwap(null),
+                }
+              }
             />
           </>
         )}
 
-        {step === 2 && (
+        {step === 2 && clinicTotal && building && (
+          <ClinicPlan
+            building={building}
+            plan={clinicPlan}
+            onPlan={setClinicPlan}
+            onChange={setBuilding}
+            check={buildingCheck}
+            checkError={buildingError}
+            operationIds={taskIds}
+            overrides={overrides}
+            robots={clinicRobots}
+            robotId={clinicRobotId}
+            onRobot={(id) => setFirst("floor_delivery", id)}
+          />
+        )}
+        {step === 2 && clinicTotal && !building && !templateError && <Waiting title="Загружаем типовой корпус" />}
+        {step === 2 && clinicTotal && !building && templateError && (
+          <div className="u-bar">
+            <Alert>Типовой корпус не загрузился: {templateError}</Alert>
+            <Button kind="ghost" onClick={() => setTemplateTry(templateTry + 1)}>
+              Повторить
+            </Button>
+          </div>
+        )}
+
+        {step === 2 && !clinicTotal && (
           <PlanObject
             templates={templates}
             rackTypes={rackTypes}
@@ -1414,6 +1768,12 @@ function Wizard() {
           />
         )}
 
+        {step === 3 && !short && pickNudge && !closed[3] && (
+          <div id="pick-nudge" className="u-pick-nudge">
+            <Alert>Сначала выберите решение: нажмите "Выбрать" на подходящей карточке, потом "Начать подсчет".</Alert>
+          </div>
+        )}
+
         {step === 3 && !short && (
           <ChooseSolutions
             tasks={picked.map((one) => ({
@@ -1422,6 +1782,7 @@ function Wizard() {
               solutions: solutions[one.id] ?? [],
               picks: one.picks,
               needsStations: tasks.find((task) => task.id === one.id)?.takeover === "speedup",
+              unit: tasks.find((task) => task.id === one.id)?.unit,
             }))}
             planReady={planFitsPicking(plan?.template)}
             active={shownTask}
@@ -1433,15 +1794,78 @@ function Wizard() {
             onDrop={dropSecond}
             budget={budget}
             onBudget={setBudget}
+            budgetFrom={budgetFrom}
+            onBudgetFrom={setBudgetFrom}
+            ways={payWays}
+            onWays={setPayWays}
             fits={budgetFits[fitKey]}
+            withVat={(overrides["economics.vat.with_vat"] ?? 0) === 1}
           />
         )}
 
-        {step === 3 && short && facility && (
+        {step === 3 && clinicTotal && (
+          <ClinicSolutions
+            tasks={tasks}
+            answer={facilityAnswer}
+            robots={clinicRobots}
+            check={buildingCheck}
+            fit={clinicFit}
+            choices={clinicSelected}
+            request={{
+              building,
+              quotes: clinicQuotes,
+              operation_ids: taskIds,
+              overrides: Object.fromEntries(Object.entries(overrides).filter(([key]) => key.startsWith("clinic."))),
+            }}
+            finance={clinicFinance}
+            onFinance={setClinicFinance}
+            onPick={setFirst}
+            onUnpick={unpick}
+          />
+        )}
+
+        {step === 3 && short && !clinicTotal && facility && (
           <FacilitySolutions facility={facility} tasks={tasks} answer={facilityAnswer} />
         )}
 
-        {step === 4 && (
+        {step === 4 && clinicTotal && !clinicReady && (
+          <>
+            <Alert>Для расчета выберите доступного робота для доставки или уборки.</Alert>
+            <Button kind="ghost" onClick={() => goTo(3)}>
+              Выбрать решения
+            </Button>
+          </>
+        )}
+
+        {step === 4 && clinicTotal && clinicReady && (
+          <ClinicResult
+            building={building}
+            robotId={clinicRobotId}
+            cleanerId={clinicCleanerId}
+            operationIds={taskIds}
+            parameters={parameters}
+            overrides={overrides}
+            onChange={changeParameter}
+            finance={clinicFinance}
+            onFinanceChange={setClinicFinance}
+            quotes={clinicQuotes}
+            onQuotesChange={setClinicQuotes}
+            onReady={setClinicDone}
+            sizing={clinicSizing}
+            onUseSizing={(next) => {
+              setClinicSizing(next);
+              setPicks((current) => ({
+                ...current,
+                ...(taskIds.includes("floor_delivery")
+                  ? { floor_delivery: [{ robotId: next.robot_id, share: 1 }] }
+                  : {}),
+                ...(taskIds.includes("cleaning") ? { cleaning: [{ robotId: next.cleaner_id, share: 1 }] } : {}),
+              }));
+            }}
+          />
+        )}
+
+        {step === 4 && !clinicTotal && (
           <Economics
             parameters={parameters}
             overrides={overrides}
@@ -1461,6 +1885,9 @@ function Wizard() {
             }
             excluded={excludedTasks}
             budget={budget}
+            budgetFrom={budgetFrom}
+            payWays={payWays}
+            onEditPayWays={() => goTo(3)}
             onExclude={(id, off) =>
               setExcluded((current) => (off ? [...new Set([...current, id])] : current.filter((one) => one !== id)))
             }
@@ -1501,10 +1928,7 @@ function Wizard() {
               "Сохранить расчет в проект можно после входа. Расчет перенесем в новый проект, введенное не пропадет."
             ) : step === LAST && saveError ? (
               saveError
-            ) : step === LAST &&
-              savedAs &&
-              savedAs.key === JSON.stringify(request) &&
-              link?.version === savedAs.version ? (
+            ) : step === LAST && savedAs && savedAs.key === saveKey && link?.version === savedAs.version ? (
               <span className="u-saved">
                 <Tick />
                 <span>
@@ -1514,20 +1938,20 @@ function Wizard() {
                   </a>
                 </span>
               </span>
-            ) : step === LAST && savedAs && savedAs.key === JSON.stringify(request) ? (
+            ) : step === LAST && savedAs && savedAs.key === saveKey ? (
               <span className="u-saved">
                 <Tick />
                 {/* одним куском: в полосе с гибкой раскладкой иначе каждое слово встает своей колонкой */}
                 <span>
-                  <span title={`Проект «${projectTitle}»`}>Сохранено, версия</span> <b>{savedAs.version}</b> ·{" "}
+                  <span title={`Проект "${projectTitle}"`}>Сохранено, версия</span> <b>{savedAs.version}</b> ·{" "}
                   <a href="/projects">в кабинете</a>
                 </span>
               </span>
-            ) : step === LAST && role === "guest" && result && !trouble ? (
+            ) : step === LAST && role === "guest" && (clinicTotal ? clinicDone : result && !trouble) ? (
               // гостю прямо говорим, что доступно без входа: файлы да, проект нет
-              "Без входа: отчет PDF и таблицы Excel скачиваются сразу. Сохранить в проект можно после входа"
+              "PDF и Excel скачаются и без входа, сохранить в проект можно после входа"
             ) : step === LAST && projectId ? (
-              `Проект «${projectTitle}»: правки сохранятся новой версией`
+              `Проект "${projectTitle}": правки сохранятся новой версией`
             ) : (
               // пока сервер молчит, дальше идти не с чем: говорим об этом, а не "выберите задачу"
               (catalogError ? "Сервер не отвечает, ждем его" : summaries[step]) ||
@@ -1540,9 +1964,43 @@ function Wizard() {
               Назад
             </Button>
           )}
-          {next === undefined && step < LAST ? null : step === LAST - 1 &&
-            nextTask &&
-            picked.find((one) => one.id === shownTask)?.solution ? (
+          {next === undefined && step < LAST ? null : clinicTotal && step === LAST ? (
+            <span className="u-action-end">
+              <ActionMore label="Файлы">
+                <Button
+                  kind="light"
+                  disabled={exporting !== null || !clinicDone}
+                  title={role === "guest" ? "Доступно без входа" : undefined}
+                  onClick={() => download("xlsx")}
+                >
+                  {exportWords("xlsx", exporting, exported)}
+                </Button>
+                <Button
+                  kind="light"
+                  disabled={exporting !== null || !clinicDone}
+                  title={role === "guest" ? "Доступно без входа" : undefined}
+                  onClick={() => download("pdf")}
+                >
+                  {exportWords("pdf", exporting, exported)}
+                </Button>
+              </ActionMore>
+              <Button
+                arrow
+                disabled={saving || !clinicDone || (savedAs !== null && savedAs.key === saveKey)}
+                onClick={() => void save()}
+              >
+                {saving ? (
+                  "Сохраняем..."
+                ) : savedAs && savedAs.key === saveKey ? (
+                  "Сохранено"
+                ) : (
+                  <span>
+                    Сохранить<span className="u-wide">{projectId ? " новую версию" : " в проект"}</span>
+                  </span>
+                )}
+              </Button>
+            </span>
+          ) : step === LAST - 1 && !clinicTotal && nextTask && picked.find((one) => one.id === shownTask)?.solution ? (
             // задачи идут по очереди: выбрали для одной, кнопка ведет к следующей без решения
             <Button
               arrow
@@ -1553,11 +2011,11 @@ function Wizard() {
             >
               Дальше: {nextTask.name.toLowerCase()}
             </Button>
-          ) : step === LAST - 1 ? (
+          ) : step === LAST - 1 && !clinicTotal ? (
             <Button
               arrow
-              disabled={!closed[step] || !!catalogError}
-              // почему кнопка недоступна, при наведении: то же, что в полосе слева, но у самой кнопки
+              disabled={!!catalogError}
+              // почему считать пока нечего, при наведении: то же, что в полосе слева, но у самой кнопки
               title={
                 catalogError
                   ? "Сервер не ответил, подбор решений не пришел"
@@ -1567,13 +2025,32 @@ function Wizard() {
                       : "Сначала выберите решение из списка"
                     : undefined
               }
-              onClick={startCalculation}
+              onClick={() => {
+                if (closed[step]) return startCalculation();
+                setPickNudge(true);
+                window.setTimeout(
+                  () => document.getElementById("pick-nudge")?.scrollIntoView({ behavior: "smooth", block: "center" }),
+                  50,
+                );
+              }}
             >
+              Начать подсчет
+            </Button>
+          ) : step === 3 && clinicTotal ? (
+            <Button arrow disabled={!closed[step] || !!catalogError} onClick={() => goTo(4)}>
               Начать подсчет
             </Button>
           ) : step < LAST ? (
             <Button arrow disabled={!closed[step] || !!catalogError} onClick={() => goTo(next)}>
-              Дальше: {(short && next === 3 ? "решения" : STEPS[next]).toLowerCase()}
+              Дальше:{" "}
+              {(short && next === 3
+                ? "решения"
+                : clinicTotal && next === 4
+                  ? "итог"
+                  : clinicTotal && next === 2
+                    ? "план корпуса"
+                    : STEPS[next]
+              ).toLowerCase()}
             </Button>
           ) : trouble ? (
             // расчета нет: файлы и сохранение выключены, главная кнопка ведет туда, где причина
@@ -1620,9 +2097,7 @@ function Wizard() {
                   title={role === "guest" ? "Доступно без входа" : undefined}
                   onClick={() => download("xlsx")}
                 >
-                  <span>
-                    <span className="u-wide">Таблицы </span>Excel
-                  </span>
+                  {exportWords("xlsx", exporting, exported)}
                 </Button>
                 <Button
                   kind="light"
@@ -1630,19 +2105,24 @@ function Wizard() {
                   title={role === "guest" ? "Доступно без входа" : undefined}
                   onClick={() => download("pdf")}
                 >
-                  <span>
-                    <span className="u-wide">Отчет </span>PDF
-                  </span>
+                  {exportWords("pdf", exporting, exported)}
                 </Button>
               </ActionMore>
-              {savedAs && savedAs.key === JSON.stringify(request) ? (
+              {savedAs && savedAs.key === saveKey ? (
                 // сохранено и с тех пор не менялось: сохранять то же еще раз незачем, а поделиться можно
                 <Button arrow onClick={() => void share()}>
                   Поделиться
                 </Button>
               ) : (
                 <Button arrow disabled={saving || !upToDate} onClick={() => void save()}>
-                  {saving ? "Сохраняем..." : projectId ? "Сохранить новую версию" : "Сохранить в проект"}
+                  {/* на телефоне коротко: длинная подпись шла в две строки и раздувала полосу */}
+                  {saving ? (
+                    "Сохраняем..."
+                  ) : (
+                    <span>
+                      Сохранить<span className="u-wide">{projectId ? " новую версию" : " в проект"}</span>
+                    </span>
+                  )}
                 </Button>
               )}
             </span>
@@ -1668,6 +2148,18 @@ function login(register = false) {
 }
 
 // Решения задачи словами: «Ronavi H1500» или «Ronavi H1500 70% + AMR 800 30%»
+// Подпись кнопки файла: идет сборка, только что скачали или обычная. Полное слово на широком экране
+function exportWords(kind: "pdf" | "xlsx", exporting: "pdf" | "xlsx" | null, exported: "pdf" | "xlsx" | null) {
+  if (exporting === kind) return <span>Собираем...</span>;
+  if (exported === kind) return <span>Готово</span>;
+  return (
+    <span>
+      <span className="u-wide">{kind === "pdf" ? "Отчет " : "Таблицы "}</span>
+      {kind === "pdf" ? "PDF" : "Excel"}
+    </span>
+  );
+}
+
 function pickedWords(
   one: { id: string; picks: { robotId: string; share: number }[] } | undefined,
   solutions: Record<string, Solution[]>,
@@ -1684,8 +2176,34 @@ function strip(line: StaffLine & { role_name?: string; source?: string; trust?: 
   return { id, role, headcount, filled, salary_month, contractor };
 }
 
+// Из правок к штату только выбор "как сейчас делают работу" (машиной или вручную)
+function methodOnly(overrides: Record<string, number>): Record<string, number> {
+  return Object.fromEntries(Object.entries(overrides).filter(([path]) => path.endsWith(".by_machine")));
+}
+
 // Задач стало больше: добавляем строки новых ролей и не трогаем то, что человек уже ввел.
 function merge(current: StaffLine[], defaults: StaffLine[]): StaffLine[] {
   const added = defaults.filter((line) => !current.some((mine) => mine.role === line.role)).map(strip);
   return [...current, ...added];
+}
+
+/* Площадь уборки в сутки по умолчанию равна площади зоны работы роботов (уборка раз в сутки). Пока
+   человек ее не правил, она идет за площадью зоны: зона 6 000 м², значит и уборка 6 000, а не 10 000.
+   "Не правил" значит уборка до правки равнялась площади зоны */
+function followArea(
+  parameters: Parameter[],
+  before: Record<string, number>,
+  after: Record<string, number>,
+  path: string,
+): Record<string, number> {
+  if (!path.endsWith(".active_area_m2")) return after;
+  const cleaningPath = path.replace(/active_area_m2$/, "operations.cleaning.volume_per_day");
+  const area = parameters.find((field) => field.path === path);
+  const cleaning = parameters.find((field) => field.path === cleaningPath);
+  if (!area || !cleaning) return after;
+  const areaBefore = before[path] ?? area.value;
+  if ((before[cleaningPath] ?? cleaning.value) !== areaBefore) return after;
+  const next = Math.min(cleaning.max, Math.max(cleaning.min, after[path] ?? area.value));
+  const rest = Object.fromEntries(Object.entries(after).filter(([key]) => key !== cleaningPath));
+  return next === cleaning.value ? rest : { ...rest, [cleaningPath]: next };
 }

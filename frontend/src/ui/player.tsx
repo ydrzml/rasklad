@@ -83,7 +83,7 @@ export function Player({
   children,
 }: {
   clock: Clock;
-  speeds: { value: number; name: string }[];
+  speeds: { value: number; name: string; hint?: string }[];
   children?: ReactNode;
 }) {
   const now = useClockTime(clock);
@@ -99,6 +99,7 @@ export function Player({
       <span className="u-player-time mono" aria-live="off">
         {hhmm(now.t)} <span className="u-player-of">из {hhmm(clock.length)}</span>
       </span>
+      {speeds[0]?.hint && <span className="u-player-speed-label">скорость</span>}
       <div className="u-player-speeds" role="group" aria-label="Скорость">
         {speeds.map((one) => (
           <button
@@ -106,6 +107,7 @@ export function Player({
             type="button"
             className={now.speed === one.value ? "u-player-speed is-on" : "u-player-speed"}
             aria-pressed={now.speed === one.value}
+            title={one.hint}
             onClick={() => clock.setSpeed(one.value)}
           >
             {one.name}

@@ -12,6 +12,7 @@ COPY data/catalog/ /app/data/catalog/
 COPY data/facilities/ /app/data/facilities/
 COPY data/specs/specs.csv data/specs/sources.csv /app/data/specs/
 COPY data/specs/saved/ /app/data/specs/saved/
+COPY data/organizer/ /app/data/organizer/
 # Шрифт Onest для служебных таблиц: сервер отдает его на /api/db/fonts, лицензия рядом с файлами
 COPY frontend/src/assets/fonts/onest-* /app/frontend/src/assets/fonts/
 

@@ -2,7 +2,7 @@ import { useState, type ChangeEvent } from "react";
 
 import type { ImportResult, StaffLine } from "../../api/client";
 import { api } from "../../api/client";
-import { Alert, BlockHead, Button, Sheet, SheetRow } from "../../ui";
+import { Alert, Button, Sheet, SheetRow } from "../../ui";
 import { saveBlob } from "../saving";
 
 type Props = {
@@ -57,7 +57,7 @@ export function ImportFile({ facilityId, taskIds, overrides, staff, onApply }: P
   function apply() {
     if (!report) return;
     onApply(report.result.overrides, report.result.staff ?? null);
-    setApplied(`Подставили значений из файла «${report.name}»: ${report.result.applied}`);
+    setApplied(`Подставили значений из файла "${report.name}": ${report.result.applied}`);
     setReport(null);
   }
 
@@ -67,7 +67,6 @@ export function ImportFile({ facilityId, taskIds, overrides, staff, onApply }: P
 
   return (
     <section>
-      <BlockHead title="Данные из файла" />
       {/* плита, как у остальных разделов шага, а не кнопки справа от заголовка отдельно от всего.
           Файл можно бросить на плиту */}
       <div
@@ -84,10 +83,7 @@ export function ImportFile({ facilityId, taskIds, overrides, staff, onApply }: P
           if (file && !busy) void read(file);
         }}
       >
-        <p>
-          Если параметры и штат уже есть в Excel или CSV, их можно не вбивать: загрузите файл или бросьте его сюда.
-          Шаблон скачается с тем, что уже стоит на экране.
-        </p>
+        <p>Есть цифры в Excel или CSV? Загрузите файл или перетащите его сюда, поля заполнятся сами.</p>
         <span className="u-action-end">
           <label className={busy ? "u-btn u-btn-light u-file is-busy" : "u-btn u-btn-light u-file"}>
             <input type="file" accept=".xlsx,.csv" onChange={(event) => void upload(event)} disabled={busy} />
@@ -103,7 +99,7 @@ export function ImportFile({ facilityId, taskIds, overrides, staff, onApply }: P
       {result && report && (
         <div className="u-import">
           <p>
-            Файл «{report.name}»: подставим <b className="mono">{result.applied}</b>
+            Файл "{report.name}": подставим <b className="mono">{result.applied}</b>
             {result.warnings > 0 && <>, из них с замечанием {result.warnings}</>}.
             {result.errors > 0 && <> Строк с ошибкой {result.errors}, их пропустим.</>}
             {clean > 0 && noted.length > 0 && <> Остальные {clean} без замечаний.</>}

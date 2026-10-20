@@ -44,10 +44,10 @@ def test_one_task_in_the_list_is_the_same_as_the_old_request():
 
 
 def test_site_fleet_is_the_sum_of_tasks(two):
-    """10 паллетных роботов и 1 уборщик по формуле: на объекте 11. Дежурный один на всех."""
+    """10 паллетных роботов и 1 уборщик по формуле: на объекте 11. Присмотр один на всех: 11 * 1,5 / 60 = 0,275 поста."""
     assert [task["sizing"]["fleet"] for task in two["tasks"]] == [10, 1]
     assert two["sizing"]["fleet"] == 11
-    assert two["sizing"]["operator_posts"] == 1
+    assert two["sizing"]["operator_posts"] == pytest.approx(0.275)
     # спрос у паллет в паллетах, у уборки в квадратных метрах: складывать их нельзя
     assert two["sizing"]["design_demand_ops_per_hour"] is None
     assert two["tasks"][0]["sizing"]["design_demand_ops_per_hour"] > 0
@@ -66,12 +66,13 @@ def test_tasks_and_shared_make_the_site(two):
 
 def test_shared_holds_integration_once(two):
     """Общее на объект у покупки: ПО Ronavi 1,5 млн один раз на производителя (у Вейбота ПО в цене
-    робота), интеграция 5 млн, инфраструктура 3 млн, переобучение одного дежурного 5,09 * 10 000 = 50 900 ₽
-    и резерв 10% от них. Руками: 9 550 900 * 1,1 = 10 505 990 ₽."""
+    робота), интеграция 5 млн, инфраструктура 3 млн, все без НДС 22%, на 14 роботов целиком; переобучение
+    на присмотр 0,275 поста * 5,09 * 10 000 = 13 997,53 ₽ и резерв 10% от них.
+    Руками: (9 500 000 / 1,22 + 13 997,53) * 1,1 = 8 580 971,05 ₽."""
     shared = next(p for p in two["shared"]["scenarios"] if p["id"] == "purchase")
-    assert shared["capex_rub"]["integration"] == pytest.approx(5_000_000)
-    assert shared["capex_rub"]["software"] == pytest.approx(1_500_000)
-    assert shared["investment_year0_rub"] == pytest.approx(10_505_990, abs=1)
+    assert shared["capex_rub"]["integration"] == pytest.approx(5_000_000 / 1.22)
+    assert shared["capex_rub"]["software"] == pytest.approx(1_500_000 / 1.22)
+    assert shared["investment_year0_rub"] == pytest.approx(8_580_971.05, abs=1)
 
 
 def test_reversed_tasks_give_the_same_site(two):
@@ -126,7 +127,8 @@ def test_same_task_twice_is_rejected():
 
 def test_sensitivity_moves_every_task(two):
     """Объем +20% двигает каждую задачу. Руками по формуле: паллеты 148,98 * 1,2 / 15,88 = 11,26,
-    вверх 12; уборка 548,86 * 1,2 / 750 = 0,88, вверх 1. Вместе 13 вместо 11."""
+    вверх 12; уборка без пика, робот моет круглые сутки: 10 000 * 0,7 / 24 * 1,15 = 335,4, * 1,2 / 750 = 0,54,
+    вверх 1. Вместе 13 вместо 11."""
     response = client.post("/api/calculations/sensitivity", json={"tasks": TWO})
     assert response.status_code == 200, response.text
     volume = next(p for p in response.json()["params"] if p["id"] == "volume")
@@ -159,14 +161,16 @@ MIXED = [
 
 
 def test_mixed_fleet_gives_a_part_per_solution():
-    """Два решения на задачу: в ответе по части на решение с долей, парк объекта их сумма."""
+    """Два решения на задачу: в ответе по части на решение с долей, парк объекта их сумма.
+    У каждой половины спрос 148,98 / 2 = 74,49 в час, у Ronavi 74,49 / 15,88 = 4,69, вверх 5."""
     result = preview(tasks=MIXED)
     assert [(t["robot_id"], t["share"], t["sizing"]["fleet"]) for t in result["tasks"]] == [
         ("ronavi-h1500", 0.5, 5),
         ("moros-amr-1500", 0.5, 5),
     ]
     assert result["sizing"]["fleet"] == 10
-    assert result["sizing"]["operator_posts"] == 1
+    assert result["sizing"]["operator_posts"] == pytest.approx(0.25)
+
     # источники держат оба робота
     paths = {source["path"] for source in result["sources"]}
     assert "robots.moros-amr-1500.price_rub" in paths and "robots.ronavi-h1500.price_rub" in paths

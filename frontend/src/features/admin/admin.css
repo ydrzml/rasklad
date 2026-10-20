@@ -505,3 +505,8 @@
   color: var(--blue);
   text-decoration: underline;
 }
+
+/* дата у источника норматива одной строкой: "2026-09" переносилась на две */
+.a-date {
+  white-space: nowrap;
+}

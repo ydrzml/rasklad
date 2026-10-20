@@ -73,6 +73,16 @@ def test_login_and_logout(db_client):
     assert me(db_client)["role"] == "user"
 
 
+def test_spaces_around_email_do_not_break_registration_and_login(db_client):
+    """Клавиатура телефона после подсказки почты ставит пробел в конце"""
+    spaced = {**IVAN, "email": "  Ivan@Example.com "}
+    assert db_client.post("/api/auth/register", json=spaced).status_code == 201
+    assert me(db_client)["email"] == "ivan@example.com"
+    db_client.post("/api/auth/logout")
+    assert db_client.post("/api/auth/login", json=spaced).status_code == 200
+    assert db_client.post("/api/auth/register", json=IVAN).status_code == 409
+
+
 def test_wrong_password_and_unknown_email_look_the_same(db_client):
     db_client.post("/api/auth/register", json=IVAN)
     db_client.post("/api/auth/logout")

@@ -1,0 +1,706 @@
+/* Первый экран разбора (Reel.tsx, Scenes.tsx): ролик слева, три пункта справа. На 1366x768 все
+   видно без прокрутки вместе с шапкой и полосой действия. Вне экрана движение стоит (data-paused),
+   при "уменьшить анимацию" каждая сцена стоит последним кадром */
+
+.rl {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 1fr);
+  align-items: stretch;
+  gap: var(--s-4);
+}
+
+.rl[data-paused="true"] *,
+.rl[data-paused="true"] *::before,
+.rl[data-paused="true"] *::after,
+.rl-reel[data-paused="true"] *,
+.rl-reel[data-paused="true"] *::before,
+.rl-reel[data-paused="true"] *::after {
+  animation-play-state: paused !important;
+}
+
+.rl-stage {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: clamp(300px, calc(100vh - 330px), 470px);
+  min-width: 0;
+  padding: var(--s-3) var(--s-4) var(--s-3);
+  overflow: hidden;
+  border-radius: var(--r-xl);
+  background:
+    linear-gradient(color-mix(in srgb, var(--blue) 6%, transparent) 1px, transparent 1px) 0 0 / 100% 18px,
+    linear-gradient(90deg, color-mix(in srgb, var(--blue) 6%, transparent) 1px, transparent 1px) 0 0 / 18px 100%,
+    var(--paper-cool);
+  box-shadow:
+    var(--hair),
+    0 18px 44px -32px color-mix(in srgb, var(--shadow) 45%, transparent);
+  animation: rl-enter 0.55s cubic-bezier(0.2, 0, 0.2, 1) both;
+}
+
+/* ролик сам по себе (CaseReel), например на лендинге */
+.rl-reel {
+  display: grid;
+  min-width: 0;
+}
+
+/* пока разбор считается или не посчитался: стоит сразу, без въезда */
+.rl-stage.is-wait {
+  animation: none;
+}
+
+/* время сцены, когда рядом нет пунктов с полоской: тонкая линия по низу ролика */
+.rl-clock {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+}
+
+.rl-clock i {
+  display: block;
+  height: 100%;
+  background: var(--blue);
+  transform-origin: 0 50%;
+  animation: rl-fill-bar linear both;
+}
+
+.rl-clock.is-hidden {
+  visibility: hidden;
+}
+
+.rl-stage.is-leaving {
+  animation: rl-leave 0.45s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+/* смена сцен: новая выезжает справа, старая уходит влево и гаснет */
+@keyframes rl-enter {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+@keyframes rl-leave {
+  to {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+
+.rl-phrase {
+  margin: 0 0 var(--s-1);
+  color: var(--ink);
+  font-size: clamp(19px, 1.9vw, 26px);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  animation: rl-rise 0.6s cubic-bezier(0.2, 0, 0.2, 1) 0.15s both;
+}
+
+@keyframes rl-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.rl-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: visible;
+}
+
+/* три пункта справа */
+.rl-points {
+  display: grid;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rl-point {
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  padding: var(--s-3) var(--s-4) calc(var(--s-3) + 4px);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    box-shadow 0.25s ease,
+    background 0.25s ease;
+}
+
+.rl-point:disabled {
+  cursor: default;
+}
+
+.rl-point[aria-pressed="true"] {
+  background: var(--blue-tint);
+  box-shadow: var(--hair-blue);
+}
+
+.rl-point:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.rl-label {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.rl-big {
+  font-size: clamp(18px, 1.7vw, 23px);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.rl-point[aria-pressed="true"] .rl-big {
+  color: var(--blue);
+}
+
+/* экономия зеленым, расход красно-оранжевым: и в пункте, и во фразе ролика */
+.rl-big.is-gain,
+.rl-phrase.is-gain,
+.rl-point[aria-pressed="true"] .rl-big.is-gain {
+  color: var(--go);
+}
+
+.rl-big.is-loss,
+.rl-phrase.is-loss,
+.rl-point[aria-pressed="true"] .rl-big.is-loss {
+  color: var(--signal-text);
+}
+
+.rl-note {
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.rl-run {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+}
+
+.rl-run i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--blue);
+  transform-origin: 0 50%;
+  animation: rl-fill-bar linear both;
+}
+
+@keyframes rl-fill-bar {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* ожидание и ошибка: робот ровно по центру поля */
+.rl-center {
+  display: grid;
+  grid-row: 1 / -1;
+  width: 100%;
+  height: 100%;
+  padding: 0 var(--s-2);
+  place-items: center;
+  align-content: center;
+  gap: var(--s-3);
+  text-align: center;
+}
+
+.rl-center p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+  max-inline-size: 36ch;
+}
+
+.rl-robot {
+  display: block;
+  width: 170px;
+  height: auto;
+  overflow: visible;
+}
+
+/* общее в сценах */
+.rl-small {
+  fill: var(--ink-soft);
+  font-size: 15px;
+}
+
+.rl-head {
+  fill: var(--ink);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.rl-count {
+  fill: var(--ink);
+  font-size: 34px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.rl-count.is-big {
+  font-size: 56px;
+  fill: var(--blue);
+}
+
+/* сцена 1: роботы везут паллеты */
+.rl-floor {
+  fill: var(--paper);
+  stroke: var(--line);
+}
+
+.rl-gate {
+  fill: var(--dock-in);
+}
+
+.rl-lane {
+  stroke: color-mix(in srgb, var(--route) 45%, transparent);
+  stroke-width: 2;
+  stroke-dasharray: 6 6;
+}
+
+.rl-rack {
+  fill: var(--blue-tint);
+  stroke: var(--blue);
+  stroke-width: 1.2;
+}
+
+.rl-drive {
+  animation: rl-drive 2.7s cubic-bezier(0.45, 0, 0.35, 1) infinite both;
+  animation-delay: var(--d, 0s);
+}
+
+@keyframes rl-drive {
+  0% {
+    transform: translateX(0);
+  }
+  44%,
+  54% {
+    transform: translateX(var(--x));
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* паллета на роботе: туда едет с ней, у стеллажа оставляет, обратно пустой */
+.rl-drive .rl-load {
+  animation: rl-unload 2.7s steps(1, end) infinite both;
+  animation-delay: var(--d, 0s);
+}
+
+@keyframes rl-unload {
+  0%,
+  48% {
+    opacity: 1;
+  }
+  49%,
+  97% {
+    opacity: 0;
+  }
+}
+
+.rl-drop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rl-pop 0.35s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+  animation-delay: var(--d, 1s);
+}
+
+@keyframes rl-pop {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.6);
+  }
+}
+
+/* сцена 1 уборки: робот идет полосой туда и обратно, за щеткой остается чистая полоса.
+   Полоса растет в те же доли времени, что едет робот: туда 0-45%, разворот, обратно 52-97% */
+.rl-dust {
+  fill: color-mix(in srgb, var(--ink) 22%, transparent);
+}
+
+.rl-brush {
+  fill: var(--route);
+}
+
+.rl-clean {
+  fill: var(--blue-tint);
+  stroke: color-mix(in srgb, var(--route) 35%, transparent);
+  stroke-width: 1;
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: rl-wipe-out 6s linear both;
+  animation-delay: var(--d, 0s);
+}
+
+.rl-clean.is-back {
+  transform-origin: right center;
+  animation-name: rl-wipe-back;
+}
+
+@keyframes rl-wipe-out {
+  0% {
+    transform: scaleX(0);
+  }
+  45%,
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes rl-wipe-back {
+  0%,
+  52% {
+    transform: scaleX(0);
+  }
+  97%,
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+.rl-sweep {
+  animation: rl-sweep 6s linear both;
+  animation-delay: var(--d, 0s);
+}
+
+@keyframes rl-sweep {
+  0% {
+    transform: translate(0, 0);
+  }
+  45% {
+    transform: translate(var(--x), 0);
+  }
+  52% {
+    transform: translate(var(--x), var(--dy));
+  }
+  97%,
+  100% {
+    transform: translate(0, var(--dy));
+  }
+}
+
+/* обратно робот едет лицом вперед: разворот на краю полосы */
+.rl-turn {
+  animation: rl-turn 6s steps(1, end) both;
+  animation-delay: var(--d, 0s);
+}
+
+@keyframes rl-turn {
+  0%,
+  48% {
+    transform: scaleX(1);
+  }
+  49%,
+  100% {
+    transform: scaleX(-1);
+  }
+}
+
+/* сцена 1 отбора: станции слева, полки справа, робот везет полку к станции и обратно (rl-drive) */
+.rl-station {
+  fill: color-mix(in srgb, var(--dock-in) 14%, var(--paper));
+  stroke: var(--dock-in);
+  stroke-width: 1.4;
+}
+
+.rl-picker {
+  fill: var(--ink);
+}
+
+.rl-slot {
+  fill: none;
+  stroke: color-mix(in srgb, var(--blue) 45%, transparent);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 3;
+}
+
+.rl-pod {
+  fill: var(--blue-tint);
+  stroke: var(--blue);
+  stroke-width: 1.4;
+}
+
+.rl-pod-cells {
+  fill: none;
+  stroke: color-mix(in srgb, var(--blue) 50%, transparent);
+  stroke-width: 1;
+}
+
+/* сцена 2: деньги возвращаются */
+.rl-coin circle {
+  fill: color-mix(in srgb, var(--sc-buy) 16%, var(--paper));
+  stroke: var(--sc-buy);
+  stroke-width: 2;
+}
+
+.rl-coin text {
+  fill: var(--sc-buy);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.rl-coin {
+  animation: rl-coin 0.95s cubic-bezier(0.5, 0, 0.9, 0.6) infinite both;
+  animation-delay: calc(0.6s + var(--i) * 0.16s);
+}
+
+@keyframes rl-coin {
+  0% {
+    opacity: 0;
+    transform: translate(var(--x), -10px);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--x) * 0.3), 150px);
+  }
+}
+
+.rl-jar {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
+.rl-fill {
+  fill: color-mix(in srgb, var(--sc-buy) 30%, var(--paper));
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: rl-level 5s linear 0.6s both;
+}
+
+.rl-fill.is-done {
+  animation:
+    rl-level 5s linear 0.6s both,
+    rl-full 0.6s ease 5.6s both;
+}
+
+@keyframes rl-level {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes rl-full {
+  to {
+    fill: color-mix(in srgb, var(--sc-rent) 38%, var(--paper));
+  }
+}
+
+.rl-jar-label {
+  fill: var(--ink);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.rl-stamp {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rl-stamp 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) 5.7s both;
+}
+
+.rl-stamp rect.is-done {
+  fill: var(--sc-rent);
+}
+
+.rl-stamp rect.is-short {
+  fill: var(--warn);
+}
+
+.rl-stamp text {
+  fill: var(--on-blue);
+  font-size: 19px;
+  font-weight: 600;
+}
+
+@keyframes rl-stamp {
+  from {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
+/* сцена 3: люди и роботы. Подпись под фигурками появляется вместе с роботами */
+.rl-legend {
+  animation: rl-in 0.4s ease 2.9s both;
+}
+
+.rl-legend .rl-person-icon {
+  fill: var(--ink);
+}
+
+/* сцена 3: люди и роботы */
+.rl-person {
+  fill: var(--sc-now);
+  animation:
+    rl-pop 0.3s cubic-bezier(0.3, 1.4, 0.5, 1) both,
+    rl-away 0.5s ease both;
+  animation-delay: calc(0.1s + var(--i) * 0.03s), calc(2.1s + var(--i) * 0.03s);
+}
+
+.rl-person.is-stay {
+  fill: var(--ink);
+  animation: rl-pop 0.3s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+  animation-delay: calc(0.1s + var(--i) * 0.03s);
+}
+
+@keyframes rl-away {
+  to {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+}
+
+.rl-arrive {
+  animation: rl-roll 0.6s cubic-bezier(0.2, 0, 0.2, 1) both;
+  animation-delay: calc(2.7s + var(--i) * 0.12s);
+}
+
+@keyframes rl-roll {
+  from {
+    opacity: 0;
+    transform: translateX(260px);
+  }
+}
+
+.rl-phase.is-before {
+  animation: rl-out 0.3s ease 2.2s both;
+}
+
+.rl-phase.is-after {
+  animation: rl-in 0.3s ease 2.5s both;
+}
+
+@keyframes rl-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes rl-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.rl-sums {
+  animation: rl-in 0.4s ease 3.3s both;
+}
+
+/* полосы растут после подписей: подпись видна сразу, полоса дорастает до числа */
+.rl-sums rect {
+  transform-box: fill-box;
+  transform-origin: 0 50%;
+  animation: rl-bar-grow 1.6s cubic-bezier(0.32, 0.72, 0, 1) 3.5s both;
+}
+
+@keyframes rl-bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.rl-bar.is-now {
+  fill: var(--sc-now);
+}
+
+.rl-bar.is-buy {
+  fill: var(--sc-buy);
+}
+
+.rl-bar-text {
+  fill: var(--ink);
+  font-size: 17px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.rl-bar-text.is-buy {
+  fill: var(--sc-buy);
+  font-weight: 600;
+}
+
+/* Невысокий экран, 1366x768: пункты чуть плотнее, чтобы строка "при круглосуточной работе" под
+   роликом не уходила под липкую полосу снизу */
+@media (min-width: 901px) and (max-height: 820px) {
+  .rl-stage {
+    height: clamp(300px, calc(100vh - 360px), 470px);
+  }
+  .rl-point {
+    gap: 2px;
+    padding-top: 12px;
+    padding-bottom: 14px;
+  }
+}
+
+@media (max-width: 900px) {
+  .rl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rl-stage {
+    height: auto;
+    aspect-ratio: 1;
+    padding: var(--s-3);
+  }
+  .rl-phrase {
+    font-size: 18px;
+  }
+  .rl-points {
+    grid-template-rows: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rl *,
+  .rl *::before,
+  .rl *::after,
+  .rl-reel *,
+  .rl-stage {
+    animation: none !important;
+  }
+  .rl-phase.is-before,
+  .rl-person:not(.is-stay) {
+    opacity: 0;
+  }
+  .rl-drive .rl-load {
+    opacity: 0;
+  }
+  .rl-drive {
+    transform: translateX(var(--x));
+  }
+  .rl-sweep {
+    transform: translate(0, var(--dy));
+  }
+  .rl-turn {
+    transform: scaleX(-1);
+  }
+}

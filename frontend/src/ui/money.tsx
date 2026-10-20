@@ -75,6 +75,9 @@ export function Formula({ words, numbers }: { words: string; numbers: string }) 
 
 export type Series = { tone: Tone; name: string; points: number[] };
 
+/* Отметка на линии сценария: год с долей, например окупаемость 1,3 года, и подпись над точкой */
+export type ChartMark = { tone: Tone; at: number; label: string; below?: boolean };
+
 /* Накопленные затраты по годам. Точки считает сервер, здесь только рисуем.
    Подписи у концов линий, поэтому сценарий узнается не только по цвету. */
 export function CostChart({
@@ -82,11 +85,13 @@ export function CostChart({
   unit,
   scale,
   format,
+  marks = [],
 }: {
   series: Series[];
   unit: string;
   scale: number;
   format: (value: number) => string;
+  marks?: ChartMark[];
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const box = useRef<SVGSVGElement>(null);
@@ -157,6 +162,21 @@ export function CostChart({
             </text>
           </g>
         ))}
+        {marks.map((mark) => {
+          const points = series.find((one) => one.tone === mark.tone)?.points ?? [];
+          const left = Math.max(0, Math.min(points.length - 2, Math.floor(mark.at)));
+          if (points.length < 2 || mark.at < 0 || mark.at > years) return null;
+          // точка стоит на отрезке линии между соседними годами: линия между ними прямая
+          const value = points[left] + (points[left + 1] - points[left]) * (mark.at - left);
+          return (
+            <g key={`${mark.tone}-${mark.at}-${mark.label}`} className={`u-cost-mark is-${mark.tone}`}>
+              <circle cx={x(mark.at)} cy={y(value)} r={5} />
+              <text x={x(mark.at)} y={mark.below ? y(value) + 20 : y(value) - 12} textAnchor="middle">
+                {mark.label}
+              </text>
+            </g>
+          );
+        })}
       </svg>
       <figcaption className="u-cost-cap">
         <span>
@@ -474,7 +494,8 @@ export function Answer({
   facts,
   heading,
 }: {
-  title: ReactNode;
+  /* без заголовка: подробности под карточкой итога, заголовок у итога свой */
+  title?: ReactNode;
   note: ReactNode;
   facts: AnswerFact[];
   /* ответ и есть заголовок экрана: h1, на него App ставит фокус при смене шага */
@@ -491,7 +512,7 @@ export function Answer({
   }, [heading]);
   return (
     <div className="u-answer">
-      {heading ? (
+      {title === undefined ? null : heading ? (
         <h1 ref={main} className="u-answer-main">
           {title}
         </h1>

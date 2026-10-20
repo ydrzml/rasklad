@@ -104,7 +104,7 @@ def changes(session: SessionDep, _: AdminDep, limit: Annotated[int, Query(ge=1, 
     response_model=ImportResult,
     summary="Загрузить выгрузку каталога организатора",
     description=(
-        "CSV с разделителем «;» в UTF-8, колонки как в catalog_export. Каждая строка проверяется: номер, "
+        'CSV с разделителем ";" в UTF-8, колонки как в catalog_export. Каждая строка проверяется: номер, '
         "тип, статус, УГТ, цена. Строки с ошибками пропускаются и перечисляются в ответе. Дубли с тем же "
         "номером и ценой склеиваются в одно решение, отрасли и сценарии собираются списком. Собранные командой характеристики не затираются. "
         "С dry_run=true файл только проверяется."
@@ -167,7 +167,7 @@ def update(solution_id: str, body: SolutionUpdate, session: SessionDep, admin: A
     "/{solution_id}/reset/{field}",
     response_model=SolutionCard,
     summary="Вернуть поле к значению организатора",
-    description="Снимает пометку «введено вручную»: следующая загрузка выгрузки снова обновляет это поле.",
+    description='Снимает пометку "введено вручную": следующая загрузка выгрузки снова обновляет это поле.',
     responses={**NOT_FOUND, 409: {"description": "Выгрузку еще не загружали, возвращать не к чему"}},
 )
 def reset(solution_id: str, field: str, session: SessionDep, admin: AdminDep) -> SolutionCard:

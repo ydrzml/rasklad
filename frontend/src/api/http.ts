@@ -32,7 +32,7 @@ export function fieldsText(detail: unknown): string | null {
   return [...new Set(lines)].join("; ");
 }
 
-export async function call<T>(url: string, init?: RequestInit): Promise<T> {
+async function send(url: string, init?: RequestInit): Promise<Response> {
   let response: Response;
   try {
     response = await fetch(url, { credentials: "same-origin", ...init });
@@ -45,7 +45,19 @@ export async function call<T>(url: string, init?: RequestInit): Promise<T> {
     const data = (await response.json().catch(() => null)) as { detail?: Detail } | null;
     throw new ApiError(response.status, explain(data?.detail, response.status));
   }
+  return response;
+}
+
+export async function call<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await send(url, init);
   return (response.status === 204 ? undefined : await response.json()) as T;
+}
+
+/* Файл с сервера и его имя из Content-Disposition: отчеты PDF и Excel */
+export async function download(url: string, fallback: string): Promise<{ blob: Blob; name: string }> {
+  const response = await send(url);
+  const named = /filename\*=UTF-8''([^;]+)/.exec(response.headers.get("Content-Disposition") ?? "");
+  return { blob: await response.blob(), name: named ? decodeURIComponent(named[1]) : fallback };
 }
 
 export function json(method: string, body?: object): RequestInit {

@@ -6,8 +6,9 @@ from pydantic_core import PydanticCustomError
 
 
 def _checked_email(value: str) -> str:
+    # клавиатура телефона после подсказки почты ставит пробел в конце: это не ошибка в почте
     try:
-        return validate_email(value, check_deliverability=False).normalized
+        return validate_email(value.strip(), check_deliverability=False).normalized
     except EmailNotValidError as error:
         raise PydanticCustomError("email", "Почта записана с ошибкой, проверьте ее") from error
 
@@ -118,6 +119,50 @@ class EmailChange(BaseModel):
     @classmethod
     def _email(cls, value: str) -> str:
         return _checked_email(value)
+
+
+class CodeSent(BaseModel):
+    """Регистрация ждет код из письма: аккаунта еще нет."""
+
+    email: str = Field(description="Куда отправили код")
+    minutes: int = Field(description="Сколько минут работает код")
+
+
+class SignupConfirm(BaseModel):
+    email: str = Field(examples=["ivan@example.com"], description="Почта, на которую пришел код")
+    code: str = Field(max_length=12, examples=["123456"], description="6 цифр из письма")
+
+    @field_validator("email")
+    @classmethod
+    def _email(cls, value: str) -> str:
+        return _checked_email(value.strip())
+
+
+class ResetRequest(BaseModel):
+    email: str = Field(examples=["ivan@example.com"], description="Почта, на которую прислать ссылку")
+
+    @field_validator("email")
+    @classmethod
+    def _email(cls, value: str) -> str:
+        # после подсказки почты телефон ставит пробел в конце
+        return _checked_email(value.strip())
+
+
+class ResetSent(BaseModel):
+    """Ответ одинаковый для любой почты: по нему нельзя узнать, зарегистрирован ли адрес."""
+
+    detail: str
+    minutes: int = Field(description="Сколько минут работает ссылка")
+
+
+class PasswordReset(BaseModel):
+    token: str = Field(max_length=1000, description="Токен из ссылки в письме, часть адреса после #")
+    new_password: str = Field(description="Новый пароль, не короче 8 и не длиннее 128 символов")
+
+    @field_validator("new_password")
+    @classmethod
+    def _new_password(cls, value: str) -> str:
+        return _checked_new_password(value)
 
 
 class DemoLogin(BaseModel):

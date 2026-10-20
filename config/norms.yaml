@@ -168,8 +168,8 @@ groups:
       - path: facilities.*.staff.*.headcount
         min: 0
         max: 100000
-        whole: true
-        effect: "Штат по умолчанию на шаге персонала: сколько людей работает до роботов"
+        whole: false
+        effect: "Штат по умолчанию на шаге персонала: сколько людей работает до роботов. У подрядчика посты дробные: он берет деньги за часы"
       - path: facilities.*.staff.*.salary_month
         min: 0
         max: 10000000

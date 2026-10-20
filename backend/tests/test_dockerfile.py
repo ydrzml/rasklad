@@ -5,7 +5,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 
-# Что сервер читает из data/: каталог и фото, характеристики с источниками, сохраненные страницы
+# Что сервер читает из data/: каталог, характеристики с источниками, сохраненные страницы
 # производителей, задачи и решения аэропорта и медучреждения
 NEEDED = [
     "data/catalog/warehouse.csv",
@@ -17,10 +17,10 @@ NEEDED = [
     "data/facilities/solutions.csv",
     "data/facilities/airport.csv",
     "data/facilities/clinic.csv",
+    "data/organizer/README.md",
 ]
-# Фото решений (сделаны из каталога организатора) лежат только в закрытом репозитории: в образ
-# попадают, если они есть
-OPTIONAL = ["data/catalog/photos/sources.csv"]
+# Выгрузки организатора и фото каталога в открытом репозитории нет: в образ попадают, если они есть
+OPTIONAL = ["data/organizer/catalog_export_v4.csv", "data/catalog/photos/sources.csv"]
 
 
 def copied() -> list[str]:

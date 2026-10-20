@@ -17,6 +17,7 @@ import {
   Toolbar,
 } from "../../ui";
 import { money, TRUST_TITLES } from "../format";
+import { CLINIC } from "./ChooseFacility";
 
 type Props = { facility: Facility; tasks: Operation[]; answer: Answer | null };
 
@@ -50,11 +51,19 @@ export function FacilitySolutions({ facility, tasks, answer }: Props) {
 
   return (
     <section>
-      <Notice title={`Для объекта "${facility.name}" путь заканчивается здесь`} next={facility.next}>
-        Плана объекта, прогона смены и экономики по нему нет: полный расчет мы сделали для склада. Здесь решения под
-        выбранные задачи, почему каждое подходит, что мешает и откуда каждая цифра. Проверки читают параметры с прошлого
-        шага: поправили там, и список пересчитался.
-      </Notice>
+      {facility.id === CLINIC ? (
+        <Notice title="Дальше итог на типовом корпусе">
+          Здесь решения под выбранные задачи, почему каждое подходит, что мешает и откуда каждая цифра. На следующем
+          шаге посчитаем роботов, деньги и людей для доставки по этажам и уборки коридоров: на типовом корпусе, без
+          вашего плана.
+        </Notice>
+      ) : (
+        <Notice title={`Для объекта "${facility.name}" путь заканчивается здесь`} next={facility.next}>
+          Плана объекта, прогона смены и экономики по нему нет: полный расчет мы сделали для склада. Здесь решения под
+          выбранные задачи, почему каждое подходит, что мешает и откуда каждая цифра. Проверки читают параметры с
+          прошлого шага: поправили там, и список пересчитался.
+        </Notice>
+      )}
 
       <Toolbar>
         <Search value={search} onChange={setSearch} placeholder="Поиск по названию, компании или задаче" />
@@ -124,11 +133,11 @@ function SolutionCard({
   return (
     <Card
       title={item.product}
-      subtitle={[item.vendor, item.from_catalog ? "каталог организатора" : "открытые источники"]
-        .filter(Boolean)
-        .join(" · ")}
+      subtitle={[item.vendor, item.from_catalog ? "каталог ФЦ БАС" : "открытые источники"].filter(Boolean).join(" · ")}
       photo={item.photo_url}
-      photoNote={item.from_catalog ? "фото нет: запросим у производителя" : "решение не из каталога, фото не брали"}
+      photoNote={
+        item.from_catalog ? "Фото пока нет, запросим у производителя" : "решение не из каталога, фото не брали"
+      }
       picked={false}
       pickLabel={blocks.length ? `не подходит: ${blocks[0].detail}` : status.word}
       compared={compared}

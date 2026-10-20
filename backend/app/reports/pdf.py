@@ -7,6 +7,7 @@
 Шрифты те же, что в интерфейсе: Onest для текста, JetBrains Mono для чисел.
 """
 
+import math
 from io import BytesIO
 from pathlib import Path
 from xml.sax.saxutils import escape
@@ -40,17 +41,22 @@ from app.reports.content import (
     OPEX_NAMES,
     Report,
     TaskReport,
+    about_years,
+    buyout_cell,
     delta,
     financed,
     grouped,
     irr_text,
     mln,
     number,
+    payback_words,
     percent,
     project_irr,
     rub,
     scenario_name,
     term,
+    times,
+    unit_price,
     valued,
 )
 
@@ -148,6 +154,7 @@ def render(report: Report) -> bytes:
             Paragraph(f"{_object(report)},<br/>{report.work}", s["title"]),
             Spacer(0, 6),
             Paragraph(_lineup(report), s["soft"]),
+            *_version(report, s),
         ],
         s,
         first_block=True,
@@ -178,6 +185,15 @@ def render(report: Report) -> bytes:
         [_chart(report, main)],
         s,
     )
+    if report.result.unit_costs:
+        story += _section(
+            no(),
+            "Цена одной операции",
+            f"Все расходы за {report.result.horizon_years} лет, деленные на число операций за те же годы. "
+            "Так три сценария сравниваются в рублях за единицу работы.",
+            [_unit_costs(report, s, main)],
+            s,
+        )
     risks = report.risks
     if risks:
         story += _section(
@@ -191,7 +207,9 @@ def render(report: Report) -> bytes:
         no(),
         "Все показатели",
         "Окупаемость по ТЗ: вложения / эффект первого года. По потоку: когда накопленная экономия "
-        "перекроет вложения, с ростом цен и выкупом, а в кредит и в лизинг еще и остаток долга.",
+        "перекроет вложения, с ростом цен и выкупом, а в кредит и в лизинг еще и остаток долга. "
+        "ROI: сколько заработали сверх вложений, 0% значит, что вложения только вернулись. "
+        "По формуле ТЗ то же самое пишем разами: экономия / вложения, 1 раз значит, что вложения только вернулись.",
         [_compare(report, s, main)],
         s,
     )
@@ -219,7 +237,7 @@ def render(report: Report) -> bytes:
         no(),
         "Объект и параметры",
         "Буква рядом с числом это оценка доверия: S закон или норматив, A проверено, B сходятся два "
-        "источника, C один источник, D только организатор или СМИ, E источники расходятся, F наше допущение.",
+        "источника, C один источник, D только каталог ФЦ БАС или СМИ, E источники расходятся, F наше допущение.",
         [_parameters(report, s, main)],
         s,
     )
@@ -254,6 +272,14 @@ def render(report: Report) -> bytes:
     )
     story += _section(no(), "Из чего сложились затраты", None, [_costs(report, main)], s)
     story += _section(no(), "Штат", None, _staff(report, s, main), s)
+    if report.result.supplier_questions:
+        story += _section(
+            no(),
+            "Что спросить у поставщика",
+            "Расчет стоит на данных каталога. Эти вопросы проверяют то, что в нем принято на слово.",
+            [_questions(report, s, main)],
+            s,
+        )
     sources = report.result.sources
     story += _section(
         no(),
@@ -266,8 +292,9 @@ def render(report: Report) -> bytes:
         Spacer(0, 14),
         Indenter(left=LABEL + GAP),
         Paragraph(
-            "Это предварительная оценка для решения «считать дальше или нет», а не коммерческое предложение. "
-            "Для проекта нужны замеры на объекте и предложения поставщиков.",
+            'Это предварительная оценка для решения "считать дальше или нет", а не коммерческое предложение. '
+            "Для проекта нужны замеры на объекте и предложения поставщиков."
+            + (f" Для проверки: отпечаток данных {report.data_version}." if report.data_version else ""),
             s["note"],
         ),
         Indenter(left=-(LABEL + GAP)),
@@ -282,12 +309,18 @@ def _object(report: Report) -> str:
     return f"{report.facility.name} {grouped(area)} м2" if area else report.facility.name
 
 
+def _heads(people: float) -> str:
+    """Людей на экране целыми, вверх: 7,5 ставки в смену это 8 человек на смене. Дроби остаются в Excel"""
+    return _n(str(math.ceil(people - 1e-9)))
+
+
 def _lineup(report: Report) -> str:
     """Что решили и сколько роботов: одной строкой, а у нескольких задач по строке на задачу"""
     sizing = report.result.sizing
     people = (
-        f"Людей на операции в смену {_n(number(sizing.people_per_shift_before))} → "
-        f"{_n(number(sizing.people_per_shift_after))}"
+        f"Людей на операции в смену {_heads(sizing.people_per_shift_before)} → "
+        f"{_heads(sizing.people_per_shift_after - sizing.operator_posts)}, присмотр за роботами: "
+        f"{names.watch_words(sizing.operator_posts)}"
     )
     if not report.several:
         return (
@@ -302,8 +335,7 @@ def _lineup(report: Report) -> str:
     return (
         "<br/>".join(lines)
         + f"<br/>Всего {_n(str(sizing.fleet))} {names.plural(sizing.fleet, 'робот', 'робота', 'роботов')} "
-        + f"и {_n(str(sizing.chargers))} {names.plural(sizing.chargers, 'зарядка', 'зарядки', 'зарядок')}, "
-        + f"дежурных в смену {_n(str(sizing.operator_posts))}. "
+        + f"и {_n(str(sizing.chargers))} {names.plural(sizing.chargers, 'зарядка', 'зарядки', 'зарядок')}. "
         + people
     )
 
@@ -339,7 +371,7 @@ def _tasks(report: Report, width: float) -> Table:
             [
                 Paragraph(
                     "Общее на объект<br/><font size=7 color='#55636f'>интеграция, инфраструктура, связь, "
-                    f"дежурных в смену {shared.operator_posts}</font>",
+                    f"присмотр: {names.watch_words(shared.operator_posts)} в смену</font>",
                     cell,
                 ),
                 "",
@@ -357,7 +389,7 @@ def _tasks(report: Report, width: float) -> Table:
             mln(whole.investment_year0_rub),
             mln(first.opex_total_rub),
             mln(whole.tco_rub),
-            term(whole.payback_cumulative_years),
+            payback_words(whole, report.result.horizon_years),
         ]
     )
     table = _table(rows, [width * 0.34, width * 0.1, width * 0.13, width * 0.14, width * 0.13, width * 0.16])
@@ -368,6 +400,13 @@ def _tasks(report: Report, width: float) -> Table:
 def _answer(report: Report) -> str:
     cheaper = report.cheaper
     baseline = report.scenario("baseline")
+    if baseline.tco_rub <= cheaper.tco_rub:
+        # роботы дороже работы людьми: так и пишем, а не "дешевле всего покупка"
+        return (
+            f"За {report.result.horizon_years} лет дешевле всего без роботов: "
+            f"{_n(mln(baseline.tco_rub))} млн ₽ против {_n(mln(cheaper.tco_rub))} млн ₽ "
+            f"{'у покупки' if cheaper.id == 'purchase' else 'у аренды'}. Вложения за горизонт не возвращаются."
+        )
     text = (
         f"За {report.result.horizon_years} лет дешевле всего {NAMES[cheaper.id].lower()}: "
         f"{_n(mln(cheaper.tco_rub))} млн ₽ против {_n(mln(baseline.tco_rub))} млн ₽ без роботов."
@@ -376,6 +415,12 @@ def _answer(report: Report) -> str:
         text += (
             f" Вложения {_n(mln(cheaper.investment_year0_rub))} млн ₽ возвращаются за "
             f"{_n(term(cheaper.payback_cumulative_years))}."
+        )
+    elif cheaper.payback_later_years is not None:
+        horizon = report.result.horizon_years
+        text += (
+            f" Вложения {_n(mln(cheaper.investment_year0_rub))} млн ₽ возвращаются примерно за "
+            f"{_n(about_years(cheaper.payback_later_years, horizon))}, дольше горизонта расчета в {horizon} лет."
         )
     else:
         text += " Вложения за горизонт не возвращаются."
@@ -436,7 +481,8 @@ def _bare() -> TableStyle:
 def _numbers(report: Report, s: dict, width: float) -> Table:
     """Три крупных числа в ряд, между ними волосяные линии. Над дешевым сценарием синяя черта."""
     horizon = report.result.horizon_years
-    cheaper = report.cheaper.id
+    # метка над самым дешевым за горизонт, и это могут быть люди без роботов
+    cheaper = min(report.scenarios, key=lambda one: one.tco_rub).id
     col = width / 3
     inner = col - 18
     cells = []
@@ -452,8 +498,8 @@ def _numbers(report: Report, s: dict, width: float) -> Table:
         else:
             facts = [
                 ("вложения", mln(sc.investment_year0_rub)),
-                ("окупаемость", term(sc.payback_cumulative_years)),
-                ("дешевле на", mln(sc.saving_rub or 0)),
+                ("окупаемость", payback_words(sc, report.result.horizon_years)),
+                ("дешевле на" if (sc.saving_rub or 0) >= 0 else "дороже на", mln(abs(sc.saving_rub or 0))),
             ]
         rows = Table(
             [[Paragraph(label, s["cellsoft"]), Paragraph(value, s["num"])] for label, value in facts],
@@ -603,13 +649,18 @@ def _compare(report: Report, s: dict, width: float) -> Table:
         ["Вложения на старте", *[rub(sc.investment_year0_rub) for sc in scenarios]],
         ["Годовой эффект, первый год", *[dash(sc, rub(sc.annual_effect_year1_rub)) for sc in scenarios]],
         ["Окупаемость по ТЗ", *[dash(sc, term(sc.payback_simple_years)) for sc in scenarios]],
-        ["Окупаемость по потоку", *[dash(sc, term(sc.payback_cumulative_years)) for sc in scenarios]],
-        ["ROI по ТЗ", *[dash(sc, percent(sc.roi_tz)) for sc in scenarios]],
-        ["Чистый ROI", *[dash(sc, percent(sc.roi_net)) for sc in scenarios]],
+        [
+            "Окупаемость по потоку",
+            *[dash(sc, payback_words(sc, report.result.horizon_years)) for sc in scenarios],
+        ],
+        [f"ROI за {report.result.horizon_years} лет", *[dash(sc, percent(sc.roi_net)) for sc in scenarios]],
+        ["Экономия на рубль вложений (ROI по формуле ТЗ)", *[dash(sc, times(sc.roi_tz)) for sc in scenarios]],
         [f"Стоимость владения за {report.result.horizon_years} лет", *[rub(sc.tco_rub) for sc in scenarios]],
         ["NPV, чистая приведенная стоимость", *[rub(sc.npv_rub) for sc in scenarios]],
         ["IRR проекта, ставка, при которой NPV = 0", *[dash(sc, irr_text(*project_irr(sc))) for sc in scenarios]],
     ]
+    if any(getattr(sc, "buyout", None) for sc in scenarios):
+        rows.append(["Выкуп роботов в конце договора аренды", *[buyout_cell(sc) for sc in scenarios]])
     if any(financed(sc) for sc in scenarios):
         rows.append(
             [
@@ -831,6 +882,35 @@ def _costs(report: Report, width: float) -> Table:
     return table
 
 
+def _unit_costs(report: Report, s: dict, width: float) -> Table:
+    rows = [["Задача", *[NAMES[sid] for sid in NAMES]]]
+    for cost in report.result.unit_costs:
+        by_id = {one.id: one.rub_per_unit for one in cost.scenarios}
+        rows.append(
+            [
+                Paragraph(escape(f"За {cost.per}, ₽"), s["cell"]),
+                *[unit_price(by_id[sid]) if sid in by_id else "—" for sid in NAMES],
+            ]
+        )
+    first = width * 0.4
+    return _table(rows, [first] + [(width - first) / 3] * 3)
+
+
+def _questions(report: Report, s: dict, width: float) -> Table:
+    rows: list[list] = [["", "Вопрос"]]
+    for number_, one in enumerate(report.result.supplier_questions, start=1):
+        why = f"<br/><font color='#55636f' size=7.5>{escape(one.why)}</font>" if one.why else ""
+        rows.append(
+            [
+                Paragraph(f"<font name='Mono'>{number_:02d}</font>", s["cellsoft"]),
+                Paragraph(
+                    f"<font name='TextMedium'>{escape(one.topic)}.</font> {escape(one.question)}{why}", s["cell"]
+                ),
+            ]
+        )
+    return _table(rows, [10 * mm, width - 10 * mm], None)
+
+
 def _staff(report: Report, s: dict, width: float) -> list:
     sizing = report.result.sizing
     rows = [["Роль", "Мест", "Работает", "Оклад в месяц"]]
@@ -839,9 +919,10 @@ def _staff(report: Report, s: dict, width: float) -> list:
         _table(rows, [width * 0.46, width * 0.14, width * 0.14, width * 0.26]),
         Spacer(0, 4),
         Paragraph(
-            f"Людей на операции в смену: было {_n(number(sizing.people_per_shift_before))}, станет "
-            f"{_n(number(sizing.people_per_shift_after))}. Высвобождается ставок {_n(number(sizing.released_fte))}, "
-            f"из них {_n(number(sizing.retrained_fte))} переучиваем в операторов роботов.",
+            f"Людей на операции в смену: было {_heads(sizing.people_per_shift_before)}, станет "
+            f"{_heads(sizing.people_per_shift_after - sizing.operator_posts)}, присмотр за роботами: "
+            f"{names.watch_words(sizing.operator_posts)}. Высвобождается ставок {_n(number(sizing.released_fte))}, "
+            f"из них {_n(number(sizing.retrained_fte))} переучиваем на присмотр.",
             s["note"],
         ),
     ]
@@ -987,7 +1068,7 @@ def _footer(canvas: Canvas, report: Report, total: int) -> None:
     canvas.line(x0, y0 + 4 * mm, x1, y0 + 4 * mm)
     sheet = f"{canvas.getPageNumber()} / {total}"
     right = x1 - pdfmetrics.stringWidth(sheet, "Mono", 7.5)
-    left = f"{_object(report)} · {report.robot_name} · {report.created:%d.%m.%Y %H:%M} мск · модель {report.result.model_version}"
+    left = f"{_object(report)} · {report.robot_name} · {report.stamp}"
     canvas.setFont("Text", 7.5)
     canvas.setFillColor(SOFT)
     canvas.drawString(x0, y0, _fit(left, "Text", 7.5, right - x0 - 8 * mm))
@@ -995,6 +1076,24 @@ def _footer(canvas: Canvas, report: Report, total: int) -> None:
     canvas.setFillColor(INK)
     canvas.drawString(right, y0, sheet)
     canvas.restoreState()
+
+
+def _version(report: Report, s: dict) -> list:
+    """На чем посчитано: дата, модель, каталог и нормативы словами. У сохраненной версии еще номер и то,
+    что цифры взяты из сохранения, а если нормативы с тех пор поменялись, чего в отчете нет.
+    Отпечаток данных служебный, он в конце отчета"""
+    lines = []
+    if report.saved:
+        lines.append(
+            f'Версия {report.saved.number} проекта "{escape(report.saved.project)}", цифры из сохранения, без пересчета.'
+        )
+    lines.append(f"Расчет от {report.created:%d.%m.%Y %H:%M} мск, модель {report.result.model_version}.")
+    if report.data_note:
+        lines.append(f"Каталог и нормативы: {escape(report.data_note)}.")
+    found = [Spacer(0, 6), Paragraph("<br/>".join(lines), s["note"])]
+    if report.skipped:
+        found += [Spacer(0, 4), Paragraph(report.skipped, s["note"])]
+    return found
 
 
 def _fit(text: str, font: str, size: float, room: float) -> str:

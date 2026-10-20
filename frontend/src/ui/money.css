@@ -216,6 +216,22 @@
   font-size: 13px;
 }
 
+/* Отметка на линии: точка цвета сценария в кольце фона, подпись текстом, не цветом */
+.u-cost-mark circle {
+  fill: var(--tone);
+  stroke: var(--paper);
+  stroke-width: 2;
+}
+
+.u-cost-mark text {
+  fill: var(--ink);
+  font-size: 12px;
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
 .u-cost-end tspan {
   fill: var(--ink-soft);
   font-family: var(--font);
@@ -1037,6 +1053,105 @@
 .u-summary-over {
   margin: var(--s-1) 0 var(--s-3);
   padding-left: var(--s-4);
+}
+
+/* Сверка итога с реальными внедрениями: под главным ответом шага 5, строка на показатель.
+   Галочка зеленая, восклицательный знак оранжевый, и всегда словами: цвет не единственный признак */
+.u-sanity {
+  margin: var(--s-3) 0 0;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.u-sanity-head {
+  margin: 0 0 4px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.u-sanity-list {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 var(--s-1);
+  padding: 0;
+  list-style: none;
+}
+
+.u-sanity-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.u-sanity-list b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.u-sanity-mark {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  transform: translateY(2px);
+}
+
+.u-sanity-list .is-inside .u-sanity-mark {
+  color: var(--go);
+  box-shadow: inset 0 0 0 1.5px var(--go);
+}
+
+.u-sanity-list .is-off .u-sanity-mark {
+  color: var(--warn);
+  box-shadow: inset 0 0 0 1.5px var(--warn);
+}
+
+.u-sanity-band {
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+/* сверка одной строкой под ответом: заголовок и показатели рядом */
+.u-sanity.is-compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px var(--s-3);
+}
+
+.u-sanity.is-compact .u-sanity-head {
+  margin: 0;
+}
+
+.u-sanity.is-compact .u-sanity-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--s-3);
+  margin: 0;
+}
+
+/* оговорки под ответом свернуты одной строкой */
+.u-summary-more {
+  margin-top: var(--s-2);
+}
+
+.u-summary-more .u-plan-warn {
+  margin: var(--s-2) 0;
+}
+
+.u-sanity-sources {
+  display: grid;
+  gap: var(--s-1);
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 .u-summary-note {

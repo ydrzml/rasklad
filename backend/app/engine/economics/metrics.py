@@ -18,7 +18,8 @@ def cumulative_payback(cash_flows: list[float]) -> float | None:
     """
     cumulative = cash_flows[0]
     if cumulative >= 0:
-        return 0.0
+        # без вложений окупилось сразу, только если есть экономия; иначе окупать нечего
+        return 0.0 if any(cf > 0 for cf in cash_flows[1:]) else None
     for t, cf in enumerate(cash_flows[1:], 1):
         if cumulative + cf >= 0 and cf > 0:
             return t - 1 + -cumulative / cf
@@ -51,6 +52,8 @@ def npv(rate: float, cash_flows: list[float]) -> float:
 
 def irr(cash_flows: list[float], lo: float = -0.99, hi: float = 10.0) -> float | None:
     """Ставка, при которой NPV = 0. None, если на отрезке нет смены знака (например, вложений нет)."""
+    if not any(cash_flows):
+        return None  # поток весь нулевой: денег не вложили и не сэкономили, ставки нет
     f_lo = npv(lo, cash_flows)
     if f_lo * npv(hi, cash_flows) > 0:
         return None

@@ -24,6 +24,7 @@ from app.reports.content import (
     delta,
     financed,
     irr_text,
+    payback_words,
     project_irr,
     scenario_name,
 )
@@ -34,6 +35,7 @@ RUB = '#,##0 "₽";-#,##0 "₽";"0 ₽"'
 MLN = '#,##0.0,, "млн ₽"'
 ONE = "0.0"
 SHARE = "0%"
+TIMES = '0.0 "раза"'
 INK = "0D141B"
 SOFT = "55636F"
 BLUE = "0B4FA8"
@@ -62,6 +64,10 @@ def render(report: Report) -> bytes:
     if report.sensitivity:
         _sensitivity(book.create_sheet("Что будет, если"), report)
     _fleet(book.create_sheet("Парк и штат"), report)
+    if report.result.unit_costs:
+        _unit_costs(book.create_sheet("Цена операции"), report)
+    if report.result.supplier_questions:
+        _questions(book.create_sheet("Вопросы поставщику"), report)
     if any(task.shift for task in report.tasks):
         _shift(book.create_sheet("Смена"), report)
     _parameters(book.create_sheet("Параметры"), report)
@@ -80,13 +86,22 @@ def _sheet(sheet: Worksheet, title: str, report: Report, widths: list[int], land
         sheet.column_dimensions[get_column_letter(column)].width = width
     sheet["A1"] = title
     sheet["A1"].font = TITLE
-    sheet["A2"] = (
-        f"{report.facility.name}, {report.work} · {report.robot_name} · "
-        f"расчет от {report.created:%d.%m.%Y %H:%M} мск · модель {report.result.model_version}"
-    )
+    sheet["A2"] = f"{report.facility.name}, {report.work} · {report.robot_name} · {report.stamp}"
     sheet["A2"].font = MUTED
     sheet["A3"] = "Предварительная оценка, не коммерческое предложение"
     sheet["A3"].font = MARK
+    if report.saved:
+        # сохраненная версия: откуда цифры и, если нормативы поменялись, чего в таблицах нет
+        sheet["A4"] = " ".join(
+            part
+            for part in (
+                f'Версия {report.saved.number} проекта "{report.saved.project}", цифры из сохранения.',
+                f"Каталог и нормативы: {report.data_note}." if report.data_note else "",
+                report.skipped or "",
+            )
+            if part
+        )
+        sheet["A4"].font = MUTED
     sheet.row_dimensions[1].height = 22
     # печать: по ширине листа, шапка колонок на каждой странице, номер страницы внизу
     sheet.page_setup.paperSize = sheet.PAPERSIZE_A4
@@ -190,9 +205,9 @@ def _summary(sheet: Worksheet, report: Report, years: dict[str, dict[str, str]])
             f"Стоимость владения за {horizon} лет",
             [f"={years[s.id]['tco']}" for s in scenarios],
             MLN,
-            "Накопленные затраты последнего года на листе «По годам»",
+            'Накопленные затраты последнего года на листе "По годам"',
         ),
-        ("Вложения на старте", [f"={years[s.id]['invest']}" for s in scenarios], MLN, "Год 0 на листе «По годам»"),
+        ("Вложения на старте", [f"={years[s.id]['invest']}" for s in scenarios], MLN, 'Год 0 на листе "По годам"'),
         (
             f"Затраты за {horizon} лет без вложений",
             [f"={col(i)}{first}-{col(i)}{first + 1}" for i in range(count)],
@@ -209,22 +224,42 @@ def _summary(sheet: Worksheet, report: Report, years: dict[str, dict[str, str]])
             "Годовой эффект, первый год",
             ["—", *[f"={years[s.id]['effect']}" for s in scenarios[1:]]],
             MLN,
-            "Год 1 на листе «По годам»",
+            'Год 1 на листе "По годам"',
         ),
         (
             "Окупаемость по ТЗ, лет",
-            ["—", *[f"={col(i)}{first + 1}/{col(i)}{first + 4}" for i in robots]],
+            # число сервера, а не формула от листа: в кредит и в лизинг "вложения на старте" это только
+            # первый взнос, а окупаемость по ТЗ считается от всех вложений проекта
+            ["—", *[s.payback_simple_years for s in scenarios[1:]]],
             ONE,
-            "Вложения на старте / годовой эффект",
+            "Все вложения проекта / эффект первого года, как бы за них ни платили. Считает сервер",
         ),
         (
             "Окупаемость по потоку, лет",
-            ["—", *[s.payback_cumulative_years for s in scenarios[1:]]],
+            # окупается дольше горизонта: числа за горизонт нет, пишем словами, как в PDF
+            [
+                "—",
+                *[
+                    s.payback_cumulative_years if s.payback_cumulative_years is not None else payback_words(s, horizon)
+                    for s in scenarios[1:]
+                ],
+            ],
             ONE,
             "Когда накопленная экономия перекроет вложения, с ростом цен и выкупом. Считает сервер",
         ),
-        ("ROI по ТЗ", ["—", *[s.roi_tz for s in scenarios[1:]]], SHARE, "Накопленный эффект / вложения"),
-        ("Чистый ROI", ["—", *[s.roi_net for s in scenarios[1:]]], SHARE, "(Накопленный эффект - вложения) / вложения"),
+        (
+            f"ROI за {horizon} лет",
+            ["—", *[s.roi_net for s in scenarios[1:]]],
+            SHARE,
+            f"Сколько заработали сверх вложений: (экономия за {horizon} лет - вложения) / вложения. "
+            "0% значит, что вложения только вернулись",
+        ),
+        (
+            "Экономия на рубль вложений (ROI по формуле ТЗ)",
+            ["—", *[s.roi_tz for s in scenarios[1:]]],
+            TIMES,
+            f"Экономия за {horizon} лет / вложения. 1 раз значит, что вложения только вернулись",
+        ),
         ("NPV", ["—", *[s.npv_rub for s in scenarios[1:]]], MLN, "Чистая приведенная стоимость, считает сервер"),
         (
             "IRR проекта",
@@ -233,6 +268,46 @@ def _summary(sheet: Worksheet, report: Report, years: dict[str, dict[str, str]])
             "Ставка, при которой NPV = 0, без схемы оплаты. Выше 100% пишем словами: вложения возвращаются быстрее, чем за год",
         ),
     ]
+    rented = next((s for s in scenarios if s.buyout is not None), None)
+    if rented is not None:
+        buyout = rented.buyout
+        column = ["—" if s is not rented else None for s in scenarios]
+
+        def only(value):
+            return [value if cell is None else cell for cell in column]
+
+        lines += [
+            (
+                f"Выкуп в конце {buyout.year} года, цена",
+                only(buyout.price_rub),
+                MLN,
+                "Аренда без выкупа базовая. Выкуп по остаточной стоимости: роботы * цена * (1 - договор / срок амортизации)",
+            ),
+            (
+                "Аренда в год после договора",
+                only(buyout.rent_year_rub),
+                MLN,
+                "Плата и ответственность за порчу, среднее по годам после конца договора",
+            ),
+            (
+                "Свои роботы в год после выкупа",
+                only(buyout.own_year_rub),
+                MLN,
+                "ТО, лицензии, замена АКБ и обновление парка, среднее",
+            ),
+            (
+                "Выкуп окупится, лет",
+                only(buyout.payback_years),
+                ONE,
+                "Цена выкупа / (аренда в год - свои роботы в год)",
+            ),
+            (
+                f"С выкупом дешевле за {horizon} лет",
+                only(buyout.cheaper_rub),
+                MLN,
+                "Стоимость владения аренды без выкупа - с выкупом. Минус: выкуп не успевает окупиться",
+            ),
+        ]
     if any(financed(s) for s in scenarios):
         lines += [
             (
@@ -507,12 +582,25 @@ def _tasks(sheet: Worksheet, report: Report) -> None:
         if shared and common:
             row += 1
             values = [common.investment_year0_rub, common.opex_year1_rub, common.staff_year1_rub, common.tco_rub]
-            _put(sheet, row, ["Общее на объект", f"дежурных в смену {shared.operator_posts}", "", *values, ""], RUB)
+            _put(
+                sheet,
+                row,
+                [
+                    "Общее на объект",
+                    f"присмотр: {names.watch_words(shared.operator_posts)} в смену",
+                    "",
+                    *values,
+                    "",
+                ],
+                RUB,
+            )
         first = scenario.years[0]
         row += 1
         values = [scenario.investment_year0_rub, first.opex_total_rub, first.staff_cost_rub, scenario.tco_rub]
         whole_payback = (
-            scenario.payback_cumulative_years if scenario.payback_cumulative_years is not None else "не окупается"
+            scenario.payback_cumulative_years
+            if scenario.payback_cumulative_years is not None
+            else payback_words(scenario, report.result.horizon_years)
         )
         _put(
             sheet,
@@ -552,9 +640,9 @@ def _fleet(sheet: Worksheet, report: Report) -> None:
         ("Робот делает операций в час", lambda s, task: s.robot_ops_per_hour, ONE),
         ("Средний маршрут, м", lambda s, task: s.route_m, ONE),
         (
-            "Дежурных операторов в смену",
+            "Присмотр за роботами, человек в смену",
             lambda s, task: s.operator_posts if task is None or not report.several else "",
-            "0",
+            "0.0",
         ),
         ("Людей на операции в смену, было", lambda s, task: s.people_per_shift_before, ONE),
         ("Людей на операции в смену, стало", lambda s, task: s.people_per_shift_after, ONE),
@@ -582,6 +670,34 @@ def _fleet(sheet: Worksheet, report: Report) -> None:
             sheet, row, [line.role, line.headcount, line.filled, line.salary_month, "да" if line.contractor else "нет"]
         )
         sheet.cell(row=row, column=4).number_format = RUB
+
+
+def _unit_costs(sheet: Worksheet, report: Report) -> None:
+    """Цена одной операции: расходы сценария за горизонт на число операций за горизонт"""
+    row = _sheet(sheet, "Цена одной операции", report, [44, 24, 18, 18, 18])
+    sheet.cell(
+        row=4,
+        column=1,
+        value=f"Все расходы за {report.result.horizon_years} лет, деленные на число операций за те же годы",
+    ).font = MUTED
+    _head(sheet, row, ["Задача", "Операций за горизонт", *[NAMES[sid] for sid in NAMES]])
+    for cost in report.result.unit_costs:
+        row += 1
+        by_id = {one.id: one.rub_per_unit for one in cost.scenarios}
+        _put(
+            sheet,
+            row,
+            [f"₽ за {cost.per}", cost.operations_horizon, *[by_id.get(sid, "—") for sid in NAMES]],
+            "#,##0.0",
+        )
+
+
+def _questions(sheet: Worksheet, report: Report) -> None:
+    row = _sheet(sheet, "Что спросить у поставщика", report, [6, 20, 80, 60])
+    _head(sheet, row, ["№", "Тема", "Вопрос", "Почему важно"])
+    for number, one in enumerate(report.result.supplier_questions, start=1):
+        row += 1
+        _put(sheet, row, [number, one.topic, one.question, one.why])
 
 
 def _parameters(sheet: Worksheet, report: Report) -> None:
@@ -615,7 +731,7 @@ def _sources(sheet: Worksheet, report: Report) -> None:
     row = _sheet(sheet, "Откуда цифры", report, [22, 40, 14, 18, 9, 70, 10, 44], landscape=True)
     sheet["A4"] = (
         "Доверие: S закон или норматив, A проверено, B сходятся два источника, C один источник, "
-        "D только организатор или СМИ, E источники расходятся, F наше допущение"
+        "D только каталог ФЦ БАС или СМИ, E источники расходятся, F наше допущение"
     )
     sheet["A4"].font = MUTED
     _head(sheet, row, ["Группа", "Значение", "Число", "Единица", "Доверие", "Источник", "Дата", "Путь в модели"])

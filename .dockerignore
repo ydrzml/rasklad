@@ -5,6 +5,10 @@
 **/.pytest_cache
 **/.ruff_cache
 .env
+# Из данных организатора в образ идет только выгрузка каталога: ее сервер загружает при первом запуске
+data/organizer/*
+!data/organizer/README.md
+!data/organizer/catalog_export_v4.csv
 # Из характеристик в образ нужны только итог и источники: ими заполняется каталог при первом запуске
 data/specs/*.py
 data/specs/requirements.txt

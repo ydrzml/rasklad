@@ -11,10 +11,9 @@ import {
   Check,
   Drawer,
   Fold,
-  InlineField,
   ListRow,
   Notice,
-  Pill,
+  Select,
   Queue,
   Search,
   Split,
@@ -23,6 +22,10 @@ import {
 import { mln, money } from "../format";
 import { peakWarning } from "./peak";
 import { plural } from "./economicsNames";
+import { CardWays, MoneyBlock } from "./PayWays";
+import { byCardPrice, DEFAULT_WAYS, type PayWay } from "./paymentWays";
+import { CONDITION, fitLines, lower, scoreOf, weakSpot } from "./pickBest";
+import { fitsTaskUnit } from "./specUnits";
 
 // robotId это идентификатор решения в расчетной модели, а не id позиции каталога.
 type Props = {
@@ -37,8 +40,12 @@ type Props = {
   onShare: (share: number) => void;
   /* бюджет на старте в рублях: на карточках видно, сколько роботов в него влезает покупкой */
   budget?: number | null;
+  /* цены отмеченными способами на карточках, весь нужный парк */
+  payWays?: PayWay[];
   /* ответ сервера по бюджету на каждое решение задачи, по robot_id */
   fits?: Record<string, BudgetFit>;
+  /* расчет с НДС (economics.vat.with_vat): итог парка на карточке подписан так же, как он посчитан */
+  withVat?: boolean;
   /* быстрая оценка пика: задача «товар к человеку» и годится ли под нее план */
   needsStations?: boolean;
   planReady?: boolean;
@@ -48,6 +55,8 @@ type Props = {
   taskName?: string;
   /* задач несколько: у строки доли подписываем задачу */
   manyTasks?: boolean;
+  /* единица объема задачи: производительность из каталога в других единицах на карточке не показываем */
+  taskUnit?: string;
 };
 
 export type TaskChoice = {
@@ -57,6 +66,8 @@ export type TaskChoice = {
   picks: { robotId: string; share: number }[];
   /* задача «товар к человеку»: роботу нужны станции отбора на плане */
   needsStations?: boolean;
+  /* единица объема задачи (строк/сут): производительность из каталога на карточке только в ней */
+  unit?: string;
 };
 
 // Шаг 4 по задачам. Задачи идут по очереди: сверху плитки с тем, что выбрано и что осталось,
@@ -73,7 +84,12 @@ export function ChooseSolutions({
   onDrop,
   budget,
   onBudget,
+  budgetFrom = null,
+  onBudgetFrom,
+  ways,
+  onWays,
   fits,
+  withVat = false,
   planReady = true,
 }: {
   tasks: TaskChoice[];
@@ -86,7 +102,14 @@ export function ChooseSolutions({
   onDrop: (taskId: string) => void;
   budget: number | null;
   onBudget: (value: number | null) => void;
+  /* "готовы вложить от" в варианте ?v=e, верхняя граница это budget */
+  budgetFrom?: number | null;
+  onBudgetFrom?: (value: number | null) => void;
+  /* как человек рассматривает оплату: на экономике эти способы рядом */
+  ways: PayWay[];
+  onWays: (ways: PayWay[]) => void;
   fits?: Record<string, BudgetFit>;
+  withVat?: boolean;
   /* план годится под отбор «товар к человеку»: робозона или станции с узкими проездами */
   planReady?: boolean;
 }) {
@@ -98,7 +121,14 @@ export function ChooseSolutions({
   if (!task) return null;
   return (
     <>
-      <BudgetField value={budget} onChange={onBudget} />
+      <MoneyBlock
+        budget={budget}
+        onBudget={onBudget}
+        budgetFrom={budgetFrom}
+        onBudgetFrom={onBudgetFrom}
+        ways={ways}
+        onWays={onWays}
+      />
       {tasks.length > 1 && (
         <Queue
           items={tasks.map((one) => ({ id: one.id, name: one.name, picked: pickedName(one) }))}
@@ -116,34 +146,17 @@ export function ChooseSolutions({
         onShare={(share) => onShare(task.id, share)}
         onDrop={() => onDrop(task.id)}
         budget={budget}
+        payWays={ways}
         fits={fits}
+        withVat={withVat}
         needsStations={Boolean(task.needsStations)}
         planReady={planReady}
         title={tasks.length > 1 ? `${index + 1}. ${task.name}: выберите решение` : undefined}
         taskName={task.name}
+        taskUnit={task.unit}
         manyTasks={tasks.length > 1}
       />
     </>
-  );
-}
-
-// Бюджет на старте: поле необязательное и пустое, пока пусто, ничего не меняет. Вводят в миллионах,
-// наверх уходят рубли, как везде в расчете. Стоит отдельной строкой над задачами, обычным полем
-// с короткой подсказкой рядом
-function BudgetField({ value, onChange }: { value: number | null; onChange: (value: number | null) => void }) {
-  return (
-    <InlineField
-      label="Бюджет на старте"
-      unit="млн ₽"
-      placeholder="не задан"
-      value={value ? value / 1_000_000 : ""}
-      onChange={(text) => onChange(text === "" || Number(text) <= 0 ? null : Number(text) * 1_000_000)}
-      note={
-        value
-          ? "на карточках видно, сколько роботов влезает в него со всеми вложениями на старте"
-          : "необязательно: на карточках появится, сколько роботов влезает в эту сумму со всеми вложениями"
-      }
-    />
   );
 }
 
@@ -198,9 +211,9 @@ const GROUPS: { status: string; title: string; hint: string }[] = [
 ];
 
 const SORTS: { id: string; label: string }[] = [
-  { id: "score", label: "по баллу" },
-  { id: "throughput", label: "по производительности" },
-  { id: "price", label: "по цене" },
+  { id: "score", label: "сначала лучшие" },
+  { id: "throughput", label: "сначала быстрые" },
+  { id: "price", label: "сначала дешевые" },
   { id: "product", label: "по названию" },
 ];
 
@@ -223,12 +236,15 @@ function ChooseSolution({
   onShare,
   onDrop,
   budget,
+  payWays,
   fits,
+  withVat = false,
   needsStations = false,
   planReady = true,
   title,
   taskName,
   manyTasks,
+  taskUnit,
 }: Props) {
   const [search, setSearch] = useState("");
   const [onlyFits, setOnlyFits] = useState(false);
@@ -248,14 +264,15 @@ function ChooseSolution({
       if (onlyTested && !solution.tested_fcbas) return false;
       return true;
     });
+    if (sort === "price") return byCardPrice(filtered, fits, payWays ?? DEFAULT_WAYS);
     return [...filtered].sort((a, b) => {
       // число в час считает сервер из записи каталога; без него решение в конце списка
       if (sort === "throughput") return (b.throughput_per_hour ?? -1) - (a.throughput_per_hour ?? -1);
-      if (sort === "price") return (b.price_rub ?? 0) - (a.price_rub ?? 0);
       if (sort === "product") return a.product.localeCompare(b.product, "ru");
-      return b.score - a.score;
+      // на пределе грузоподъемности идут после решений с запасом, как в подборе сервера
+      return Number(a.at_limit ?? false) - Number(b.at_limit ?? false) || b.score - a.score;
     });
-  }, [solutions, search, onlyFits, onlyRussian, onlyTested, sort]);
+  }, [solutions, search, onlyFits, onlyRussian, onlyTested, sort, fits, payWays]);
 
   // сколько решений в каталоге под задачу: подходят, делают другую задачу, не хватает данных
   const fitting = solutions.filter((one) => one.status === "recommended");
@@ -276,19 +293,20 @@ function ChooseSolution({
     <section>
       <BlockHead
         title={title ?? "Что подходит вашему объекту"}
-        note={`проверили ${solutions.length} ${plural(solutions.length, "решение", "решения", "решений")} каталога, показываем ${visible.length}`}
+        note={`проверили ${solutions.length} ${plural(solutions.length, "решение", "решения", "решений")} каталога${visible.length < solutions.length ? `, по фильтрам осталось ${visible.length}` : ""}`}
       />
 
       <Toolbar roomy>
         <Search value={search} onChange={setSearch} placeholder="Поиск по названию или компании" />
         <Check label="скрыть неподходящие" checked={onlyFits} onToggle={() => setOnlyFits(!onlyFits)} />
-        <Check label="реестр 719" checked={onlyRussian} onToggle={() => setOnlyRussian(!onlyRussian)} />
+        <Check label="сделано в России" checked={onlyRussian} onToggle={() => setOnlyRussian(!onlyRussian)} />
         <Check label="проверено ФЦ БАС" checked={onlyTested} onToggle={() => setOnlyTested(!onlyTested)} />
-        {SORTS.map((item) => (
-          <Pill key={item.id} active={sort === item.id} onClick={() => setSort(item.id)}>
-            {item.label}
-          </Pill>
-        ))}
+        <Select
+          label="Порядок карточек"
+          value={sort}
+          onChange={setSort}
+          options={SORTS.map((item) => ({ id: item.id, name: item.label }))}
+        />
       </Toolbar>
 
       <CompareBar solutions={picked} onDrop={toggleCompare} />
@@ -296,7 +314,7 @@ function ChooseSolution({
       {/* подходящих мало: говорим прямо, сколько в каталоге под эту задачу и что делают остальные */}
       {fitting.length <= 1 && solutions.length > 0 && (
         <p className="u-frow-hint">
-          Под {taskName ? `«${taskName.toLowerCase()}»` : "эту задачу"} в каталоге ФЦ БАС{" "}
+          Под {taskName ? `"${taskName.toLowerCase()}"` : "эту задачу"} в каталоге ФЦ БАС{" "}
           {fitting.length === 0
             ? "нет решений с проверенными ограничениями"
             : `одно решение: ${shortName(solutions, fitting[0].robot_id ?? "")}`}
@@ -305,17 +323,8 @@ function ChooseSolution({
           {fitting.length === 0 &&
             picks.length === 0 &&
             (unchecked > 0
-              ? " Само решение не выберется: посмотрите список «Требуют проверки» ниже и выберите то, что проверите у поставщика."
+              ? ' Само решение не выберется: посмотрите список "Требуют проверки" ниже и выберите то, что проверите у поставщика.'
               : " Само решение не выберется: выберите сами из списка ниже, расчет пойдет с предупреждением.")}
-        </p>
-      )}
-      {/* смешанный парк: как добавить второе решение и почему не больше двух. Строка стоит и до
-          выбора, иначе при выборе она появлялась и сдвигала карточки вниз прямо под курсором */}
-      {picks.length < 2 && (
-        <p className="u-frow-hint">
-          На задачу можно взять два решения: {picks.length === 0 ? "после выбора первого " : ""}у подходящей карточки
-          ссылка "взять вторым к этой задаче", объем между ними делится ползунком. Больше двух не берем: доля объема,
-          парк и люди делятся между решениями, и с тремя картина уже не читается, а на складе так почти не делают.
         </p>
       )}
       {picks.length === 2 && (
@@ -342,12 +351,16 @@ function ChooseSolution({
           <SolutionCard
             key={solution.id}
             compact={compact}
+            best={!compact && sort === "score" && solution === items[0]}
             solution={solution}
             pick={picks.find((one) => one.robotId === solution.robot_id) ?? null}
             mixed={picks.length > 1}
             compared={compared.includes(solution.id)}
             budget={budget}
+            payWays={payWays}
+            withVat={withVat}
             fit={fits?.[solution.robot_id ?? ""]}
+            taskUnit={taskUnit}
             // предупреждение про пик только у того, что можно посчитать на эту задачу
             peak={
               solution.can_calculate && !otherTask(solution)
@@ -372,7 +385,17 @@ function ChooseSolution({
         if (group.status === "recommended")
           return (
             <div key={group.status}>
-              <BlockHead title={`${group.title}: ${items.length}`} note={group.hint} />
+              <BlockHead
+                sub
+                title={`${group.title}: ${items.length}`}
+                note={group.hint}
+                // что значит балл на карточке, рядом с порядком "сначала лучшие": слагаемые из методики
+                aside={
+                  <span className="u-score-scale">
+                    Балл из 100: подходит задаче, зрелость, независимая проверка, полнота данных и запас по грузу
+                  </span>
+                }
+              />
               <Cards>{items.map((solution) => card(solution, false))}</Cards>
             </div>
           );
@@ -449,7 +472,7 @@ function Compare({ solutions, onDrop }: { solutions: Solution[]; onDrop: (id: st
         <tr>
           <td>Балл подбора</td>
           {solutions.map((solution) => (
-            <td key={solution.id}>{scoreText(solution.score)}</td>
+            <td key={solution.id}>{scoreOf(solution.score)} из 100</td>
           ))}
         </tr>
         <tr>
@@ -479,6 +502,7 @@ function Compare({ solutions, onDrop }: { solutions: Solution[]; onDrop: (id: st
 
 function SolutionCard({
   compact,
+  best,
   solution,
   pick,
   mixed,
@@ -488,15 +512,23 @@ function SolutionCard({
   onAdd,
   onCompare,
   budget,
+  payWays,
+  withVat = false,
   fit,
   peak,
+  taskUnit,
 }: {
   /* строкой в свернутом списке, а не карточкой */
   compact: boolean;
+  /* первая по баллу среди подходящих: с нее и стоит начать */
+  best?: boolean;
   budget?: number | null;
+  payWays?: PayWay[];
+  withVat?: boolean;
   fit?: BudgetFit;
   /* быстрая оценка до прогона: решение может не покрыть пик задачи */
   peak?: string | null;
+  taskUnit?: string;
   solution: Solution;
   /* это решение выбрано на задаче, с его долей объема */
   pick: { robotId: string; share: number } | null;
@@ -523,7 +555,10 @@ function SolutionCard({
     onPick();
   };
   const unknown = solution.checks.filter((check) => check.outcome === "unknown");
-  const fits = solution.checks.filter((check) => check.outcome === "fits");
+  const fits = solution.checks.filter((check) => check.outcome === "fits" && check.label !== CONDITION);
+  const condition = solution.checks.find((check) => check.label === CONDITION);
+  const lines = fitLines(solution);
+  const weak = weakSpot(solution);
 
   // В каталоге название несет в скобках характеристику: «Ronavi H1500 (грузоподъемность до 1 500 кг)».
   // В заголовке оставляем модель, скобку уводим в строку под ней, иначе название занимает три строки.
@@ -533,7 +568,7 @@ function SolutionCard({
     title: name,
     subtitle: `${solution.vendor} · ${solution.subtype || solution.type}${tail ? ` · ${tail}` : ""}`,
     photo: `/api/catalog/photos/${solution.id}`,
-    photoNote: "фото нет: запросим у производителя",
+    photoNote: "Фото пока нет, запросим у производителя",
     picked,
     compared,
     onCompare,
@@ -559,35 +594,50 @@ function SolutionCard({
       ) : undefined,
     badges: (
       <>
-        <Badge tone="blue">балл {scoreText(solution.score)}</Badge>
+        <Badge tone={best ? "best" : "blue"}>
+          {best ? "лучшее, " : ""}
+          {scoreOf(solution.score)} из 100
+        </Badge>
         {solution.tested_fcbas && <Badge>проверено ФЦ БАС</Badge>}
-        {solution.registry_719 && <Badge>реестр 719</Badge>}
+        {solution.registry_719 && <Badge>сделано в России</Badge>}
         {solution.maturity === "piloting" && <Badge>пилот</Badge>}
       </>
     ),
     price: (
       <span title="Цена изделия из каталога ФЦ БАС: с НДС, без доставки, пусконаладки и интеграции">
-        {solution.price_rub ? money(solution.price_rub) : "цены в каталоге нет"}
-        {solution.raas_fee_rub_month && (
+        {solution.price_rub ? `${money(solution.price_rub)} с НДС` : "цены в каталоге нет"}
+        {solution.raas_fee_rub_month && !payWays && (
           <span className="u-card-rent">или аренда {money(solution.raas_fee_rub_month)} в месяц</span>
         )}
+        {payWays && <CardWays fit={fit} ways={payWays} budget={budget} withVat={withVat} />}
       </span>
     ),
     facts: (
       <>
-        {!compact && <KeyNumbers solution={solution} />}
+        {!compact && <KeyNumbers solution={solution} taskUnit={taskUnit} />}
         {solution.can_calculate && solution.calc_note && <span className="warn">{solution.calc_note}</span>}
         {peak && <span className="warn">{peak}</span>}
+        {/* "сначала лучшие" ставит такие решения после решений с запасом, даже при балле выше: говорим почему */}
+        {/* у подходящих груз впритык идет строкой "Слабое место" ниже */}
+        {solution.at_limit && !weak && (
+          <span className="warn">груз впритык, запас меньше 10%: среди лучших идет после решений с запасом</span>
+        )}
         {budget && fitLine(fit) && <span className="u-card-budget">{fitLine(fit)}</span>}
-        {blocking.slice(0, 2).map((check) => (
-          <span key={check.label} className="warn">
-            не проходит: {check.detail}
+        {lines.suits && (
+          <span>
+            <b>Подходит:</b> {lines.suits}
           </span>
-        ))}
-        {fits.slice(0, blocking.length ? 1 : 2).map((check) => (
-          <span key={check.label}>{check.detail}</span>
-        ))}
-        {unknown.length > 0 && <span className="warn">не проверено: {unknown.length}</span>}
+        )}
+        {/* у подходящего ограничений нет, поэтому вместо "когда не брать" его слабое место, если есть */}
+        {weak ? (
+          <span className="warn">
+            <b>Слабое место:</b> {weak}
+          </span>
+        ) : (
+          <span className={lines.avoid ? "warn" : undefined}>
+            <b>Когда не брать:</b> {lines.avoid || "ограничений в подборе не нашли"}
+          </span>
+        )}
       </>
     ),
     details: (
@@ -596,6 +646,7 @@ function SolutionCard({
           {fits.map((check) => (
             <span key={check.label}>подходит: {check.detail}</span>
           ))}
+          {condition && <span className="warn">условие: {lower(condition.detail)}</span>}
           {unknown.map((check) => (
             <span key={check.label} className="warn">
               не проверили: {check.detail}
@@ -633,11 +684,13 @@ function SolutionCard({
 
 // Скорость, производительность и грузоподъемность строками, как записаны в каталоге: единица
 // у каждого решения своя (паллет/ч, м²/ч, циклов/ч), в одну не переводим
-function KeyNumbers({ solution }: { solution: Solution }) {
+function KeyNumbers({ solution, taskUnit }: { solution: Solution; taskUnit?: string }) {
   const specs = new Map((solution.specs ?? []).map((spec) => [spec.field, spec]));
   const rows = KEY_SPECS.flatMap(({ field, name }) => {
     const spec = specs.get(field);
     if (!spec?.value) return [];
+    // паллеты в час на штучном отборе про другую работу: не показываем (specUnits.ts)
+    if (field === "throughput" && !fitsTaskUnit(`${spec.value} ${spec.unit ?? ""}`, taskUnit)) return [];
     // единица уже внутри записи ("5,2 паллеты/ч на робота") второй раз не пишем
     const unit = spec.unit && !spec.value.includes("/ч") ? ` ${spec.unit}` : "";
     return [{ name, text: `${spec.value.replace(/(\d)\.(\d)/g, "$1,$2")}${unit}`, trust: spec.trust }];
@@ -657,17 +710,6 @@ function KeyNumbers({ solution }: { solution: Solution }) {
 // Подбор отметил, что решение сделано для другой задачи: проверка "Процесс" не проходит
 function otherTask(solution: Solution): boolean {
   return solution.checks.some((check) => check.label === "Процесс" && check.outcome === "blocks");
-}
-
-// Балл подбора по-русски, с запятой: 0,79
-function scoreText(score: number): string {
-  return score.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-// Пояснение из подбора словами для строки после двоеточия: с маленькой буквы и с запятой в числе
-function lower(text: string): string {
-  const ru = text.replace(/(\d)\.(\d)/g, "$1,$2");
-  return ru ? ru[0].toLowerCase() + ru.slice(1) : ru;
 }
 
 // Названия характеристик каталога, как в админке (backend/app/services/catalog_admin.py, FIELDS):

@@ -39,12 +39,16 @@ export const MOVES: Record<string, string> = {
 
 /* Название вещи на плане. Закрытая зона это та же перегородка для робота, но без стен */
 export function nameOf(item: PlanItem): string {
+  if (item.kind === "blocked" && item.role === "packing") return "Место упаковки";
+  if (item.kind === "blocked" && item.role === "conveyor") return "Конвейер к отгрузке, схема";
   return item.kind === "blocked" && item.role === "zone" ? "Закрытая зона" : (NAMES[item.kind] ?? item.kind);
 }
 
 const BLOCKS = [
   { id: "", name: "Перегородка: комната или стена" },
   { id: "zone", name: "Закрытая зона: место на полу" },
+  { id: "packing", name: "Место упаковки у станций" },
+  { id: "conveyor", name: "Конвейер к отгрузке, схема без расчета" },
 ];
 
 const WAYS: { id: Direction; name: string }[] = [

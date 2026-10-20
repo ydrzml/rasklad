@@ -1,6 +1,9 @@
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { movePick, tourFoot } from "./tourFoot";
+import { Check } from "./index";
+
 /* Обучение поверх экрана: несколько коротких подсказок по шагам, каждая подсвечивает свою часть
    экрана. После объяснения идет практика: шаг ждет, пока человек сделает сам, экран при этом не
    затемнен. Показываем при первом входе, дальше по кнопке. Что человек уже видел, помним в браузере.
@@ -18,7 +21,7 @@ export type TourStep = {
   next?: string;
   /* сценка над текстом, как в карточке инструмента */
   scene?: ReactNode;
-  /* выбор пути вместо объяснения: крупные строки, каждая начинает свое обучение */
+  /* выбор пути вместо объяснения: крупные строки выбирают, главная кнопка начинает выбранное */
   choices?: { label: string; note: string; size: string; run: () => void }[];
 };
 
@@ -89,6 +92,10 @@ export function Tour({
   const next = useRef<HTMLButtonElement>(null);
   const step = steps[Math.min(index, steps.length - 1)];
   const last = index >= steps.length - 1;
+  // выбранный путь на шаге с выбором; на другом шаге снова первый
+  const [pick, setPick] = useState({ at: -1, choice: 0 });
+  const chosen = pick.at === index ? pick.choice : 0;
+  const buttons = tourFoot(step, last);
   const practice = step.practice;
   const trying = Boolean(practice);
   // Карточку практики сворачивают в плашку в углу листа: она закрывала четверть экрана и мешала
@@ -187,6 +194,10 @@ export function Tour({
       if (event.key === "Escape") {
         event.preventDefault();
         onClose("later");
+      } else if (step.choices?.length && event.key.startsWith("Arrow")) {
+        // на шаге выбора стрелки двигают выбор, а не листают шаги
+        event.preventDefault();
+        setPick({ at: index, choice: movePick(chosen, step.choices.length, event.key) });
       } else if (event.key === "ArrowRight") {
         event.preventDefault();
         forward();
@@ -197,7 +208,7 @@ export function Tour({
     };
     document.addEventListener("keydown", key, true);
     return () => document.removeEventListener("keydown", key, true);
-  }, [forward, index, onClose, trying]);
+  }, [forward, index, onClose, trying, step.choices, chosen]);
 
   const foot = practice ? (
     <div className="u-tour-foot">
@@ -232,8 +243,18 @@ export function Tour({
             Назад
           </button>
         )}
-        <button ref={next} type="button" className="u-btn u-btn-primary" onClick={forward}>
-          {step.next ?? (last ? "Понятно" : "Дальше")}
+        {buttons.skip && (
+          <button type="button" className="u-btn u-btn-ghost" onClick={forward}>
+            {buttons.skip}
+          </button>
+        )}
+        <button
+          ref={next}
+          type="button"
+          className="u-btn u-btn-primary"
+          onClick={step.choices?.length ? () => step.choices![chosen].run() : forward}
+        >
+          {buttons.go}
         </button>
       </span>
     </div>
@@ -309,9 +330,20 @@ export function Tour({
           <h3 id="u-tour-title">{step.title}</h3>
           <p>{step.text}</p>
           {step.choices && (
-            <div className="u-tour-choices">
-              {step.choices.map((one) => (
-                <button key={one.label} type="button" onClick={one.run}>
+            <div className="u-tour-choices" role="radiogroup" aria-labelledby="u-tour-title">
+              {step.choices.map((one, at) => (
+                <button
+                  key={one.label}
+                  type="button"
+                  role="radio"
+                  aria-checked={at === chosen}
+                  tabIndex={at === chosen ? 0 : -1}
+                  className={at === chosen ? "is-on" : undefined}
+                  onClick={() => setPick({ at: index, choice: at })}
+                  // двойной щелчок сразу начинает: так делают те, кто уже понял, что хочет
+                  onDoubleClick={one.run}
+                >
+                  <span className="u-tour-radio" aria-hidden="true" />
                   <span>
                     <b>{one.label}</b>
                     <span>{one.note}</span>
@@ -387,6 +419,80 @@ export function TourOffer({
           <span className="u-tour-go">
             <button type="button" className="u-btn u-btn-primary" onClick={onStart}>
               {go}
+            </button>
+          </span>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/* Вопрос при первом входе на чертеж: пройти обучение или нет. Не модальное окно у листа, как
+   предложение практики: чертеж под ним работает. "Нет" без галочки спросит при следующем входе,
+   с галочкой больше не спросит. Обучение всегда открывает кнопка "Как пользоваться". */
+export function TourAsk({
+  target,
+  onYes,
+  onNo,
+  text,
+}: {
+  target: string;
+  onYes: () => void;
+  /* never: человек поставил "Больше не спрашивать" */
+  onNo: (never: boolean) => void;
+  text?: ReactNode;
+}) {
+  const [never, setNever] = useState(false);
+  const [place, setPlace] = useState<{ x: number; y: number } | null>(null);
+  const card = useRef<HTMLDivElement>(null);
+  const yes = useRef<HTMLButtonElement>(null);
+  const measure = useCallback(() => {
+    const node = document.querySelector(target);
+    setPlace(node ? corner(node.getBoundingClientRect(), card.current?.offsetHeight ?? 200) : null);
+  }, [target]);
+  useLayoutEffect(() => {
+    const frame = requestAnimationFrame(measure);
+    return () => cancelAnimationFrame(frame);
+  }, [measure]);
+  useEffect(() => {
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
+    };
+  }, [measure]);
+  // Esc отвечает "Нет": окно уходит сразу, не дожидаясь анимации
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => event.key === "Escape" && onNo(never);
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [never, onNo]);
+  useEffect(() => {
+    if (place) yes.current?.focus({ preventScroll: true });
+  }, [place]);
+  return createPortal(
+    <div className="u-tour is-practice" role="region" aria-label="Пройти обучение?">
+      <div
+        ref={card}
+        className="u-tour-card u-tour-ask"
+        style={place ? { left: place.x, top: place.y } : { left: -9999, top: 0, visibility: "hidden" }}
+      >
+        <span className="u-tour-count mono">обучение</span>
+        <h3>Пройти обучение?</h3>
+        <p>
+          {text ??
+            'Пара минут: что где на чертеже и как поправить ряды и ворота. Потом обучение откроет кнопка "Как пользоваться".'}
+        </p>
+        <Check checked={never} onToggle={() => setNever(!never)} label="Больше не спрашивать" />
+        <div className="u-tour-foot">
+          <span className="u-tour-go">
+            <button type="button" className="u-btn u-btn-light" onClick={() => onNo(never)}>
+              Нет
+            </button>
+            <button ref={yes} type="button" className="u-btn u-btn-primary" onClick={onYes}>
+              Да
             </button>
           </span>
         </div>

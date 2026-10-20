@@ -64,6 +64,15 @@ FREE, RACK_CELL, WALL_CELL = 0, 1, 2
 WALLS = ("south", "north", "west", "east")
 NEIGHBOURS = ((1, 0), (-1, 0), (0, 1), (0, -1))
 
+# Место упаковки и полоса конвейера на плане. Это правила рисования, а не данные: стол упаковщика
+# с проходом за ним и лента в метр шириной. Сколько мест нужно, считает экономика по потоку штук.
+PACK_PLACE_M = 2
+CONVEYOR_M = 1
+MIN_BLOCKS = 3  # блоков рядов поперек в наименьшем здании под хранение
+MIN_RUNS = 1  # рядов вдоль в нем же
+# Роли непроезжих зон, которые ставит программа у станций отбора: роботы их объезжают, как перегородку
+PACKING, CONVEYOR = "packing", "conveyor"
+
 # Насколько может ухудшиться маршрут, когда программа ставит зарядку. Это наше правило, а не данные:
 # зарядка не должна перегораживать проезд, а полметра объезда на маршрут в десятки метров
 # это шум округления сетки.
@@ -187,6 +196,8 @@ def generate(
     stations: int = 0,
     ceiling_m: float = 0.0,
     margin_m: int = 0,
+    packing: int = 0,
+    fit: bool = True,
 ) -> Plan:
     """План по шаблону планировки и площади активной зоны.
 
@@ -200,8 +211,16 @@ def generate(
 
     margin_m это пустое место вокруг здания: оно не данные, а поле редактора, чтобы было куда
     дорисовать пристройку.
+
+    fit: если по пропорции шаблона хранение не влезает между воротами и станциями, здание
+    вытягиваем при той же площади (storage_minimum). Станциям нужна длина своей стены (_fit_stations):
+    если по площади они не встают в ряд, стену удлиняем. Габариты, которые назвал человек, не трогаем.
     """
     width, length = _size(area_m2, template["aspect"])
+    if fit:
+        width, length = _fit_storage(width, length, area_m2, storage_minimum(template, constants))
+    if fit:
+        width, length = _fit_stations(template, constants, width, length, stations)
     if max(width, length) > MAX_BUILDING_SIDE_M:
         area, side = (f"{value:,.0f}".replace(",", " ") for value in (area_m2, max(width, length)))
         raise TooBig(
@@ -214,6 +233,7 @@ def generate(
     items += _docks(template, constants, width, length, area_m2)
     items += _buffers(template, constants, width, length, items)
     items += _stations(template, constants, width, length, stations)
+    items += _packing(template, constants, width, length, items, packing)
     items += _storage(template, constants, width, length, top)
     for item in items:
         item.x += margin_m
@@ -232,6 +252,57 @@ def _size(area_m2: float, aspect: float) -> tuple[float, float]:
     """Ширина по x и длина по y. aspect это длинная сторона к короткой, длинная идет по x."""
     width = max(GRID_M, round(math.sqrt(area_m2 * aspect)))
     return float(width), float(max(GRID_M, round(area_m2 / width)))
+
+
+def storage_minimum(template: dict, constants: dict) -> tuple[float, float]:
+    """Наименьшее здание (ширина по x, длина по y), в котором у стен остаются ворота, буфер, станции
+    и проезды шаблона, а между ними хранение: MIN_BLOCKS блоков рядов с проездами между ними поперек
+    рядов и MIN_RUNS рядов с поперечными проездами вдоль. Меньше этого стеллажей на плане почти нет:
+    два блока на два ряда висели посреди пустого зала, и план читался как ошибка.
+
+    Пример, робозона: у стены с воротами 12 м доковой зоны, у стены станций 9 м, по бокам главные
+    проезды по 4,5 м. Блок мобильных стеллажей 3 ряда по 1 м, проезд робота 1,2 м, ряд 6 м и
+    поперечный проезд 1,2 м. Поперек рядов (по x) 3 * 3 + 2 * 1,2 = 11,4 м, вдоль (по y)
+    6 + 1,2 = 7,2 м. Здание 9 + 11,4 = 20,4, вверх 21 м, на 21 + 7,2 = 28,2, вверх 29 м,
+    площадь 609 м2.
+    """
+    if template["racks"] == "none":
+        return 0.0, 0.0
+    insets = _insets(template, constants)
+    raw = rack_type(constants, template.get("rack_type", FRONT))
+    kind = rack_defaults(raw, constants)
+    aisle = constants[template["aisle"]]
+    block = kind["row_m"] * max(1, kind["block_rows"])
+    # сетка из нескольких блоков только у робозоны: у склада с людьми ряд 30 м, и такой минимум был бы огромным
+    blocks, runs = (2, 1) if raw.get("people", True) else (MIN_BLOCKS, MIN_RUNS)
+    across = blocks * block + (blocks - 1) * aisle
+    along = runs * max(kind["run_m"], GRID_M) + kind["cross_m"] * (1 if runs == 1 else runs - 1)
+    facing = template["docks"][0]["wall"] if template["docks"] else "south"
+    flow = "y" if facing in ("south", "north") else "x"
+    rows = ("x" if flow == "y" else "y") if template["racks"] == "across_flow" else flow
+    # ряды вдоль y: блоки встают друг за другом по x
+    need_x, need_y = (across, along) if rows == "y" else (along, across)
+    return (
+        float(math.ceil(insets["west"] + insets["east"] + need_x - 1e-9)),
+        float(math.ceil(insets["south"] + insets["north"] + need_y - 1e-9)),
+    )
+
+
+def _fit_storage(width: float, length: float, area_m2: float, minimum: tuple[float, float]) -> tuple[float, float]:
+    """Здание по пропорции шаблона, но не уже минимума под хранение по каждой оси. Площадь та же:
+    короткую сторону тянем до минимума, другую уменьшаем. Пока хранение влезает, размеры не меняем,
+    поэтому на больших складах план прежний. Если не хватает площади на обе оси, оставляем как было:
+    расчет тогда скажет, что стеллажей нет."""
+    min_w, min_l = minimum
+    if width >= min_w and length >= min_l:
+        return width, length
+    if length < min_l:
+        stretched = (max(GRID_M, round(area_m2 / min_l)), min_l)
+    else:
+        stretched = (min_w, max(GRID_M, round(area_m2 / min_w)))
+    if stretched[0] >= min_w and stretched[1] >= min_l:
+        return float(stretched[0]), float(stretched[1])
+    return width, length
 
 
 def _wall_length(wall: str, width: float, length: float) -> float:
@@ -347,24 +418,125 @@ def _wall_of(item: Item, width: float, length: float) -> str:
     return min(gaps, key=gaps.get)
 
 
+def _station_span(constants: dict, stations: int) -> float:
+    """Сколько метров стены занимают станции в один ряд: каждая станция в свою клетку и по клетке
+    от углов. Меньше этого они налезают друг на друга."""
+    return stations * round(constants["rack_bay_m"]) + 2 * GRID_M if stations > 0 else 0.0
+
+
+def _station_wall(template: dict) -> str:
+    facing = template["docks"][0]["wall"] if template["docks"] else "south"
+    return (template.get("stations") or {}).get("wall") or _opposite(facing)
+
+
+def _fit_stations(template: dict, constants: dict, width: float, length: float, stations: int) -> tuple[float, float]:
+    """Здание не короче своей станционной стены: при 6 станциях и 17 м стены они стояли друг на друге.
+    Здание растет вдоль этой стены, площадь при этом может стать больше названной: станции
+    нужны только для отбора, и без места под них план нельзя прочитать."""
+    need = _station_span(constants, stations)
+    if _station_wall(template) in ("south", "north"):
+        return float(max(width, need)), length
+    return width, float(max(length, need))
+
+
 def _stations(template: dict, constants: dict, width: float, length: float, stations: int) -> list[Item]:
     """Станции комплектации: робот везет стеллаж к человеку и ждет очереди.
 
     Сколько их нужно, считается из пикового спроса и выработки человека, поэтому число
-    приходит снаружи, а план только ставит их по стене.
+    приходит снаружи, а план только ставит их по стене. Равными промежутками, если места хватает;
+    иначе вплотную друг к другу по центру стены, а то, что в стену не влезло, вторым рядом
+    перед первым: налезать друг на друга станции не должны ни при каком размере здания.
     """
     if stations <= 0:
         return []
-    facing = template["docks"][0]["wall"] if template["docks"] else "south"
-    wall = (template.get("stations") or {}).get("wall") or _opposite(facing)
-    side = constants["rack_bay_m"]
+    wall = _station_wall(template)
+    side = round(constants["rack_bay_m"])
+    depth = round(constants["aisle_main_m"])
     wall_m = _wall_length(wall, width, length)
+    per_row = max(1, int((wall_m - 2 * GRID_M) // side))
     items = []
     for index in range(stations):
-        along = max(0.0, round(wall_m * (index + 1) / (stations + 1) - side / 2))
-        x, y, w, h = _strip(wall, along, round(side), round(constants["aisle_main_m"]), width, length)
-        items.append(Item(id=f"station-{index}", kind=STATION, x=x, y=y, w=w, h=h))
+        row, number = divmod(index, per_row)
+        count = min(per_row, stations - row * per_row)
+        # промежуток с запасом в клетку на округление до метра, иначе соседние станции касаются и налезают
+        if wall_m / (count + 1) >= side + GRID_M:
+            along = max(0.0, round(wall_m * (number + 1) / (count + 1) - side / 2))
+        else:
+            along = float(round((wall_m - count * side) / 2) + number * side)
+        x, y, w, h = _strip(wall, along, side, depth, width, length)
+        # второй и следующие ряды стоят дальше от стены, в глубь здания
+        step = {"south": (0, 1), "north": (0, -1), "west": (1, 0), "east": (-1, 0)}[wall]
+        items.append(
+            Item(
+                id=f"station-{index}", kind=STATION, x=x + step[0] * row * depth, y=y + step[1] * row * depth, w=w, h=h
+            )
+        )
     return items
+
+
+def _packing(template: dict, constants: dict, width: float, length: float, items: list[Item], count: int) -> list[Item]:
+    """Места упаковки в промежутках между станциями отбора и конвейер к воротам схемой.
+
+    Собранное у станции упаковывают рядом, у Восток-Сервиса 4 места упаковки на 6 станций.
+    Места ставим в самые длинные свободные промежутки полосы станций, по одному за раз. Конвейер
+    идет вдоль боковой стены от полосы станций до доковой зоны: это схема, в экономику он не входит,
+    а сортировку и отгрузку мы не считаем вовсе.
+    """
+    stations = [item for item in items if item.kind == STATION]
+    if count <= 0 or not stations:
+        return []
+    facing = template["docks"][0]["wall"] if template["docks"] else "south"
+    wall = (template.get("stations") or {}).get("wall") or _opposite(facing)
+    across = wall in ("south", "north")
+    depth = round(constants["aisle_main_m"])
+    spans = sorted((one.x, one.x + one.w) if across else (one.y, one.y + one.h) for one in stations)
+    free, start = [], 0.0
+    for left, right in spans:
+        free.append((start + GRID_M, left - GRID_M))
+        start = right
+    free.append((start + GRID_M, _wall_length(wall, width, length) - GRID_M))
+    placed: list[Item] = []
+    while len(placed) < count:
+        left, right = max(free, key=lambda gap: gap[1] - gap[0])
+        if right - left < PACK_PLACE_M:
+            break
+        along = float(round((left + right) / 2 - PACK_PLACE_M / 2))
+        free.remove((left, right))
+        free += [(left, along - GRID_M), (along + PACK_PLACE_M + GRID_M, right)]
+        # в промежуток встают два места: у стены и перед ним, глубина полосы станций это позволяет
+        x, y, w, h = _strip(wall, along, PACK_PLACE_M, depth, width, length)
+        for half in _halves(wall, x, y, w, h)[: count - len(placed)]:
+            placed.append(
+                Item(
+                    id=f"packing-{len(placed)}", kind=BLOCKED, x=half[0], y=half[1], w=half[2], h=half[3], role=PACKING
+                )
+            )
+    return placed + _conveyor(template, constants, width, length, wall, facing)
+
+
+def _halves(wall: str, x: float, y: float, w: float, h: float) -> list[tuple[float, float, float, float]]:
+    """Прямоугольник у стены режем поперек глубины на два: сначала половина у стены, потом перед ней."""
+    if wall in ("south", "north"):
+        low, high = (x, y, w, h // 2), (x, y + h // 2, w, h - h // 2)
+        return [high, low] if wall == "north" else [low, high]
+    low, high = (x, y, w // 2, h), (x + w // 2, y, w - w // 2, h)
+    return [high, low] if wall == "east" else [low, high]
+
+
+def _conveyor(template: dict, constants: dict, width: float, length: float, wall: str, facing: str) -> list[Item]:
+    """Лента вдоль боковой стены от полосы станций до доковой зоны, между отступами этих стен.
+    Только когда станции и ворота на противоположных стенах: иначе ленте некуда идти схемой."""
+    if wall != _opposite(facing):
+        return []
+    insets = _insets(template, constants)
+    if wall in ("south", "north"):
+        side, start, end = "east", insets["south"], length - insets["north"]
+    else:
+        side, start, end = "north", insets["west"], width - insets["east"]
+    if end - start < GRID_M:
+        return []
+    x, y, w, h = _strip(side, round(start), round(end - start), CONVEYOR_M, width, length)
+    return [Item(id="conveyor", kind=BLOCKED, x=x, y=y, w=w, h=h, role=CONVEYOR)]
 
 
 def _storage(template: dict, constants: dict, width: float, length: float, top_m: float) -> list[Item]:
@@ -1106,7 +1278,7 @@ def place_charge(plan: Plan, constants: dict) -> Item | None:
     for w, h in ((along, depth), (depth, along)):
         for row in range(grid.rows - h + 1):
             for col in range(grid.cols - w + 1):
-                if _sum(blocked, grid, col, row, w, h) or _sum(taken, grid, col, row, w, h):
+                if _sum(blocked, grid, col, row, w, h) or _near(taken, grid, col, row, w, h):
                     continue
                 if not _hugs_wall(grid, col, row, w, h):
                     continue
@@ -1165,6 +1337,14 @@ def _sum(table: list[float], grid: Grid, col: int, row: int, w: int, h: int) -> 
         - table[(row + h) * width + col]
         + table[row * width + col]
     )
+
+
+def _near(table: list[float], grid: Grid, col: int, row: int, w: int, h: int) -> float:
+    """То же, что _sum, но с запасом в клетку вокруг: зарядка не стоит вплотную к воротам, буферу и станциям,
+    иначе робот у ворот упирается в нее, а на плане зоны слипаются."""
+    left, top = max(0, col - 1), max(0, row - 1)
+    right, bottom = min(grid.cols, col + w + 1), min(grid.rows, row + h + 1)
+    return _sum(table, grid, left, top, right - left, bottom - top)
 
 
 def _hugs_wall(grid: Grid, col: int, row: int, w: int, h: int) -> bool:

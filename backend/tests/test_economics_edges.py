@@ -114,11 +114,37 @@ def test_raas_renews_the_fleet_when_service_life_ends_at_the_buyout(model):
     поэтому в году 3 владелец обновляет парк так же, как покупка: 27 000 000 * 1.04^2 = 29 203 200.
     Раньше обновление пропадало, потому что год 3 еще считался арендой, и аренда выходила
     на эти 29,2 млн дешевле."""
-    changed = with_robot(model, service_life_years=3)
+    changed = with_robot(model, service_life_years=3, amortization_years=3)
     purchase = pallets(changed).scenarios[PURCHASE]
     raas = pallets(changed).scenarios[RAAS]
     assert [y.investment for y in purchase.years] == pytest.approx([0, 0, 29_203_200, 0, 0], abs=0.01)
     assert [y.investment for y in raas.years] == pytest.approx([0, 0, 29_203_200, 0, 0], abs=0.01)
+
+
+def test_fleet_is_renewed_by_service_life_not_by_amortization(model):
+    """Срок амортизации 5 лет (Постановление № 1) это срок списания, а робот служит 7 лет: на горизонте 10
+    парк меняем в году 7, а не 5. Цена обновления 27 000 000 * 1.04^6 = 34 163 619.49. Амортизация
+    по-прежнему на 5 лет: 5 лет списываем, потом ноль (docs/decisions.md, "Срок службы и амортизация")"""
+    changed = with_horizon(with_robot(model, service_life_years=7), 10)
+    purchase = pallets(changed).scenarios[PURCHASE]
+    assert [t for t, y in enumerate(purchase.years, 1) if y.investment] == [7]
+    assert purchase.years[6].investment == pytest.approx(27_000_000 * 1.04**6, abs=0.01)
+    assert [bool(y.amortization) for y in purchase.years] == [True] * 5 + [False] * 5
+    # АКБ меняем по возрасту робота: в годы 3 и 6, после обновления в году 7 робот новый, год 10 последний
+    assert [t for t, y in enumerate(purchase.years, 1) if y.opex.get("battery")] == [3, 6]
+
+
+def test_five_year_numbers_do_not_depend_on_a_service_life_beyond_the_horizon(model):
+    """Срок службы дольше горизонта меняет только досчет "окупится позже": за 5 лет поток, TCO и NPV те же"""
+    five = pallets(model)
+    longer = pallets(with_robot(model, service_life_years=7))
+    for key in (PURCHASE, RAAS):
+        assert [y.cash_flow for y in longer.scenarios[key].years] == pytest.approx(
+            [y.cash_flow for y in five.scenarios[key].years]
+        )
+        assert longer.scenarios[key].tco == pytest.approx(five.scenarios[key].tco)
+        assert longer.scenarios[key].npv == pytest.approx(five.scenarios[key].npv)
+        assert longer.scenarios[key].payback_cumulative == pytest.approx(five.scenarios[key].payback_cumulative)
 
 
 def test_raas_for_five_years_renews_like_purchase_on_ten_year_horizon(model):
@@ -233,12 +259,6 @@ def test_nothing_to_automate_means_zero_fleet_and_no_payback(model, path, value)
     assert all(y.opex["electricity"] == 0 for y in purchase.years)
 
 
-@pytest.mark.xfail(
-    reason="При нулевом парке покупка все равно стоит 10.45 млн: ПО парка 1.5 млн, интеграция 5, "
-    "инфраструктура 3 и резерв, плюс 300 тыс. связи в год. Роботов нет, внедрять нечего. "
-    "Сомнение: возможно, при нуле роботов расчет должен возвращать пустые сценарии",
-    strict=True,
-)
 def test_zero_fleet_costs_nothing(model):
     changed = copy.deepcopy(model)
     changed["facilities"][0]["operations"][0]["volume_per_day"] = 0
@@ -247,11 +267,6 @@ def test_zero_fleet_costs_nothing(model):
     assert all(y.opex_total == 0 for y in purchase.years)
 
 
-@pytest.mark.xfail(
-    reason="Парк, заданный снаружи как 0 (так делает чувствительность по объему), все равно "
-    "высвобождает всех 23.75 ставки: окупаемость 0.3 года без единого робота",
-    strict=True,
-)
 def test_forced_zero_fleet_frees_nobody(model):
     result = pallets(model, fleet=0)
     assert result.sizing.fte_before == result.sizing.fte_after

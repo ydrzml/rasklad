@@ -57,6 +57,8 @@ SKIP_PATHS = (
     # выбор способа оплаты и порог покрытия долга: это не числа, которые бывают на 10% другими
     "financing.method",
     "financing.debt_cover_min",
+    # ставка НДС это закон, а не данные объекта
+    "economics.vat.rate",
 )
 # Целые числа, у которых 10% не бывает: 2 смены плюс 10% это не 2,2 смены
 WHOLE = (
@@ -68,12 +70,19 @@ WHOLE = (
     "schedule.days_per_year",
     "contract_months",
     "service_life_years",
+    "amortization_years",
     "battery_life_years",
     "robots_per_charger",
     "min_operator_posts",
     "ops_per_trip",
     "slotted_by_turnover",
-    "people_from_volume",
+    # выбор "машиной или вручную" это да или нет, процентов у него не бывает
+    "by_machine",
+    "manual.headcount",
+    # НДС возвращают или нет, начало смены в часах и порог связи по числу роботов: выбор и целые числа
+    "with_vat",
+    "day_start_h",
+    "communications_min_fleet",
     # занятые места двигаются вместе с людьми в штате, отдельной строкой их нет
     ".filled",
 )
@@ -248,7 +257,9 @@ def sensitivity_all(request: CalculationRequest) -> SensitivityAll:
         else:
             flat.append(name)
     # по покупке: она есть всегда, а аренда только у тех, кто ее публикует. Экран сортирует по открытому сценарию
-    moving.sort(key=lambda param: -max((s.rub for s in param.swings), default=0))
+    # размах до рубля: равные сдвиги (доля работы людей и число людей двигают итог одинаково) не
+    # меняются местами из-за последних знаков дроби, остаются в порядке полей, сортировка устойчивая
+    moving.sort(key=lambda param: -round(max((s.rub for s in param.swings), default=0)))
     return SensitivityAll(
         horizon_years=model["economics"]["horizon_years"],
         deltas=list(DELTAS),

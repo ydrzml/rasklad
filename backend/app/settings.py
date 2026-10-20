@@ -20,12 +20,26 @@ class Settings(BaseSettings):
     cookie_secure: bool = False
 
     # Демо-аккаунты создаются при запуске, чтобы проект можно было посмотреть без регистрации.
-    # demo_login включает вход в них без пароля одной кнопкой. На открытом сервере выключаем
-    demo_login: bool = True
+    # demo_login включает вход в них без пароля запросом POST /api/auth/demo. Кнопок на экране нет,
+    # поэтому по умолчанию выключен: иначе любой запуск пускал бы администратором без пароля
+    demo_login: bool = False
     demo_user_email: str = "demo@example.com"
     demo_user_password: str = "demo12345"
     demo_admin_email: str = "admin@example.com"
     demo_admin_password: str = "admin12345"
+
+    # Почта для писем со ссылкой на новый пароль (app/services/mail.py). Без smtp_host письма не уходят:
+    # ссылку видно в служебной таблице "Письма без отправки", администратор передает ее сам
+    smtp_host: str = ""
+    smtp_port: int = 465
+    smtp_user: str = ""
+    smtp_password: str = ""
+    # От кого письмо. Пусто - от smtp_user: Яндекс и Mail.ru отправляют только от имени своего ящика
+    mail_from: str = ""
+    # Адрес сайта для ссылки в письме. Берем из настроек, а не из запроса: заголовок Host подделывается,
+    # и письмо с настоящего ящика повело бы на чужой сайт
+    site_url: str = "http://localhost:3000"
+    reset_minutes: int = 30
 
 
 settings = Settings()

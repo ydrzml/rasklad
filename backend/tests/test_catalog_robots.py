@@ -14,8 +14,10 @@ from app.schemas.economics import CalculationRequest
 from app.schemas.simulation import SimulationRequest
 from app.services import calculation, selection
 from app.services import simulation as simulation_service
+from app.settings import settings
 
 FACILITY = "warehouse"
+PHOTOS = settings.data_dir / "catalog" / "photos"
 
 
 def pairs() -> list[tuple[str, str]]:
@@ -79,19 +81,15 @@ def test_shift_runs_for_every_solution(operation, robot):
 
 
 def test_selection_links_by_catalog_number_and_gives_photos():
-    """Карточка подбора знает робота модели по номеру решения и отдает адрес фото.
-
-    Фото решений сделаны из каталога организатора хакатона и лежат только в закрытом репозитории
-    (data/catalog/photos). В этой копии их нет, поэтому проверку адреса фото пропускаем."""
-    from app.settings import settings
-
-    if not (settings.data_dir / "catalog" / "photos").is_dir():
-        pytest.skip("фото каталога организатора нет в этой копии (data/catalog/photos)")
+    """Карточка подбора знает робота модели по номеру решения и отдает адрес фото."""
     for operation in ("pallet_transport", "piece_picking", "cleaning"):
         # кандидаты «требует проверки» по задаче в счет не идут: у AS-RS расчетных параметров нет
         fitting = [s for s in selection.solutions(FACILITY, operation) if s.status != "excluded" and confirmed(s)]
         assert fitting
         assert all(s.can_calculate and s.robot_id for s in fitting)
+        # Фото каталога организатора в открытом репозитории нет: адрес фото проверяем, только если они лежат
+        if not PHOTOS.is_dir():
+            continue
         assert all((s.photo_url or "").startswith(f"/api/catalog/photos/{s.id}?v=") for s in fitting)
 
 
@@ -100,11 +98,38 @@ def confirmed(solution) -> bool:
     return next(c for c in solution.checks if c.label == "Процесс").outcome == "fits"
 
 
-def test_picking_offers_only_robots_that_bring_racks_to_the_picker():
-    """Паллетные тележки под отбор без оговорок не предлагаем: по разметке отбор делает только тот,
-    кто возит стеллажи. Остальные низкие роботы стоят кандидатами «требует проверки»."""
-    fitting = [s.product for s in selection.solutions(FACILITY, "piece_picking") if confirmed(s)]
-    assert fitting == ["Ronavi M (грузоподъемность до 1200 кг)"]
+LIFTING_ROBOTS = ["Ronavi H1500", "AMR 800", "AMR 1500", "DMR 1200", "DMR 600"]
+
+
+def picking() -> dict:
+    return {s.product.split(" (")[0]: s for s in selection.solutions(FACILITY, "piece_picking")}
+
+
+def test_picking_offers_the_confirmed_robot_and_five_lifting_ones_on_condition():
+    """Отбор товара: Ronavi M подтвержден, пять низких роботов с подъемом подходят при условии.
+    Шестой, Сёмабот, остается в "требует проверки": в каталоге линейка моделей, какая из них у вас, неизвестно.
+    Паллетные тележки без оговорок не предлагаем."""
+    found = picking()
+    fitting = [name for name, s in found.items() if s.status == "recommended"]
+    assert sorted(fitting) == sorted(["Ronavi M", *LIFTING_ROBOTS])
+    # Ronavi M без условия, у остальных условие стоит проверкой "Условие" и в вопросе поставщику
+    assert not [c for c in found["Ronavi M"].checks if c.label == "Условие"]
+    for name in LIFTING_ROBOTS:
+        condition = next(c for c in found[name].checks if c.label == "Условие")
+        assert "не подтвержден производителем" in condition.detail and "спросите поставщика" in condition.detail, name
+        assert found[name].can_calculate and found[name].robot_id, name
+
+
+def test_conditional_robots_score_below_the_confirmed_one():
+    """Неподтвержденная задача стоит в баллах: Ronavi M остается первым при "сначала лучшие"."""
+    found = picking()
+    best = found["Ronavi M"]
+    for name in LIFTING_ROBOTS:
+        assert found[name].score < best.score, name
+        factor = next(f for f in found[name].factors if f.label == "Подходит процессу")
+        assert 0 < factor.contribution < next(f for f in best.factors if f.label == "Подходит процессу").contribution
+    ordered = [s.product.split(" (")[0] for s in selection.solutions(FACILITY, "piece_picking")]
+    assert ordered[0] == "Ronavi M"
 
 
 def test_cleaner_wash_and_refill_add_up():
@@ -120,14 +145,32 @@ def test_cleaner_wash_and_refill_add_up():
 
 
 def test_picking_shows_candidates_to_check_instead_of_excluding_them():
-    """Для отбора товара размечен один робот, еще восемь могут подойти, но это никто не проверял.
+    """Две стационарные системы AS-RS подают к станции ящик, а не стеллаж: их задача не проверена.
     Они стоят в «требует проверки» с причиной, а не в «не подходит»."""
-    found = {s.product.split(" (")[0]: s for s in selection.solutions(FACILITY, "piece_picking")}
-    assert found["Ronavi M"].status != "excluded"
-    candidates = ["Ronavi H1500", "AMR 800", "AMR 1500", "DMR 1200", "DMR 600", "Сёмабот", "AS-RS P", "AS-RS B"]
+    found = picking()
+    candidates = ["AS-RS P", "AS-RS B"]
+    semabot = found["Сёмабот"]
+    assert semabot.status == "needs_check"
+    assert "линейка моделей" in next(c for c in semabot.checks if c.label == "Грузоподъемность").detail
+    assert next(c for c in semabot.checks if c.label == "Условие")
     for name in candidates:
         process = next(c for c in found[name].checks if c.label == "Процесс")
         assert found[name].status == "needs_check", name
         assert process.outcome == "unknown" and "уточните у производителя" in process.detail, name
     # остальное не для этой задачи, как и было
-    assert sum(s.status == "excluded" for s in found.values()) == len(found) - 1 - len(candidates)
+    kept = 1 + len(LIFTING_ROBOTS) + len(candidates) + 1
+    assert sum(s.status == "excluded" for s in found.values()) == len(found) - kept
+
+
+def test_supplier_gets_the_goods_to_person_question_only_for_conditional_robots():
+    """Вопрос про подвоз стеллажа идет на шаг 5, в PDF и Excel, когда выбран один из условных."""
+
+    def topics(robot: str) -> list[str]:
+        answer = calculation.calculate(
+            CalculationRequest(facility_id=FACILITY, operation_id="piece_picking", robot_id=robot)
+        )
+        return [one.topic for one in answer.supplier_questions]
+
+    topic = 'Работа "товар к человеку"'
+    assert topic in topics("moros-amr-800")
+    assert topic not in topics("ronavi-m")

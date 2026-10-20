@@ -89,10 +89,11 @@ def test_picking_staff_counts_actual_headcount(picking):
     assert s.fleet == 105  # 2352.27 / (30 * 0.75) = 104.5 -> 105
     assert s.stations == 12  # ceil(2352.27 / 200)
     # операторов нужно больше, чем высвободилось: 7.5 переучиваем, на остальных людей нет
-    assert s.operator_posts == 3  # ceil(105 * 1.5 / 60)
-    assert s.operators_fte == pytest.approx(15.2700304)
+    # присмотр долей поста без округления вверх (docs/decisions.md, «Присмотр за роботами долей поста»)
+    assert s.operator_posts == pytest.approx(2.625)  # 105 * 1.5 / 60
+    assert s.operators_fte == pytest.approx(13.3612765)  # 2.625 * 5.0900101
     assert s.retrained_fte == pytest.approx(7.5)
-    assert s.operators_short_fte == pytest.approx(7.7700304)
+    assert s.operators_short_fte == pytest.approx(5.8612765)
 
 
 # --- CAPEX и годы -------------------------------------------------------------------
@@ -216,7 +217,9 @@ def test_picking_does_not_pay_back(picking):
     assert purchase.payback_cumulative is None and raas.payback_cumulative is None
     assert purchase.payback_band == "не окупается"
     assert purchase.irr is None
-    assert purchase.tco == pytest.approx(823_343_849.08)  # прежние 823 771 200,75 минус 427 351,67
+    # прежние 823 343 849,08 минус присмотр, который больше не округляется вверх:
+    # (3 - 2,625) * 5,0900101 * 1 567 200 * (1 + 1,07 + ... + 1,07^4) = 17 202 754,55
+    assert purchase.tco == pytest.approx(806_141_094.38)
     assert picking.scenarios[BASELINE].tco == pytest.approx(270_376_745.29)
 
 

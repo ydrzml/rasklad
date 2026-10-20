@@ -10,6 +10,8 @@ from app.main import app
 
 client = TestClient(app)
 
+# Штат по умолчанию из датасета, при его режиме 2 смены по 11 ч, 365 дней: 25 водителей и 100 отборщиков
+# (docs/decisions.md, «Типовой режим склада»)
 STAFF = [
     {"id": "forklift-operators", "role": "forklift_operator", "headcount": 25, "filled": 25, "salary_month": 120_000},
     {"id": "pickers", "role": "picker", "headcount": 100, "filled": 100, "salary_month": 100_000},
@@ -52,7 +54,7 @@ def test_default_staff_covers_only_the_chosen_tasks():
     assert lines[0]["source"] and lines[0]["trust"] in "SABCDEF"
 
     both = client.get("/api/staff", params={"operations": "pallet_transport,cleaning"}).json()["lines"]
-    assert [line["role"] for line in both] == ["forklift_operator", "cleaner"]
+    assert [line["role"] for line in both] == ["forklift_operator", "scrubber_operator"]
     assert both[1]["contractor"]  # уборку почти всегда отдают клининговой компании
 
 
@@ -64,14 +66,42 @@ def test_dataset_numbers_pass_without_warnings():
 
 
 def test_volume_and_headcount_that_do_not_add_up():
-    """Известное расхождение датасета: 100 000 строк в сутки при выработке 80 требуют 289 ставок, а отборщиков 100."""
-    review = check(operation_ids=["piece_picking"], staff=STAFF)
+    """Известное расхождение датасета: 100 000 строк в сутки при выработке 80 и 365 днях требуют
+    100 000 * 365 / (80 * 1972) * 1,25 = 289,2 ставки, а отборщиков 100. По умолчанию объем считаем от штата
+    (35 000 строк), и расхождения нет; на 100 000 строк оно есть."""
+    plain = check(operation_ids=["piece_picking"], staff=STAFF)
+    assert "norm_gap" not in kinds(plain)
+    review = check(
+        operation_ids=["piece_picking"],
+        staff=STAFF,
+        overrides={"facilities.warehouse.operations.piece_picking.volume_per_day": 100_000},
+    )
     gap = next(note for note in review["notes"] if note["kind"] == "norm_gap")
     assert gap["role"] == "picker" and gap["level"] == "warn"
     assert "289" in gap["text"] and "100" in gap["text"]
 
     normative = next(role for role in review["roles"] if role["role"] == "picker")["normative_fte"]
     assert 289 < normative < 290
+
+
+def test_norm_gap_shows_the_numbers_it_is_counted_on():
+    """Разбор Восток-Сервиса: 80 комплектовщиков на 5 233 строки в сутки. Норма считается по выработке
+    кейса 30 строк в час, а не по 80 из датасета: 5 233 * 365 / (30 * 1 972) * 1,25 = 40,4 ставки, 41 человек.
+    По 80 строкам было бы 15,1. Разница с 80 это правда кейса, поэтому текст показывает, из чего норма"""
+    task = "facilities.warehouse.operations.piece_picking."
+    review = check(
+        operation_ids=["piece_picking"],
+        staff=[{"id": "pickers", "role": "picker", "headcount": 80, "filled": 80, "salary_month": 100_000}],
+        overrides={task + "volume_per_day": 5233, task + "automatable_share": 1, task + "productivity_before": 30},
+    )
+    gap = next(note for note in review["notes"] if note["kind"] == "norm_gap")
+    assert "41 человек (40,4 ставки), а мест в штате 80" in gap["text"]
+    assert "Норма: 5 233 строк в сутки при выработке 30 строк в час, 365 дней в году" in gap["text"]
+    assert "1 972 рабочих часов на ставку и 25% на отпуска и болезни" in gap["text"]
+    # под ролью та же выработка, по которой норма: 30 строк в час кейса, а не 80 справочника
+    assert next(role for role in review["roles"] if role["role"] == "picker")["productivity"] == 30
+    plain = check(operation_ids=["piece_picking"], staff=STAFF)
+    assert next(role for role in plain["roles"] if role["role"] == "picker")["productivity"] == 80
 
 
 def test_role_without_productivity_is_named_out_loud():
@@ -84,7 +114,7 @@ def test_role_without_productivity_is_named_out_loud():
 def test_task_without_people_is_named_out_loud():
     review = check(operation_ids=["cleaning"], staff=STAFF)
     note = next(note for note in review["notes"] if note["kind"] == "no_staff")
-    assert note["operation_id"] == "cleaning" and "уборщик" in note["text"]
+    assert note["operation_id"] == "cleaning" and "поломоечной машины" in note["text"]
 
 
 def test_vacancies_and_surplus_are_told_apart():
@@ -114,8 +144,11 @@ def test_entered_staff_goes_into_the_calculation():
     base = client.post("/api/calculations/preview", json={}).json()
     poor = client.post("/api/calculations/preview", json={"staff": [{**STAFF[0], "salary_month": 60_000}]}).json()
     assert poor["feasible"]
-    # люди вдвое дешевле, значит роботы окупаются дольше
-    assert poor["scenarios"][1]["payback_cumulative_years"] > base["scenarios"][1]["payback_cumulative_years"]
+    # люди вдвое дешевле, значит роботы окупаются дольше или за 5 лет не окупаются вовсе
+    slow = poor["scenarios"][1]["payback_cumulative_years"]
+    assert slow is None or slow > base["scenarios"][1]["payback_cumulative_years"]
+    assert poor["scenarios"][1]["annual_effect_year1_rub"] < base["scenarios"][1]["annual_effect_year1_rub"]
+
     assert poor["sizing"]["fleet"] == base["sizing"]["fleet"]  # парк от кадровых планов не зависит
 
 
@@ -156,17 +189,18 @@ def test_check_offers_to_rescale_staff_when_volume_moved_after_entering_it():
 
 
 def test_default_staff_follows_the_volume_until_touched():
-    """Штат по умолчанию это склад датасета: 100 отборщиков на 100 000 строк. Клиент с 15 000 строк
-    получает 100 * 0,15 = 15 отборщиков, а не 100; без правок объема все как в данных организатора."""
+    """Штат по умолчанию это 100 отборщиков датасета, а объем по умолчанию считан от них, 35 000 строк
+    (docs/decisions.md, «Объем отбора от штата датасета»). Клиент с 15 000 строк получает
+    100 * 15 / 35 = 42,9, людей целыми 43, а не 100."""
     volume = "facilities.warehouse.operations.piece_picking.volume_per_day"
     plain = client.post("/api/staff/form", json={"facility_id": "warehouse", "operation_ids": ["piece_picking"]}).json()
     assert [(line["role"], line["headcount"]) for line in plain["lines"]] == [("picker", 100)]
-    assert "данных организатора" in plain["note"] and "100 000 строк" in plain["note"]
+    assert "типового склада" in plain["note"] and "35 000 строк" in plain["note"]
     scaled = client.post(
         "/api/staff/form",
         json={"facility_id": "warehouse", "operation_ids": ["piece_picking"], "overrides": {volume: 15000}},
     ).json()
-    assert [(line["role"], line["headcount"], line["filled"]) for line in scaled["lines"]] == [("picker", 15, 15)]
+    assert [(line["role"], line["headcount"], line["filled"]) for line in scaled["lines"]] == [("picker", 43, 43)]
     assert "пересчитана под ваш объем" in scaled["note"]
     assert "пересчитано под ваш объем" in scaled["lines"][0]["source"]
     # старый адрес без правок остается

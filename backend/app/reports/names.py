@@ -1,6 +1,7 @@
 """Понятные названия значений модели для отчета. Путь в модели остается в Excel отдельной колонкой,
 а на бумаге человек видит, что это за число. Робот и задача в пути заменены звездочкой."""
 
+import math
 import re
 
 GROUPS = {
@@ -44,6 +45,9 @@ NAMES = {
     "economics.horizon_years": "Горизонт расчета",
     "economics.inflation": "Инфляция в год",
     "economics.payback_bands_years": "Границы оценки окупаемости, лет",
+    "economics.later_payback_years": "До скольких лет досчитываем окупаемость дольше горизонта",
+    "economics.plausibility.payback_years": "Окупаемость покупки у реальных внедрений, лет",
+    "economics.plausibility.staff_cut_share": "Сокращение людей на отборе у реальных внедрений",
     "economics.payroll.hire_cost_months": "Найм одного человека, окладов",
     "economics.payroll.injury_insurance_rate": "Взнос от несчастных случаев",
     "economics.payroll.insurance_base_limit_rub": "Предельная база страховых взносов",
@@ -76,6 +80,18 @@ NAMES = {
     "facilities.*.min_operator_posts": "Минимум операторов в смене",
     "facilities.*.operator_salary_premium": "Надбавка оператору роботов",
     "facilities.*.operations.*.automatable_share": "Доля работы, посильная роботам",
+    "economics.vat.rate": "Ставка НДС",
+    "economics.vat.with_vat": "Компания не возвращает НДС",
+    "economics.peak_staffing.temp_rate_rub_hour": "Час временного персонала в пик",
+    "economics.peak_staffing.night_surcharge": "Доплата за ночные часы",
+    "economics.peak_staffing.day_start_h": "Начало первой смены",
+    "facilities.*.implementation.communications_min_fleet": "С какого парка нужна своя связь",
+    "facilities.*.implementation.scale_ref_fleet": "Проект, на который даны постоянные вложения",
+    "facilities.*.implementation.scale_min_share": "Постоянные вложения пилота, доля",
+    "facilities.*.operations.*.labor_share": "Доля работы людей, которую забирает робот",
+    "facilities.*.operations.*.by_machine": "Как сейчас делают работу: машиной или вручную",
+    "facilities.*.operations.*.manual.headcount": "Людей по норме, если вручную",
+    "facilities.*.operations.*.manual.automatable_share": "Доля работы роботов, если вручную",
     "facilities.*.operations.*.implementation.infrastructure_rub": "Инфраструктура под задачу",
     "facilities.*.operations.*.implementation.integration_rub": "Интеграция под задачу",
     "facilities.*.operations.*.ops_per_trip": "Операций за один рейс",
@@ -111,6 +127,7 @@ NAMES = {
     "robots.*.robots_per_charger": "Роботов на одну зарядку",
     "robots.*.run_time_h": "Работа от одной зарядки",
     "robots.*.service_life_years": "Срок службы робота",
+    "robots.*.amortization_years": "Срок амортизации робота",
     "robots.*.software_rub": "ПО управления парком",
     "robots.*.station_price_rub": "Цена станции комплектации",
     "robots.*.utilization": "Загрузка робота",
@@ -147,6 +164,9 @@ UNITS = {
     "economics.horizon_years": "лет",
     "economics.inflation": "доля в год",
     "economics.payback_bands_years": "лет",
+    "economics.later_payback_years": "лет",
+    "economics.plausibility.payback_years": "лет",
+    "economics.plausibility.staff_cut_share": "доля",
     "economics.payroll.hire_cost_months": "окладов",
     "economics.payroll.injury_insurance_rate": "доля оклада",
     "economics.payroll.insurance_base_limit_rub": "₽ в год",
@@ -179,6 +199,18 @@ UNITS = {
     "facilities.*.min_operator_posts": "человек в смену",
     "facilities.*.operator_salary_premium": "доля",
     "facilities.*.operations.*.automatable_share": "доля",
+    "economics.vat.rate": "доля",
+    "economics.vat.with_vat": "1 да, 0 нет",
+    "economics.peak_staffing.temp_rate_rub_hour": "₽ в час",
+    "economics.peak_staffing.night_surcharge": "доля",
+    "economics.peak_staffing.day_start_h": "ч",
+    "facilities.*.implementation.communications_min_fleet": "роботов",
+    "facilities.*.implementation.scale_ref_fleet": "роботов",
+    "facilities.*.implementation.scale_min_share": "доля",
+    "facilities.*.operations.*.labor_share": "доля",
+    "facilities.*.operations.*.by_machine": "1 машиной, 0 вручную",
+    "facilities.*.operations.*.manual.headcount": "человек",
+    "facilities.*.operations.*.manual.automatable_share": "доля",
     "facilities.*.operations.*.implementation.infrastructure_rub": "₽",
     "facilities.*.operations.*.implementation.integration_rub": "₽",
     "facilities.*.operations.*.ops_per_trip": "операций",
@@ -214,6 +246,7 @@ UNITS = {
     "robots.*.robots_per_charger": "роботов",
     "robots.*.run_time_h": "ч",
     "robots.*.service_life_years": "лет",
+    "robots.*.amortization_years": "лет",
     "robots.*.software_rub": "₽",
     "robots.*.station_price_rub": "₽",
     "robots.*.utilization": "доля",
@@ -227,6 +260,15 @@ def plural(count: int, one: str, few: str, many: str) -> str:
     if count % 10 in (2, 3, 4) and count % 100 not in (12, 13, 14):
         return few
     return many
+
+
+def watch_words(posts: float) -> str:
+    """Присмотр за роботами в смену словами. Меньше одного человека это часть работы начальника
+    смены: "доля ставки", дробью "0,2 человека" не пишем. От одного человека целыми вверх"""
+    if posts < 1 - 1e-9:
+        return "доля ставки"
+    count = math.ceil(posts - 1e-9)
+    return f"{count} {plural(count, 'человек', 'человека', 'человек')}"
 
 
 def _pattern(path: str) -> str:
