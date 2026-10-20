@@ -1,7 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from app.schemas.economics import CalculationRequest, CalculationResult, SensitivityAll, SensitivityResult
-from app.services import calculation
+from app.services import calculation, priority
 from app.services import sensitivity as sensitivity_service
 
 router = APIRouter(prefix="/calculations", tags=["расчет"])
@@ -13,11 +13,13 @@ router = APIRouter(prefix="/calculations", tags=["расчет"])
     summary="Расчет трех сценариев без сохранения",
     description=(
         "Считает операцию объекта в трех сценариях по ТЗ: без роботизации, покупка и роботы как услуга. "
-        "Любое значение модели можно поправить через overrides, правка возвращается в ответе."
+        "Любое значение модели можно поправить через overrides, правка возвращается в ответе. "
+        "С заголовком X-Priority: background это досчет страницы: он ждет, пока посчитается ответ на "
+        "нажатие, и не считается, если страница его уже отменила."
     ),
 )
-def preview(request: CalculationRequest) -> CalculationResult:
-    return calculation.calculate(request)
+async def preview(request: CalculationRequest, http: Request) -> CalculationResult:
+    return await priority.by_header(http, calculation.calculate, request)
 
 
 @router.post(
@@ -31,8 +33,9 @@ def preview(request: CalculationRequest) -> CalculationResult:
         "во сколько по формуле меняется потребность в роботах."
     ),
 )
-def sensitivity(request: CalculationRequest) -> SensitivityResult:
-    return sensitivity_service.sensitivity(request)
+async def sensitivity(request: CalculationRequest, http: Request) -> SensitivityResult:
+    # сводка шага 5 под карточкой: досчет, ответ на нажатие идет раньше (services/priority.py)
+    return await priority.background(http, sensitivity_service.sensitivity, request)
 
 
 @router.post(

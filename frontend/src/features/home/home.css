@@ -512,15 +512,12 @@
   }
 }
 
-/* Лист дел администратора: вид как у листа чертежа, но цвета из токенов страницы.
-   Лист чертежа в темной теме остается светлым, а список дел темнеет вместе со всем */
+/* Лист дел администратора: белая карточка без клетки, клетка у нас только на чертежах.
+   В темной теме темнеет вместе со всей страницей */
 .h-sheet {
   border-radius: var(--r-xl);
-  padding: var(--s-3) var(--s-4) var(--s-4);
-  background:
-    linear-gradient(color-mix(in srgb, var(--blue) 6%, transparent) 1px, transparent 1px) 0 0 / 100% 20px,
-    linear-gradient(90deg, color-mix(in srgb, var(--blue) 6%, transparent) 1px, transparent 1px) 0 0 / 20px 100%,
-    var(--paper);
+  padding: var(--s-4);
+  background: var(--paper);
   box-shadow: var(--hair), var(--lift);
 }
 
@@ -540,4 +537,51 @@
   font-size: 13px;
   letter-spacing: 0;
   text-transform: none;
+}
+
+/* Лист дел админа: заголовок обычным шрифтом, как у остальных блоков, а не моноширинной меткой */
+.h-todo-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.h-todo-head h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* кнопка админа обычного размера: на рабочем экране она не призыв, а переход к делу */
+.h-admin-go {
+  margin-top: var(--s-4);
+}
+
+/* Главная вошедшего в мелочах как новый лендинг: выделение в цветах сервиса, главная кнопка на
+   наведении приподнимается с мягкой синей тенью, при нажатии садится. Структура страницы прежняя */
+.h-live ::selection {
+  background: color-mix(in srgb, var(--blue) 22%, transparent);
+  color: var(--ink);
+}
+
+.h-live .la-go {
+  transition:
+    background var(--slow) var(--ease),
+    transform var(--slow) var(--ease),
+    box-shadow var(--slow) var(--ease);
+}
+
+.h-live .la-go:hover {
+  transform: translateY(-1px);
+}
+
+.h-live .u-btn-primary.la-go:hover {
+  box-shadow: 0 14px 28px -16px color-mix(in srgb, var(--blue) 70%, transparent);
+}
+
+.h-live .la-go:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: none;
 }

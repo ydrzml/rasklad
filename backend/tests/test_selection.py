@@ -207,3 +207,23 @@ def test_solution_specs_carry_units_from_catalog():
     assert specs["max_speed_m_s"]["unit"] == "м/с"
     assert specs["throughput"]["unit"] == "паллет/ч"
     assert h1500["throughput_per_hour"] == 100
+
+
+def test_robot_at_the_payload_limit_goes_after_robots_with_headroom():
+    """Поднимает 800 кг при паллете 800 кг: не исключаем, но запас 0, в балл он не идет, и в списке
+    такое решение стоит после решений с запасом, даже если у него выше зрелость и проверка ФЦ БАС."""
+    edge = match(id="edge", payload_kg="800", tested_fcbas="1")
+    assert edge.status == selection.RECOMMENDED
+    assert edge.at_limit
+    assert "на пределе" in edge.checks[1].detail
+    assert next(f for f in edge.factors if f.label == "Запас грузоподъемности").contribution == 0
+    # 870 кг это меньше 10% запаса, 880 уже ровно 10%
+    assert match(payload_kg="870").at_limit and not match(payload_kg="880").at_limit
+    requirements = {"processes": PROCESSES, "load_kg": 800, "aisle_mm": 2800}
+    ranked = selection.rank(
+        [solution(id="edge", payload_kg="800", tested_fcbas="1"), solution(id="roomy", payload_kg="1500")],
+        requirements,
+        FIELDS,
+        WEIGHTS,
+    )
+    assert [one.solution_id for one in ranked] == ["roomy", "edge"]

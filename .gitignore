@@ -16,12 +16,12 @@ dist/
 .env.*
 !.env.example
 
-# Данные организатора. Каталог организатора в репозитории не хранится, администратор
-# загружает выгрузку через админку
+# Данные организатора. В открытый репозиторий их не кладем, см. data/organizer/README.md
+data/organizer/*
+!data/organizer/README.md
 *.xlsx
 catalog_export*.csv
 photos/
-!data/catalog/photos/
 
 # Системное
 .DS_Store

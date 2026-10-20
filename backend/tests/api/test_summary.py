@@ -1,5 +1,6 @@
 """Сводка шага экономики, чувствительность и журнал смены. Числа сверены с расчетом руками
-на эталонном складе (docs/calculation.md, «Перевозка паллет, Ronavi H1500»): формула, 10 роботов."""
+на демо-складе без плана (маршрут 75 м по площади) при режиме 2 смены по 11 ч, 365 дней: формула,
+спрос с резервом 1900 / 22 * 1,5 * 1,15 = 148,98 в час, 148,98 / 15,88 = 9,38, вверх 10 роботов."""
 
 from io import BytesIO
 
@@ -25,24 +26,28 @@ def test_tco_parts_add_up_to_tco():
     purchase = result["scenarios"][1]
     parts = {part["id"]: part["rub"] for part in purchase["tco_parts"]}
     # вложения на старте: роботы 27.0 + зарядки 3 * 0.45 (10 роботов по 4 на станцию) + ПО 1.5
-    # + интеграция 5.0 + инфраструктура 3.0 + пусконаладка 2.7 + переобучение 0.0509 = 40.6009,
-    # резерв 10% сверху: 44.661 млн. Зарядку и станций на робота взяли у производителя (#65)
-    assert parts["start"] == pytest.approx(44.661e6, abs=0.01e6)
-    # операторы: 5.09 ставки * 1 880 640 рублей * (1 + 1.07 + ... + 1.07^4)
-    assert parts["operators"] == pytest.approx(5.0913 * 1_880_640 * 5.750739, rel=1e-3)
+    # + интеграция 5.0 + инфраструктура 3.0 + пусконаладка 2.7 = 40.55 с НДС, без НДС 22% / 1.22 = 33.2377,
+    # + переобучение на присмотр 0.0127 (курсы без НДС) = 33.2504, резерв 10% сверху: 36.575 млн
+    assert parts["start"] == pytest.approx(36.575e6, abs=0.01e6)
+    # присмотр: 10 * 1.5 / 60 = 0.25 поста * (22 * 365 / 1972 * 1.25 = 5.09) = 1.2725 ставки
+    # * 1 880 640 рублей * (1 + 1.07 + ... + 1.07^4)
+    assert parts["operators"] == pytest.approx(1.2725 * 1_880_640 * 5.750739, rel=1e-3)
 
 
 def test_amortization_is_linear_on_service_life():
     purchase, raas = post("/api/calculations/preview").json()["scenarios"][1:]
-    # покупка: 44.661 млн / 5 лет службы = 8.93 млн в год
+    # покупка: 36.575 млн / 5 лет службы = 7.32 млн в год
     assert purchase["amortization"]["method"] == "линейная"
     assert purchase["amortization"]["years"] == 5
-    assert purchase["amortization"]["per_year_rub"] == pytest.approx(44.661e6 / 5, abs=0.01e6)
-    # аренда: 11.83 млн / 3 года договора, после выкупа 10.8 млн / 2 оставшихся года службы
+    assert purchase["amortization"]["per_year_rub"] == pytest.approx(36.575e6 / 5, abs=0.01e6)
+    # аренда базово без выкупа: ((5 + 3 + 2.7) / 1.22 + 0.0127) * 1.1 = 9.662 млн / 3 года договора
     assert raas["amortization"]["years"] == 3
-    assert raas["amortization"]["per_year_rub"] == pytest.approx(11.83e6 / 3, abs=0.01e6)
-    assert raas["amortization"]["after_buyout_base_rub"] == pytest.approx(10.8e6)
-    assert raas["amortization"]["after_buyout_per_year_rub"] == pytest.approx(5.4e6)
+    assert raas["amortization"]["per_year_rub"] == pytest.approx(9.662e6 / 3, abs=0.01e6)
+    assert raas["amortization"]["after_buyout_base_rub"] is None
+    # с выкупом: 10 * 2.7 * 0.4 / 1.22 = 8.852 млн / 2 оставшихся года службы
+    raas = post("/api/calculations/preview", raas_buyout=True).json()["scenarios"][2]
+    assert raas["amortization"]["after_buyout_base_rub"] == pytest.approx(10.8e6 / 1.22)
+    assert raas["amortization"]["after_buyout_per_year_rub"] == pytest.approx(5.4e6 / 1.22)
     assert purchase["effect_total_rub"] / purchase["investment_total_rub"] == pytest.approx(purchase["roi_tz"])
 
 
@@ -66,11 +71,12 @@ def test_sensitivity_matches_hand_count():
     base = post("/api/calculations/preview").json()["scenarios"][1]
     cell, same = _cell(result, "robot_price", 0.0)
     assert same["tco_rub"] == pytest.approx(base["tco_rub"])
-    # Цена робота +10%: роботы +2.7 млн, пусконаладка +0.27, резерв 10% от них +0.297,
-    # ТО 10% цены в год (у производителя, #65): +0.27 млн * (1 + 1.04 + ... + 1.04^4 = 5.416323)
-    # = +1.462407 млн. Итого +4.729407 млн
+    # Цена робота +10%, все без НДС 22%: 10 роботов +2.7 / 1.22 млн, пусконаладка +0.27 / 1.22, резерв 10%
+    # от них: (2.97 / 1.22) * 1.1 = 2.677869; ТО 10% цены в год (у производителя, #65):
+    # +0.27 / 1.22 млн * (1 + 1.04 + ... + 1.04^4 = 5.416323) = 1.198694. Итого +3.876563 млн
     _, up = _cell(result, "robot_price", 0.1)
-    assert up["tco_rub"] - same["tco_rub"] == pytest.approx(4_729_407.1, abs=1)
+    assert up["tco_rub"] - same["tco_rub"] == pytest.approx(3_876_563.2, abs=1)
+
     # Объем -10%: спрос 148.98 * 0.9 = 134.08 в час, 134.08 / 15.88 = 8.44, вверх 9 роботов
     cell, _ = _cell(result, "volume", -0.1)
     assert cell["fleet"] == 9
@@ -102,6 +108,7 @@ def test_report_holds_shift_and_sensitivity():
     assert "Смена" in book.sheetnames
     shift = {row[0]: row[1] for row in book["Смена"].iter_rows(min_row=6, values_only=True)}
     assert shift["Роботов в прогоне"] == 9
+
     assert shift["Единица задачи"] == "паллет"
     assert shift["Сделано за смену"] > 0
     units = [row[3] for row in book["Источники"].iter_rows(min_row=6, values_only=True)]

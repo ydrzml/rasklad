@@ -1,6 +1,8 @@
 /* Набор компонентов интерфейса. Экраны собираются из них и своих стилей не заводят.
    Оформление лежит в tokens.css и ui.css, правила направления в docs/design.md. */
 import {
+  createContext,
+  useContext,
   useEffect,
   useRef,
   useState,
@@ -214,15 +216,26 @@ export function Hero({ title, lead, compact }: { title: string; lead: string; co
   );
 }
 
-export function BlockHead({ title, note, aside }: { title: string; note?: string; aside?: ReactNode }) {
+/* sub: подзаголовок внутри блока, ступенью ниже, например группа "Подходят: 8" в списке решений */
+export function BlockHead({
+  title,
+  note,
+  aside,
+  sub,
+}: {
+  title: string;
+  note?: string;
+  aside?: ReactNode;
+  sub?: boolean;
+}) {
   return (
-    <div className="u-block-head">
-      <h2>{title}</h2>
+    <div className={sub ? "u-block-head is-sub" : "u-block-head"}>
+      {sub ? <h3>{title}</h3> : <h2>{title}</h2>}
       {note && <p>{note}</p>}
       {aside && (
         <>
           <span className="u-spacer" />
-          {aside}
+          <span className="u-block-aside">{aside}</span>
         </>
       )}
     </div>
@@ -642,9 +655,9 @@ export function Notice({
   );
 }
 
-/* Экран, где показывать нечего: гость в кабинете, пустой кабинет, страница 404. Сначала читается
-   текст и действия на плашке, робот стоит справа и выглядывает из-за ее края, чтобы не перетягивать
-   внимание. Одна раскладка на все такие места. */
+/* Экран, где показывать нечего: гость в кабинете, пустой кабинет, страница 404. Робот стоит на
+   плашке над текстом, небольшой, и в ее края не упирается: выглядывая из-за края, он смотрелся
+   ошибкой верстки. Одна раскладка на все такие места. */
 export function EmptyState({
   title,
   children,
@@ -660,18 +673,20 @@ export function EmptyState({
   /* робот стоит отдельно от плашки, с отступом: когда рядом с ним своя картинка, как цифры на 404 */
   apart?: boolean;
 }) {
+  const figure = robot && (
+    <div className="u-empty-robot" aria-hidden="true">
+      {robot}
+    </div>
+  );
   return (
     <div className={apart ? "u-empty is-apart" : "u-empty"}>
       <div className="u-empty-plate">
+        {!apart && figure}
         {title && <h2>{title}</h2>}
         <p>{children}</p>
         {actions && <div className="u-empty-actions">{actions}</div>}
       </div>
-      {robot && (
-        <div className="u-empty-robot" aria-hidden="true">
-          {robot}
-        </div>
-      )}
+      {apart && figure}
     </div>
   );
 }
@@ -888,8 +903,8 @@ export function InlineField({
 
 /* Остальные параметры: строка на всю ширину, слева название и подсказка, справа поле.
    yesNo: вместо поля кнопки "Да" и "Нет", в данных 1 и 0. Строка тогда не label: щелчок по
-   названию нажимал бы первую кнопку */
-export function FieldRow(props: ValueProps & { yesNo?: boolean }) {
+   названию нажимал бы первую кнопку. yesNoNames: свои подписи кнопок вместо "Да" и "Нет" */
+export function FieldRow(props: ValueProps & { yesNo?: boolean; yesNoNames?: string[] | null }) {
   const text = (
     <span>
       <span className="u-frow-name">{props.label}</span>
@@ -900,15 +915,16 @@ export function FieldRow(props: ValueProps & { yesNo?: boolean }) {
   const trust = props.trust && <Trust level={props.trust} title={props.trustTitle} />;
   if (props.yesNo)
     return (
-      <div className="u-frow">
+      <div className={props.yesNoNames ? "u-frow is-choice" : "u-frow"}>
         {text}
         <Modes
           label={props.label}
           value={Number(props.value) === 1 ? "1" : "0"}
           options={[
-            { id: "1", name: "Да" },
-            { id: "0", name: "Нет" },
+            { id: "1", name: props.yesNoNames?.[0] ?? "Да" },
+            { id: "0", name: props.yesNoNames?.[1] ?? "Нет" },
           ]}
+
           onChange={props.onChange}
         />
         {trust}
@@ -1134,13 +1150,59 @@ export function Fold({
 }
 
 /* Оценка доверия к цифре: одна буква, расшифровка при наведении. */
+/* Наведение мышью показывает подсказку браузера, нажатие открывает ее же на месте: на телефоне
+   наведения нет, и буква оставалась без объяснения */
 export function Trust({ level, title }: { level: string; title?: string }) {
+  const [open, setOpen] = useState(false);
   return (
-    <span className="u-trust" title={title ?? level}>
-      {level}
+    <span className="u-trust-wrap">
+      <button
+        type="button"
+        className="u-trust"
+        title={title ?? level}
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        onBlur={() => setOpen(false)}
+        onKeyDown={(event) => event.key === "Escape" && setOpen(false)}
+      >
+        {level}
+      </button>
+      {open && title && (
+        <span className="u-trust-tip" role="tooltip">
+          {title}
+        </span>
+      )}
     </span>
   );
 }
+
+/* Расшифровка букв, которые стоят у полей рядом: одна строка над полями вместо загадки у каждого */
+export function TrustKey({ levels }: { levels: string[] }) {
+  const shown = [...new Set(levels)].sort();
+  if (shown.length === 0) return null;
+  return (
+    <p className="u-trust-key">
+      Буква у поля говорит, насколько надежна цифра:{" "}
+      {shown.map((level, index) => (
+        <span key={level}>
+          {index > 0 && ", "}
+          <span className="u-trust">{level}</span> {TRUST_WORDS[level] ?? ""}
+        </span>
+      ))}
+      . Нажмите на букву, чтобы увидеть источник.
+    </p>
+  );
+}
+
+const TRUST_WORDS: Record<string, string> = {
+  S: "закон или норматив",
+  A: "проверено независимо",
+  B: "сходятся два источника",
+  C: "один источник",
+  D: "только отраслевые данные или СМИ, лучше поправить своей",
+  E: "источники расходятся",
+  F: "наше допущение",
+};
 
 /* Строка предупреждения или пояснения. Стоит там, где случилась, а не всплывает в углу. */
 export function Alert({ tone = "warn", children }: { tone?: "warn" | "note"; children: ReactNode }) {
@@ -1401,6 +1463,9 @@ function CompareToggle({ checked, onToggle }: { checked: boolean; onToggle: () =
 
 export type Column = { name: string; width?: string; hint?: string };
 
+/* Названия колонок для ячеек: на узком экране шапки нет, и подпись встает над самим полем */
+const SheetNames = createContext<string[]>([]);
+
 /* Таблица ввода: шапка колонок, строки и итог. На узком экране строка складывается в карточку. */
 export function Sheet({ columns, children, foot }: { columns: Column[]; children: ReactNode; foot?: ReactNode }) {
   const template = columns.map((column) => column.width ?? "minmax(0, 1fr)").join(" ");
@@ -1414,7 +1479,7 @@ export function Sheet({ columns, children, foot }: { columns: Column[]; children
           </span>
         ))}
       </div>
-      {children}
+      <SheetNames.Provider value={columns.map((column) => column.name)}>{children}</SheetNames.Provider>
       {foot && <div className="u-sheet-foot">{foot}</div>}
     </div>
   );
@@ -1435,12 +1500,13 @@ export function SheetRow({
   onDragStart?: (event: DragEvent<HTMLDivElement>) => void;
   dragTitle?: string;
 }) {
+  const names = useContext(SheetNames);
   const className = ["u-sheet-row", muted && "is-muted", onDragStart && "is-drag"].filter(Boolean).join(" ");
   return (
     <div className={className} draggable={onDragStart ? true : undefined} onDragStart={onDragStart} title={dragTitle}>
       {onDragStart && <span className="u-grip" aria-hidden="true" />}
       {cells.map((cell, index) => (
-        <span key={index} className="u-cell">
+        <span key={index} className="u-cell" data-label={index > 0 && names[index] ? names[index] : undefined}>
           {cell}
         </span>
       ))}

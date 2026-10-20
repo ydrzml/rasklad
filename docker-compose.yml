@@ -22,11 +22,18 @@ services:
       # Пустой ключ: сервер придумает случайный сам. На сервере лучше задать свой в .env
       SESSION_SECRET: ${SESSION_SECRET:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
-      DEMO_LOGIN: ${DEMO_LOGIN:-true}
+      DEMO_LOGIN: ${DEMO_LOGIN:-false}
       DEMO_USER_EMAIL: ${DEMO_USER_EMAIL:-demo@example.com}
       DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-demo12345}
       DEMO_ADMIN_EMAIL: ${DEMO_ADMIN_EMAIL:-admin@example.com}
       DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:-admin12345}
+      # Почта для "Забыли пароль", пусто - ссылка в служебной таблице админки
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      SITE_URL: ${SITE_URL:-http://localhost:${FRONTEND_PORT:-3000}}
     depends_on:
       db:
         condition: service_healthy

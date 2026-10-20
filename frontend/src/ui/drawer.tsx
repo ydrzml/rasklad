@@ -6,11 +6,13 @@ export function Drawer({
   open,
   title,
   onClose,
+  wide = false,
   children,
 }: {
   open: boolean;
   title: string;
   onClose: () => void;
+  wide?: boolean;
   children: ReactNode;
 }) {
   const box = useRef<HTMLDialogElement>(null);
@@ -24,7 +26,7 @@ export function Drawer({
   return (
     <dialog
       ref={box}
-      className="u-drawer"
+      className={wide ? "u-drawer is-wide" : "u-drawer"}
       aria-label={title}
       onCancel={(event) => {
         event.preventDefault();

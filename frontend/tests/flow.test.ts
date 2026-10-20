@@ -6,6 +6,7 @@ import {
   autoTemplate,
   forPlan,
   planBuilds,
+  shouldCount,
   troubleOf,
   waitingInsteadOfStale,
   withoutPayment,
@@ -163,4 +164,13 @@ test("отказ по полям списком читается словами 
   );
   assert.equal(fieldsText("текст"), null);
   assert.equal(fieldsText([]), null);
+});
+
+test("складской подсчет идет только на экономике склада, у медучреждения на том же шаге свой итог", () => {
+  const base = { step: 4, last: 4, clinic: false, staffPending: false, alreadyCounted: false };
+  assert.equal(shouldCount(base), true);
+  assert.equal(shouldCount({ ...base, clinic: true }), false);
+  assert.equal(shouldCount({ ...base, step: 3 }), false);
+  assert.equal(shouldCount({ ...base, staffPending: true }), false);
+  assert.equal(shouldCount({ ...base, alreadyCounted: true }), false);
 });

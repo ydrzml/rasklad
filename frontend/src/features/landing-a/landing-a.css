@@ -47,6 +47,11 @@
   font-size: 17px;
 }
 
+/* вторая кнопка рядом с главной: готовые разборы без входа */
+.la-go + .la-go {
+  margin-left: var(--s-2);
+}
+
 .la-note {
   margin-top: var(--s-3) !important;
   font-size: 14px;
@@ -117,6 +122,10 @@
     justify-content: space-between;
   }
 
+  .la-go + .la-go {
+    margin: var(--s-2) 0 0;
+  }
+
   .la-sheet {
     padding: var(--s-2) var(--s-2) var(--s-3);
   }
@@ -144,4 +153,352 @@
   top: 0;
   z-index: 20;
   background: linear-gradient(var(--sheet) 18px, color-mix(in srgb, var(--sheet) 0%, transparent));
+}
+
+/* Полировка лендинга гостя. Блоки, порядок и тексты прежние, правки только во внешнем виде.
+   Все правила под .la-guest: главная вошедшего и главная администратора берут те же стили
+   и остаются как были */
+
+/* Выделение текста в цветах сервиса, а не системным синим */
+.la-guest ::selection {
+  background: color-mix(in srgb, var(--blue) 22%, transparent);
+  color: var(--ink);
+}
+
+/* Первый экран чуть выше: полосе цифр под ним нужно больше места */
+.la-guest .la-hero {
+  padding-top: clamp(16px, 3.5vh, 44px);
+}
+
+/* Главная кнопка на наведении приподнимается и дает мягкую синюю тень, при нажатии садится */
+.la-guest .la-go {
+  transition:
+    background var(--slow) var(--ease),
+    transform var(--slow) var(--ease),
+    box-shadow var(--slow) var(--ease);
+}
+
+.la-guest .la-go:hover {
+  transform: translateY(-1px);
+}
+
+.la-guest .u-btn-primary.la-go:hover {
+  box-shadow: 0 14px 28px -16px color-mix(in srgb, var(--blue) 70%, transparent);
+}
+
+.la-guest .la-go:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.la-guest .u-btn-primary.la-go:active {
+  box-shadow: none;
+}
+
+/* Ролик первого экрана в рамке плиты: у ролика своя клетка, и без рамки она спорила бы с клеткой пола */
+.la-guest .la-reel {
+  /* петля снята 1152x940 (576x470 на 1366 в 2x) */
+  aspect-ratio: 1152 / 940;
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  background: var(--sheet);
+  box-shadow: var(--hair), var(--lift);
+}
+
+.la-guest .la-reel :is(video, img) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Цифры под первым экраном: число отдельной строкой, подпись под ним, колонки через волосяную
+   линию. Так их читают как четыре факта, а не как одну длинную строку */
+.la-guest .l-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin-top: clamp(24px, 4vh, 40px);
+  padding-top: 16px;
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+.la-guest .l-facts span {
+  padding: 0 24px;
+  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--ink) 8%, transparent);
+  text-wrap: pretty;
+}
+
+.la-guest .l-facts span:first-child {
+  padding-left: 0;
+  box-shadow: none;
+}
+
+.la-guest .l-facts b {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 20px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Заголовки блоков и подвала той же насыщенности, что и первый экран, межстрочный чуть свободнее:
+   у кириллицы длинные хвосты, и при 1,03 строки почти касались */
+.la-guest .l-block {
+  padding-top: 128px;
+}
+
+/* Заголовок блока на сетке из пяти колонок, как шаги: заголовок на три, пояснение на две.
+   Левый край пояснения встает на одну линию с четвертым шагом во всех блоках */
+.la-guest .l-block-head {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  column-gap: 0;
+  margin-bottom: 40px;
+}
+
+.la-guest .l-block-head h2,
+.la-guest .l-foot h2 {
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+.la-guest .l-block-head h2 {
+  margin-top: 12px;
+}
+
+/* Пояснение справа ровным левым краем: текст с рваным левым краем читается тяжело */
+.la-guest .l-block-head > p {
+  justify-self: start;
+  text-align: left;
+  max-inline-size: 46ch;
+  line-height: 1.55;
+  padding-bottom: 4px;
+}
+
+/* Метки над блоками и в таблицах: 11 пикселей с широкой разрядкой были на грани читаемости */
+.la-guest .l-label,
+.la-guest .l-t,
+.la-guest .l-spec dt {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+/* Поля внутри плит одинаковые, 32: было 26, 28 и 30 вперемешку, и заголовки соседних плит
+   стояли на разной высоте */
+.la-guest .l-pair .l-panel,
+.la-guest .l-how-trust,
+.la-guest .l-value {
+  padding: 32px 32px 30px;
+}
+
+.la-guest .l-side {
+  padding: 32px 32px 0;
+}
+
+.la-guest .l-picker {
+  right: 30px;
+  top: 20px;
+}
+
+/* Подписи к шагам и в карточках: межстрочный под длину строки */
+.la-guest .l-steps p,
+.la-guest .l-side > p,
+.la-guest .l-sub,
+.la-guest .l-how-trust p {
+  line-height: 1.55;
+}
+
+/* Подсказка у буквы доверия появляется плавно, а не скачком */
+.la-guest .l-letters span {
+  transition:
+    background var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.la-guest .l-letters span:not(.l-on):hover {
+  background: color-mix(in srgb, var(--blue) 12%, transparent);
+  color: var(--ink);
+}
+
+.la-guest .l-letters span:hover::after,
+.la-guest .l-letters span:focus-visible::after {
+  animation: la-tip var(--fast) var(--ease) both;
+}
+
+@keyframes la-tip {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+}
+
+/* Ссылки на источники и в подвале: подчеркивание тоньше и отступает от букв, на наведении темнеет */
+.la-guest .l-srcs a,
+.la-guest .l-foot-line a {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+  transition: text-decoration-color var(--fast) var(--ease);
+}
+
+.la-guest .l-srcs a:hover,
+.la-guest .l-foot-line a:hover {
+  text-decoration-color: currentColor;
+}
+
+/* Кнопки подвала: у светлой и у кнопки с рамкой не было отклика на наведение */
+.la-guest .l-btn-light:hover {
+  background: color-mix(in srgb, var(--white) 88%, var(--blue-pale));
+}
+
+.la-guest .l-btn-line {
+  transition:
+    box-shadow var(--slow) var(--ease),
+    transform var(--slow) var(--ease);
+}
+
+.la-guest .l-btn-line:hover {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--white) 70%, transparent);
+}
+
+/* Подвал: строка внизу отделена волосяной линией, как таблица над ней */
+.la-guest .l-foot {
+  margin-top: 128px;
+}
+
+.la-guest .l-foot-line {
+  position: relative;
+  padding-top: 24px;
+}
+
+.la-guest .l-foot-line::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: var(--gutter);
+  right: var(--gutter);
+  height: 1px;
+  background: color-mix(in srgb, var(--white) 10%, transparent);
+}
+
+/* Плиты в темной теме: тонкий блик по верхней кромке, иначе край плиты теряется на темном полу */
+:root[data-theme="dark"] .la-guest .l-panel {
+  box-shadow:
+    var(--hair),
+    inset 0 1px 0 color-mix(in srgb, var(--white) 6%, transparent),
+    var(--lift);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .la-guest .l-panel {
+    box-shadow:
+      var(--hair),
+      inset 0 1px 0 color-mix(in srgb, var(--white) 6%, transparent),
+      var(--lift);
+  }
+}
+
+/* Первый экран появляется одним движением: заголовок, вводная, кнопка, подпись, затем лист
+   с чертежом. Только прозрачность и сдвиг. Кто просил меньше движения, видит все сразу */
+@media (prefers-reduced-motion: no-preference) {
+  .la-guest .la-hero > div > *,
+  .la-guest .la-scene,
+  .la-guest .l-facts {
+    animation: la-rise 700ms var(--ease) both;
+  }
+
+  .la-guest .la-hero > div > :nth-child(2) {
+    animation-delay: 70ms;
+  }
+
+  .la-guest .la-hero > div > :nth-child(3) {
+    animation-delay: 140ms;
+  }
+
+  .la-guest .la-hero > div > :nth-child(4) {
+    animation-delay: 180ms;
+  }
+
+  .la-guest .la-hero > div > :nth-child(5) {
+    animation-delay: 220ms;
+  }
+
+  .la-guest .la-scene {
+    animation-delay: 160ms;
+    animation-name: la-rise-scene;
+  }
+
+  .la-guest .l-facts {
+    animation-delay: 280ms;
+  }
+}
+
+@keyframes la-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+@keyframes la-rise-scene {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.985);
+  }
+}
+
+@media (max-width: 1100px) {
+  .la-guest .l-side {
+    padding-bottom: 8px;
+  }
+}
+
+@media (max-width: 999px) {
+  .la-guest .l-block {
+    padding-top: 88px;
+  }
+
+  .la-guest .l-block-head {
+    grid-template-columns: minmax(0, 1fr);
+    margin-bottom: 28px;
+  }
+
+  .la-guest .l-pair .l-panel,
+  .la-guest .l-how-trust,
+  .la-guest .l-value {
+    padding: 24px 20px;
+  }
+
+  .la-guest .l-side {
+    padding: 24px 20px 8px;
+  }
+
+  .la-guest .l-picker {
+    top: 14px;
+    right: 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* на телефоне цифры в две колонки по два */
+  .la-guest .l-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 16px;
+  }
+
+  .la-guest .l-facts span:nth-child(odd) {
+    padding-left: 0;
+    box-shadow: none;
+  }
+
+  .la-guest .l-facts span:nth-child(even) {
+    padding-right: 0;
+    padding-left: 16px;
+  }
+
+  .la-guest .l-foot {
+    margin-top: 96px;
+  }
 }

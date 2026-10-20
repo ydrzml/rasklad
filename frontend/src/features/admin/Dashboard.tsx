@@ -3,15 +3,16 @@ import type { components } from "../../api/schema";
 import { useEffect, useState } from "react";
 import { catalog, updates, type Change, type Updates } from "../../api/admin";
 import { norms, type NormChange } from "../../api/norms";
-import { BlockHead, Header, Panel } from "../../ui";
-import { Picker12 } from "../../ui/robots";
+import { AccountLinks, AccountMenu, BlockHead, Header, Hero, Panel } from "../../ui";
+import { NotAdmin, useAccess } from "./access";
 import { DayBars } from "./DayBars";
+import { journalNote } from "./journal";
 import "../landing/landing.css";
 import "../landing-a/landing-a.css";
 import "../home/home.css";
 
 // Главная администратора: что ждет решения, сколько всего в сервисе, последние правки каталога
-// и нормативов, быстрые ссылки. Слева белый блок, справа лист дел той же высоты, на листе 12.
+// и нормативов, быстрые ссылки. Слева белый блок, справа лист дел той же высоты.
 
 type Stats = components["schemas"]["Stats"];
 
@@ -27,6 +28,32 @@ type Data = {
 const when = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short", timeZone: "Europe/Moscow" });
 
 export function Dashboard() {
+  const access = useAccess();
+  if (access.state !== "admin")
+    return (
+      <div className="u-page">
+        <Header
+          nav={
+            <>
+              <AccountLinks />
+              <AccountMenu />
+            </>
+          }
+        />
+        <main className="u-main u-wrap">
+          <Hero
+            compact
+            title="Администрирование"
+            lead="Что ждет решения администратора, правки каталога и нормативов"
+          />
+          <NotAdmin access={access} />
+        </main>
+      </div>
+    );
+  return <AdminHome />;
+}
+
+function AdminHome() {
   const [data, setData] = useState<Data | null>(null);
 
   useEffect(() => {
@@ -58,7 +85,7 @@ export function Dashboard() {
   const todo = [
     {
       title: "Подтвердить объекты и задачи",
-      note: "решения из выгрузки, которым правило предложило задачу",
+      note: "новые решения каталога, которым правило предложило задачу",
       count: data?.toCheck,
       href: "/admin?to_check=1",
     },
@@ -79,7 +106,7 @@ export function Dashboard() {
       <div className="h-studio-left h-white">
         <h1>Администрирование</h1>
         <p className="la-lead">Что ждет вашего решения, что поменялось и сколько людей считает.</p>
-        <a className="u-btn u-btn-primary la-go" href="/admin?to_check=1">
+        <a className="u-btn u-btn-primary h-admin-go" href="/admin?to_check=1">
           Разобрать проверки
           <span className="u-knob">→</span>
         </a>
@@ -111,10 +138,10 @@ export function Dashboard() {
       <figure className="la-scene h-stretch h-peek">
         {/* лист дел: не чертеж, поэтому в темной теме темнеет вместе со страницей (h-sheet, а не la-sheet) */}
         <div className="h-sheet">
-          <figcaption className="l-sheet-top">
-            <span className="l-label">ждет вашего решения</span>
-            <span className="l-label">{cases(todo.reduce((sum, t) => sum + (t.count ?? 0), 0))}</span>
-          </figcaption>
+          <div className="h-todo-head">
+            <h2>Ждет решения</h2>
+            <span className="h-faint">{cases(todo.reduce((sum, t) => sum + (t.count ?? 0), 0))}</span>
+          </div>
           <ul className="h-list h-todo">
             {todo.map((item) => (
               <li key={item.title}>
@@ -126,8 +153,6 @@ export function Dashboard() {
               </li>
             ))}
           </ul>
-          {/* 12 стоит на листе в правом нижнем углу и разглядывает список: на любой ширине внутри листа */}
-          <Picker12 className="h-12" />
         </div>
       </figure>
     </section>
@@ -158,7 +183,7 @@ export function Dashboard() {
               id: `c${c.id}`,
               at: c.at,
               who: c.user_email,
-              what: c.note || ACTIONS[c.action] || c.action,
+              what: journalNote(c) || ACTIONS[c.action] || c.action,
               name: c.solution_name,
             })),
             ...(data?.normChanges ?? []).map((c) => ({

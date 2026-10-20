@@ -8,6 +8,7 @@ import {
   type Me,
   type Project,
   type ProjectSummary,
+  type Version,
 } from "../../api/projects";
 import {
   ActionBar,
@@ -28,11 +29,11 @@ import {
   Waiting,
 } from "../../ui";
 import { Keeper03, Sleeper06 } from "../../ui/robots";
-import { api } from "../../api/client";
-import { DRAFT_KEY, draftOf, draftTitle, draftUrl, requestFrom, saveBlob, type SavedInput } from "../../app/saving";
+import { DRAFT_KEY, draftOf, draftTitle, draftUrl } from "../../app/saving";
 import { CompareScreen } from "./Compare";
 import { ProfileScreen } from "./Profile";
 import { VariantDialog } from "./Variant";
+import { VersionCard } from "./Version";
 import { money, term } from "../../app/format";
 import { compareItems, compareUrl, counted, day, problem, PROJECTS, SAVES, when } from "./format";
 import "./cabinet.css";
@@ -130,7 +131,6 @@ export function Cabinet() {
             }
           >
             Считать можно и без входа, а чтобы сохранить расчет, вернуться к нему и сравнить варианты, нужен аккаунт.
-            Для проверки есть демо-аккаунт, пароль не нужен.
           </EmptyState>
         )}
 
@@ -168,14 +168,16 @@ export function Cabinet() {
 
 // Незаконченный расчет в этом браузере: мастер держит введенное здесь, пока его не сохранили.
 // Показываем сверху, чтобы уйти из мастера в кабинет было не страшно: вернуться можно одной кнопкой
+function savedDraft() {
+  try {
+    return draftOf(window.localStorage.getItem(DRAFT_KEY));
+  } catch {
+    return null;
+  }
+}
+
 function DraftCard() {
-  const [draft, setDraft] = useState(() => {
-    try {
-      return draftOf(window.localStorage.getItem(DRAFT_KEY));
-    } catch {
-      return null;
-    }
-  });
+  const [draft, setDraft] = useState(savedDraft);
   if (!draft) return null;
 
   async function drop() {
@@ -198,7 +200,7 @@ function DraftCard() {
     <Notice title="Незаконченный расчет" level={2}>
       {draftTitle(draft)}. Он хранится в этом браузере, пока его не сохранили в проект.
       <span className="u-action-end c-draft">
-        <Button kind="dark" arrow onClick={() => window.location.assign(draftUrl(draft))}>
+        <Button arrow onClick={() => window.location.assign(draftUrl(draft))}>
           Продолжить
         </Button>
         <Button kind="danger" onClick={() => void drop()}>
@@ -242,7 +244,8 @@ function ProjectList(props: ListProps) {
         apart
         robot={<Sleeper06 className="c-sleeper" />}
         actions={
-          <Button arrow onClick={() => window.location.assign(CALC)}>
+          // синяя кнопка одна на экран: есть незаконченный расчет, главная у него, новый расчет рамкой
+          <Button kind={savedDraft() ? "ghost" : "primary"} arrow onClick={() => window.location.assign(CALC)}>
             Посчитать склад
           </Button>
         }
@@ -266,7 +269,7 @@ function ProjectList(props: ListProps) {
     if (!name) return;
     await projects.addFolder(name, picked);
     props.onPick([]);
-    await props.onChanged(picked.length ? `Папка «${name}»: ${counted(picked.length, PROJECTS)} внутри` : null);
+    await props.onChanged(picked.length ? `Папка "${name}": ${counted(picked.length, PROJECTS)} внутри` : null);
   }
 
   async function moveTo(folder: string) {
@@ -286,7 +289,7 @@ function ProjectList(props: ListProps) {
     await Promise.all(moving.map((one) => projects.move(one, folder)));
     props.onPick([]);
     const what = moving.length > 1 ? counted(moving.length, PROJECTS) : "Проект";
-    await props.onChanged(where ? `${what}: в папке «${where.name}»` : `${what}: вынут из папки`);
+    await props.onChanged(where ? `${what}: в папке "${where.name}"` : `${what}: вынут из папки`);
   }
 
   return (
@@ -337,7 +340,7 @@ function ProjectList(props: ListProps) {
       )}
 
       {shown.length === 0 && (
-        <Notice title="Ничего не нашлось">Проекта с «{search.trim()}» в названии нет. Попробуйте часть слова.</Notice>
+        <Notice title="Ничего не нашлось">Проекта с "{search.trim()}" в названии нет. Попробуйте часть слова.</Notice>
       )}
 
       {folders.map((folder) => {
@@ -490,18 +493,18 @@ function FolderBlock({
     setDraft(null);
     if (!name || name === folder.name) return;
     await projects.renameFolder(folder.id, name);
-    await props.onChanged(`Папка переименована в «${name}»`);
+    await props.onChanged(`Папка переименована в "${name}"`);
   }
 
   async function remove() {
     const sure = await ask({
-      title: `Убрать папку «${folder.name}»?`,
+      title: `Убрать папку "${folder.name}"?`,
       text: "Проекты из нее не удалятся, они вернутся в общий список.",
       yes: "Убрать папку",
     });
     if (!sure) return;
     await projects.removeFolder(folder.id);
-    await props.onChanged(`Папки «${folder.name}» больше нет, проекты в общем списке`);
+    await props.onChanged(`Папки "${folder.name}" больше нет, проекты в общем списке`);
   }
 
   const title =
@@ -601,7 +604,7 @@ function Rows({
                   checked={props.picked.includes(project.id)}
                   onToggle={() => onToggle(project.id)}
                   label=""
-                  title={`Отметить «${project.name}»`}
+                  title={`Отметить "${project.name}"`}
                 />,
                 <span className="c-drag">
                   <button
@@ -648,8 +651,9 @@ function Details({ id, folders, onChanged }: { id: number; folders: Folder[]; on
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
-  const [exporting, setExporting] = useState<"pdf" | "xlsx" | null>(null);
   const [variant, setVariant] = useState(false);
+  // какую версию показываем подробно: по умолчанию последнюю
+  const [chosen, setChosen] = useState<number | null>(null);
 
   const reload = useCallback(async () => {
     try {
@@ -711,32 +715,26 @@ function Details({ id, folders, onChanged }: { id: number; folders: Folder[]; on
       setDraft(null);
       return;
     }
-    act(() => projects.rename(id, name), `Проект переименован в «${name}»`).then(() => setDraft(null));
+    act(() => projects.rename(id, name), `Проект переименован в "${name}"`).then(() => setDraft(null));
   }
 
   async function remove() {
     const sure = await ask({
-      title: `Удалить «${project!.name}»?`,
+      title: `Удалить "${project!.name}"?`,
       text: `Вместе с ним удалятся ${counted(project!.versions, SAVES)} и ссылки на расчет. Вернуть не получится.`,
       yes: "Удалить проект",
       danger: true,
     });
-    if (sure) act(() => projects.remove(id), `Проект «${project!.name}» удален`, null);
+    if (sure) act(() => projects.remove(id), `Проект "${project!.name}" удален`, null);
   }
 
-  // Отчет по последней версии: сервер считает его заново по сохраненному вводу, до полуминуты
-  async function download(kind: "pdf" | "xlsx") {
-    if (!current) return;
-    setExporting(kind);
-    setError(null);
-    try {
-      const { blob, name } = await api.report(kind, requestFrom(current.state as unknown as SavedInput) as never);
-      saveBlob(blob, name);
-    } catch (reason) {
-      setError(`Файл не собрался: ${problem(reason)}`);
-    } finally {
-      setExporting(null);
-    }
+  const shown = project.history.find((version) => version.number === chosen) ?? project.history.at(-1);
+
+  // Пересчитанная версия встает последней и сразу открывается подробно
+  async function recalculated(made: Version) {
+    await onChanged(`Версия ${made.number} посчитана на текущих нормативах`);
+    await reload();
+    setChosen(made.number);
   }
 
   return (
@@ -750,7 +748,7 @@ function Details({ id, folders, onChanged }: { id: number; folders: Folder[]; on
             {/* копия нужна, чтобы посмотреть другой вариант того же склада, не трогая этот */}
             {current && (
               <Button kind="ghost" onClick={() => setVariant(true)} disabled={busy}>
-                Копия: что будет, если...
+                Копия для сравнения
               </Button>
             )}
             <span className="c-move">
@@ -773,16 +771,6 @@ function Details({ id, folders, onChanged }: { id: number; folders: Folder[]; on
               Удалить проект
             </Button>
             <span className="c-gap" />
-            {current && (
-              <>
-                <Button kind="light" disabled={exporting !== null} onClick={() => void download("pdf")}>
-                  {exporting === "pdf" ? "Собираем отчет..." : "Отчет PDF"}
-                </Button>
-                <Button kind="light" disabled={exporting !== null} onClick={() => void download("xlsx")}>
-                  {exporting === "xlsx" ? "Собираем таблицы..." : "Таблицы Excel"}
-                </Button>
-              </>
-            )}
             {/* Открываем последнее сохранение, мастер пересчитает цифры сам. Пустой проект открывать нечем */}
             {current ? (
               <Button kind="dark" arrow onClick={() => window.location.assign(`/calc?project=${id}&open=1`)}>
@@ -831,7 +819,11 @@ function Details({ id, folders, onChanged }: { id: number; folders: Folder[]; on
                 { name: "№", width: "44px" },
                 { name: "Что поменяли" },
                 { name: "Сохранено", width: "170px" },
-                { name: "Данные", width: "120px", hint: "Те же ли нормативы и каталог стоят сейчас" },
+                {
+                  name: "Нормативы",
+                  width: "120px",
+                  hint: "Те же ли нормативы и каталог стоят сейчас. Что поменяли во вводе, видно в сравнении",
+                },
                 { name: "", width: "110px" },
               ]}
             >
@@ -841,13 +833,15 @@ function Details({ id, folders, onChanged }: { id: number; folders: Folder[]; on
                   <SheetRow
                     key={version.number}
                     cells={[
-                      <a
-                        href={`/calc?project=${id}&version=${version.number}&open=1`}
-                        title="Открыть эту версию в расчете"
+                      <button
+                        className="c-pick"
+                        aria-pressed={version.number === shown?.number}
+                        onClick={() => setChosen(version.number)}
+                        title="Показать версию подробно"
                       >
                         <span className="c-label">Версия </span>
                         <span className="mono">{version.number}</span>
-                      </a>,
+                      </button>,
                       version.note || <span className="c-faint">без комментария</span>,
                       <span>
                         <span className="c-label">Сохранено </span>
@@ -877,14 +871,7 @@ function Details({ id, folders, onChanged }: { id: number; folders: Folder[]; on
               Проект создан пустым. Сохранения появятся здесь, каждое отдельной строкой.
             </Notice>
           )}
-          {project.history.some((version) => !version.same_data) && (
-            <p className="c-said">
-              <Alert tone="note">
-                С тех пор мы обновили нормативы или каталог. Сохраненные цифры покажем как были, а пересчитать можно на
-                текущих данных.
-              </Alert>
-            </p>
-          )}
+          {shown && <VersionCard key={shown.number} projectId={id} summary={shown} onRecalculated={recalculated} />}
         </div>
 
         <div>

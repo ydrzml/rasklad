@@ -12,15 +12,15 @@ WINDOW_SECONDS = 15 * 60
 _failures: dict[str, list[float]] = defaultdict(list)
 
 
-def seconds_to_wait(email: str, now: float | None = None) -> int:
-    """Сколько секунд ждать до следующей попытки, 0 - можно пробовать."""
+def seconds_to_wait(email: str, now: float | None = None, limit: int = MAX_FAILURES) -> int:
+    """Сколько секунд ждать до следующей попытки, 0 - можно пробовать. limit - сколько попыток за окно."""
     now = time.monotonic() if now is None else now
     recent = [moment for moment in _failures.get(email, []) if now - moment < WINDOW_SECONDS]
     if recent:
         _failures[email] = recent
     else:
         _failures.pop(email, None)
-    if len(recent) < MAX_FAILURES:
+    if len(recent) < limit:
         return 0
     return int(WINDOW_SECONDS - (now - recent[0])) + 1
 

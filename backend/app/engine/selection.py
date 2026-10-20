@@ -16,6 +16,10 @@ WEAK_TRUST = {"D", "E", "F"}
 # Разметка задачи с такой пометкой: решение может делать задачу, но это никто не проверял.
 # Текст после пометки идет на карточку причиной (data/catalog/uses.csv)
 UNVERIFIED = "Требует проверки:"
+# Разметка с такой пометкой: решение подходит, если сбудется условие из текста после пометки.
+# Остается в "подходят", условие стоит на карточке, а балл за процесс вдвое ниже (data/catalog/uses.csv)
+CONDITIONAL = "При условии:"
+CONDITIONAL_SHARE = 0.5
 
 
 @dataclass
@@ -45,6 +49,8 @@ class Match:
     checks: list[Check] = field(default_factory=list)
     factors: list[Factor] = field(default_factory=list)
     missing: list[str] = field(default_factory=list)
+    # поднимает груз впритык, запаса меньше PAYLOAD_MARGIN: в списке идет после решений с запасом
+    at_limit: bool = False
 
     @property
     def blocking(self) -> list[Check]:
@@ -62,6 +68,12 @@ def number(raw: str | None) -> float | None:
     cleaned = raw.replace("\xa0", " ").replace(",", ".")
     found = re.search(r"\d[\d ]*(?:\.\d+)?", cleaned)
     return None if not found else float(found.group().replace(" ", ""))
+
+
+# Запас грузоподъемности, меньше которого решение "на пределе". Правило наше: средний груз из датасета
+# 800 кг при разбросе 200-1500, и робот, который поднимает ровно среднее, половину паллет не возьмет.
+# Такое решение не исключаем, но в списке ставим после тех, у кого запас есть, и в балл запас не идет
+PAYLOAD_MARGIN = 0.1
 
 
 def check_payload(solution: dict, load_kg: float, to_station: bool = False) -> Check:
@@ -87,6 +99,12 @@ def check_payload(solution: dict, load_kg: float, to_station: bool = False) -> C
         )
     if value + 1e-9 < load_kg:
         return Check("Грузоподъемность", BLOCKS, f"Поднимает {value:.0f} кг, а груз весит {load_kg:.0f} кг")
+    if value + 1e-9 < load_kg * (1 + PAYLOAD_MARGIN):
+        return Check(
+            "Грузоподъемность",
+            FITS,
+            f"Поднимает {value:.0f} кг при грузе {load_kg:.0f} кг: на пределе, паллету тяжелее средней не поднимет",
+        )
     return Check("Грузоподъемность", FITS, f"Поднимает {value:.0f} кг при грузе {load_kg:.0f} кг")
 
 
@@ -159,15 +177,25 @@ def check_process(solution: dict, processes: tuple[str, ...], operation: str | N
         note = solution.get("use_notes", {}).get(operation, "")
         if operation in uses and note.startswith(UNVERIFIED):
             return Check("Процесс", UNKNOWN, note.removeprefix(UNVERIFIED).strip())
+        if operation in uses and note.startswith(CONDITIONAL):
+            return Check("Процесс", FITS, f'Решение для задачи "{uses[operation]}" при условии, ниже')
         if operation in uses:
-            return Check("Процесс", FITS, f"Решение для задачи «{uses[operation]}»")
+            return Check("Процесс", FITS, f'Решение для задачи "{uses[operation]}"')
         if not uses:
             return Check("Процесс", BLOCKS, "Какую задачу склада делает решение, мы еще не разметили")
         return Check("Процесс", BLOCKS, f"Решение для другой задачи: {', '.join(uses.values()).lower()}")
     process = solution.get("process", "")
     if process in processes:
-        return Check("Процесс", FITS, f"Решение для процесса «{process}»")
-    return Check("Процесс", BLOCKS, f"Решение для процесса «{process}», а мы считаем другой")
+        return Check("Процесс", FITS, f'Решение для процесса "{process}"')
+    return Check("Процесс", BLOCKS, f'Решение для процесса "{process}", а мы считаем другой')
+
+
+def check_condition(solution: dict, operation: str | None) -> Check | None:
+    """Условие, при котором решение подходит задаче: его производитель не подтвердил, спросите поставщика."""
+    note = solution.get("use_notes", {}).get(operation or "", "")
+    if not note.startswith(CONDITIONAL):
+        return None
+    return Check("Условие", FITS, note.removeprefix(CONDITIONAL).strip())
 
 
 def check_status(solution: dict) -> Check:
@@ -203,11 +231,12 @@ def evaluate(solution: dict, requirements: dict, fields: tuple[str, ...], weight
     lift = check_lift(solution, requirements.get("rack_top_mm", 0.0), requirements.get("stacking_lift_mm", 0.0))
     ramp = check_ramp(solution, requirements.get("ramps", 0))
     racks = check_racks(solution, requirements.get("closed_racks", 0))
-    checks += [check for check in (lift, ramp, racks) if check] + [maturity]
+    condition = check_condition(solution, requirements.get("operation"))
+    checks += [check for check in (condition, lift, ramp, racks) if check] + [maturity]
     quality, missing = data_quality(solution, fields)
 
     factors = [
-        Factor("Подходит процессу", weights["process"] if process.outcome == FITS else 0.0, process.detail),
+        _process_factor(process, condition, weights["process"]),
         Factor(
             "Зрелость решения",
             weights["maturity"] if solution.get("status") == "operation" else weights["maturity"] / 2,
@@ -233,6 +262,7 @@ def evaluate(solution: dict, requirements: dict, fields: tuple[str, ...], weight
             )
         )
 
+    payload = number(solution.get("payload_kg"))
     match = Match(
         solution_id=solution["id"],
         product=solution["product"],
@@ -241,12 +271,25 @@ def evaluate(solution: dict, requirements: dict, fields: tuple[str, ...], weight
         checks=checks,
         factors=factors,
         missing=missing,
+        at_limit=bool(load_kg) and payload is not None and payload + 1e-9 < load_kg * (1 + PAYLOAD_MARGIN),
     )
     if match.blocking:
         match.status = EXCLUDED
     elif any(c.outcome == UNKNOWN for c in checks):
         match.status = NEEDS_CHECK
     return match
+
+
+def _process_factor(process: Check, condition: Check | None, weight: float) -> Factor:
+    if process.outcome != FITS:
+        return Factor("Подходит процессу", 0.0, process.detail)
+    if condition:
+        return Factor(
+            "Подходит процессу",
+            weight * CONDITIONAL_SHARE,
+            f"Задача не подтверждена производителем: {condition.detail}",
+        )
+    return Factor("Подходит процессу", weight, process.detail)
 
 
 def _verification(solution: dict, weight: float) -> float:
@@ -267,7 +310,7 @@ def _verification_detail(solution: dict) -> str:
 
 def _headroom(solution: dict, load_kg: float, weight: float) -> float:
     value = number(solution.get("payload_kg"))
-    if value is None or load_kg <= 0:
+    if value is None or load_kg <= 0 or value + 1e-9 < load_kg * (1 + PAYLOAD_MARGIN):
         return 0.0
     return weight * min(value / load_kg, 2.0) / 2
 
@@ -276,11 +319,14 @@ def _headroom_detail(solution: dict, load_kg: float) -> str:
     value = number(solution.get("payload_kg"))
     if value is None:
         return "Грузоподъемность не опубликована"
+    if value + 1e-9 < load_kg * (1 + PAYLOAD_MARGIN):
+        return f"На пределе: запас по весу меньше {PAYLOAD_MARGIN:.0%}, в балл не идет"
     return f"Запас по весу: {value / load_kg:.1f} раза"
 
 
 def rank(solutions: list[dict], requirements: dict, fields: tuple[str, ...], weights: dict) -> list[Match]:
-    """Сначала рекомендованные, потом требующие проверки, потом исключенные. Внутри по баллу."""
+    """Сначала рекомендованные, потом требующие проверки, потом исключенные. Внутри сначала решения
+    с запасом грузоподъемности, потом на пределе, и по баллу."""
     order = {RECOMMENDED: 0, NEEDS_CHECK: 1, EXCLUDED: 2}
     matches = [evaluate(solution, requirements, fields, weights) for solution in solutions]
-    return sorted(matches, key=lambda m: (order[m.status], -m.score))
+    return sorted(matches, key=lambda m: (order[m.status], m.at_limit, -m.score))

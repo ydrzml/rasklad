@@ -27,7 +27,7 @@ from app.services.selection import photo_url
 from app.settings import settings
 
 SHEETS = {"airport": "Аэропорт", "clinic": "Медучреждение"}
-RANGE_SOURCE = "Границы min и max из датасета организатора, Датасеты_хакатон.xlsx"
+RANGE_SOURCE = "Границы min и max из отраслевого датасета, Датасеты_хакатон.xlsx"
 
 # Поля, которые стоят наверху второго шага, кроме объемов задач: без них объект не описать
 MAIN = {"airport": ["terminal_area_m2", "passengers_per_day"], "clinic": ["floor_area_m2", "floors", "beds"]}
@@ -75,6 +75,8 @@ STATUS_ORDER = {"recommended": 0, "needs_check": 1, "excluded": 2}
 SOURCE_ORDER = ["организатор", "производитель", "интегратор", "эксплуатант", "СМИ"]
 NOT_FOUND = "не найдено"
 NUMERIC = re.compile(r"(до |от |≈)?[\d\s.,×–-]+")
+# значение начинается с числа, дальше пояснение словами
+NUMBER_FIRST = re.compile(r"(до |от |≈)?\d")
 
 
 def _read(name: str) -> list[dict[str, str]]:
@@ -358,11 +360,17 @@ def _spec(solution_id: str, field: str) -> SourcedSpec:
     row = _specs()[(solution_id, field)]
     rows = [item for item in _sources().get((solution_id, field), []) if item["current"] != "устарело"]
     dates = sorted(item["retrieved"] for item in rows if item["retrieved"])
-    # единицу ставим только к числу: "до недели на одной зарядке ч" читается как ошибка
-    unit = (row["unit"] or SPEC_UNITS.get(field, "")) if NUMERIC.fullmatch(row["value"]) else ""
+    # единицу ставим только к числу: "до недели на одной зарядке ч" читается как ошибка. Число с
+    # пояснением ("3,5 (комплексная) / 10 (ECO)") без единицы непонятно: тогда единица идет в название
+    known = (row["unit"] or SPEC_UNITS.get(field, "")).replace("м2", "м²")
+    plain_number = bool(NUMERIC.fullmatch(row["value"]))
+    unit = known if plain_number else ""
+    label = SPEC_LABELS[field]
+    if known and not plain_number and NUMBER_FIRST.match(row["value"]):
+        label = f"{label}, {known}"
     return SourcedSpec(
         field=field,
-        label=SPEC_LABELS[field],
+        label=label,
         value=f"{row['value']} {unit}".strip() if row["value"] else "",
         trust=row["rating"],
         trust_name=row["rating_name"],
@@ -370,6 +378,11 @@ def _spec(solution_id: str, field: str) -> SourcedSpec:
         date=dates[-1] if dates else "",
         note=row["reason"],
     )
+
+
+def price(solution_id: str) -> tuple[float | None, str]:
+    """Цена решения с НДС и откуда она: для денег медучреждения."""
+    return _price(solution_id)
 
 
 def _price(solution_id: str) -> tuple[float | None, str]:
@@ -394,6 +407,17 @@ def _ranked(solution_id: str, field: str) -> list[dict[str, str]]:
 def _best(solution_id: str, field: str) -> str | None:
     rows = _ranked(solution_id, field)
     return rows[0]["value"] if rows else None
+
+
+def spec_row(solution_id: str, field: str) -> dict[str, str] | None:
+    """Характеристика решения из data/specs/specs.csv: значение, оценка и почему. Для прогона смены
+    медучреждения: он берет характеристики роботов отсюда, а не заводит свои."""
+    return _specs().get((solution_id, field))
+
+
+def rides_lift(solution_id: str) -> str | None:
+    """Как робот ездит на лифте, словами источника. None: про лифт источники ничего не пишут."""
+    return _best(solution_id, "elevator_door_integration")
 
 
 def _value(solution_id: str, field: str) -> str:

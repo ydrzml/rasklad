@@ -1,14 +1,18 @@
+import hmac
+import smtplib
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
-from app.auth import service, throttle
+from app.auth import service, signup, throttle
 from app.auth.dependencies import COOKIE_NAME, current_user, require_user
 from app.auth.passwords import verify_password
-from app.auth.tokens import issue_token
+from app.auth.reset import issue_reset_token, read_reset_token, reset_link
+from app.auth.tokens import issue_token, password_stamp
 from app.db import get_session
 from app.schemas.auth import (
+    CodeSent,
     Credentials,
     DemoLogin,
     DemoStatus,
@@ -16,9 +20,14 @@ from app.schemas.auth import (
     Me,
     PasswordChange,
     PasswordConfirm,
+    PasswordReset,
     ProfileUpdate,
     Registration,
+    ResetRequest,
+    ResetSent,
+    SignupConfirm,
 )
+from app.services import mail
 from app.settings import settings
 from app.storage.models import Role, User
 
@@ -80,17 +89,105 @@ def me(user: Annotated[User | None, Depends(current_user)]) -> Me:
     return _me(user) if user else Me(role="guest")
 
 
+EMAIL_TAKEN = "Эта почта уже зарегистрирована, войдите"
+# Писем со всего сервера за 15 минут: регистрация и "Забыли пароль" вместе. Через нас нельзя завалить
+# письмами чужие ящики, и почтовый сервис не заблокирует наш ящик за рассылку. Тест с людьми в одной
+# комнате укладывается с запасом
+LETTERS_PER_WINDOW = 30
+LETTERS_KEY = "letters:all"
+# Сколько кодов регистрации на одну почту за 15 минут
+SIGNUP_CODES = 3
+
+
+def _letters_left() -> None:
+    wait = throttle.seconds_to_wait(LETTERS_KEY, limit=LETTERS_PER_WINDOW)
+    if wait:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Сервис сейчас отправляет слишком много писем, попробуйте через несколько минут",
+            headers={"Retry-After": str(wait)},
+        )
+    throttle.record_failure(LETTERS_KEY)
+
+
 @router.post(
     "/register",
+    response_model=Me | CodeSent,
+    status_code=status.HTTP_201_CREATED,
+    summary="Регистрация по почте и паролю",
+    description="Если на сервере настроена почта, отвечает 202 и шлет на почту код: аккаунт появится после "
+    "POST /api/auth/register/confirm. Без почты аккаунт создается сразу, ответ 201 со входом.",
+    responses={
+        202: {"model": CodeSent, "description": "Код отправлен на почту, ждем его"},
+        409: {"description": "Почта уже зарегистрирована"},
+        422: {"description": "Почта с ошибкой или у ее домена нет почтового сервера, слабый пароль"},
+        429: {"description": "Слишком много кодов на эту почту или писем с сервера"},
+        503: {"description": "Письмо с кодом не ушло"},
+    },
+)
+def register(body: Registration, response: Response, session: SessionDep) -> Me | CodeSent:
+    if not mail.configured():
+        try:
+            user = service.register(session, body.email, body.password)
+        except service.EmailTaken as error:
+            raise HTTPException(status.HTTP_409_CONFLICT, EMAIL_TAKEN) from error
+        return start_session(response, user)
+
+    email = service.normalize(body.email)
+    if service.find_by_email(session, email):
+        raise HTTPException(status.HTTP_409_CONFLICT, EMAIL_TAKEN)
+    if not mail.domain_accepts_mail(email):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "На такую почту письма не доходят. Проверьте адрес после @",
+        )
+    key = f"signup:{email}"
+    wait = throttle.seconds_to_wait(key, limit=SIGNUP_CODES)
+    if wait:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Код на эту почту уже отправляли несколько раз. Проверьте папку Спам или попробуйте через 15 минут",
+            headers={"Retry-After": str(wait)},
+        )
+    _letters_left()
+    throttle.record_failure(key)
+    code = signup.start(session, email, body.password)
+    # Шлем сразу, а не в фоне: занята ли почта, регистрация и так говорит, а человеку важно знать,
+    # что письмо не ушло, иначе он будет ждать код, которого нет
+    try:
+        mail.deliver(mail.signup_letter(email, code, signup.CODE_MINUTES))
+    except (smtplib.SMTPException, OSError) as error:
+        mail.log.error(
+            "Письмо с кодом регистрации не ушло: %s %s", type(error).__name__, getattr(error, "smtp_code", "")
+        )
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "Не получилось отправить письмо. Попробуйте через пару минут"
+        ) from error
+    response.status_code = status.HTTP_202_ACCEPTED
+    return CodeSent(email=email, minutes=signup.CODE_MINUTES)
+
+
+@router.post(
+    "/register/confirm",
     response_model=Me,
     status_code=status.HTTP_201_CREATED,
-    summary="Регистрация по почте и паролю, сразу со входом",
+    summary="Код из письма: аккаунт создан, сразу вход",
+    responses={
+        400: {"description": "Код неверный, устарел или по нему ошиблись 5 раз"},
+        409: {"description": "Почта уже зарегистрирована"},
+    },
 )
-def register(body: Registration, response: Response, session: SessionDep) -> Me:
+def confirm_registration(body: SignupConfirm, response: Response, session: SessionDep) -> Me:
     try:
-        user = service.register(session, body.email, body.password)
+        user = signup.confirm(session, body.email, body.code)
+    except signup.WrongCode as error:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Код не подходит, проверьте цифры в письме") from error
+    except signup.CodeExpired as error:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Код устарел или введен неверно много раз. Запросите новый"
+        ) from error
     except service.EmailTaken as error:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Эта почта уже зарегистрирована, войдите") from error
+        raise HTTPException(status.HTTP_409_CONFLICT, EMAIL_TAKEN) from error
     return start_session(response, user)
 
 
@@ -117,6 +214,66 @@ def login(body: Credentials, response: Response, session: SessionDep) -> Me:
     return start_session(response, user)
 
 
+# Сколько писем со ссылкой на одну почту за 15 минут: хватит, если первое ушло в спам,
+# но ящик не завалить письмами чужими руками
+RESET_LETTERS = 3
+BAD_LINK = "Ссылка устарела или по ней уже меняли пароль. Запросите новую на странице входа"
+
+
+@router.post(
+    "/forgot",
+    response_model=ResetSent,
+    summary="Забыли пароль: прислать на почту ссылку для нового",
+    description="Ответ одинаковый, есть такая почта или нет. Письмо уходит в фоне. Если почта на сервере "
+    'не настроена (SMTP_HOST пустой), письмо ложится в служебную таблицу "Письма без отправки".',
+    responses={429: {"description": "На эту почту уже несколько раз отправляли ссылку, нужно подождать"}},
+)
+def forgot(body: ResetRequest, background: BackgroundTasks, session: SessionDep) -> ResetSent:
+    email = service.normalize(body.email)
+    key = f"forgot:{email}"
+    wait = throttle.seconds_to_wait(key, limit=RESET_LETTERS)
+    if wait:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Ссылку на эту почту уже отправляли несколько раз. Проверьте папку Спам или попробуйте через 15 минут",
+            headers={"Retry-After": str(wait)},
+        )
+    # Считаем любую почту, а не только зарегистрированную: иначе по лимиту было бы видно, есть ли адрес
+    throttle.record_failure(key)
+    _letters_left()
+    user = service.find_by_email(session, email)
+    # Демо-аккаунт общий, его пароль знают все: письмо со сменой пароля ему не шлем
+    if user is not None and not _is_demo(user):
+        link = reset_link(issue_reset_token(user.id, user.password_hash))
+        if mail.configured():
+            background.add_task(mail.send_reset, user.email, link)
+        else:
+            mail.keep_unsent(session, user.email, link)
+    return ResetSent(
+        detail="Если такая почта зарегистрирована, мы отправили на нее ссылку для нового пароля",
+        minutes=settings.reset_minutes,
+    )
+
+
+@router.post(
+    "/reset",
+    response_model=Me,
+    summary="Новый пароль по ссылке из письма, сразу со входом",
+    description="Ссылка одноразовая: после смены пароля она и все прежние ссылки перестают работать, "
+    "входы на других компьютерах сбрасываются.",
+    responses={400: {"description": "Ссылка подделана, устарела или по ней уже меняли пароль"}},
+)
+def reset(body: PasswordReset, response: Response, session: SessionDep) -> Me:
+    found = read_reset_token(body.token)
+    user = session.get(User, found[0]) if found else None
+    if user is None or not hmac.compare_digest(found[1], password_stamp(user.password_hash)):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, BAD_LINK)
+    service.change_password(session, user, body.new_password)
+    # Забыл пароль и мог упереться в лимит неверных входов: новый пароль пускает сразу
+    throttle.forget(user.email)
+    return start_session(response, user)
+
+
 @router.get("/demo", response_model=DemoStatus, summary="Включен ли вход в демо-аккаунты без пароля")
 def demo_status() -> DemoStatus:
     # Экран входа прячет кнопки демо, если здесь false
@@ -128,7 +285,7 @@ def demo_status() -> DemoStatus:
     response_model=Me,
     summary="Вход в демо-аккаунт без пароля",
     description="Для экспертизы: одной кнопкой войти пользователем или администратором. "
-    "На открытом сервере выключается настройкой DEMO_LOGIN=false, тогда отвечает 404.",
+    "Включается настройкой DEMO_LOGIN=true, по умолчанию выключен и отвечает 404.",
     responses={404: {"description": "Вход без пароля выключен на этом сервере"}},
 )
 def demo(response: Response, session: SessionDep, body: DemoLogin | None = None) -> Me:

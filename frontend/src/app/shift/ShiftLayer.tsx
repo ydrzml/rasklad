@@ -22,6 +22,7 @@ export function ShiftLayer({
   clock,
   heat,
   robots,
+  owners,
 }: {
   view: View;
   area: { w: number; h: number };
@@ -30,6 +31,9 @@ export function ShiftLayer({
   clock: Clock;
   heat: { cells: HeatCell[]; ranks: Map<HeatCell, number> } | null;
   robots: boolean;
+  /* все задачи вместе: чей робот (номер задачи у каждого робота лога) и цвета задач. Корпус
+     красим цветом задачи и рисуем ее формой, огонек сзади остается цветом действия */
+  owners?: { of: number[]; colors: string[] } | null;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   // куда смотрит каждый робот: у стоящего остается последнее направление, а не сбрасывается вправо
@@ -46,6 +50,7 @@ export function ShiftLayer({
       Object.entries(ACTION_COLOR).map(([key, value]) => [key, tokenColor(value, node)]),
     );
     const heatFill = heat ? heat.cells.map((cell) => heatColor(heat.ranks.get(cell) ?? 0)) : [];
+    const teams = owners ? owners.colors.map((one) => tokenColor(one, node)) : [];
     const paper = tokenColor("var(--paper)", node);
     const ink = tokenColor("var(--ink)", node);
     const px = (x: number) => x * view.s + view.tx;
@@ -76,14 +81,15 @@ export function ShiftLayer({
       // Робот значком сверху, как семья 07 на лендинге: белый корпус, обводка цветом действия,
       // темная полоса датчика спереди по ходу и огонек сзади. По точкам на плане
       // не читается, что едут роботы
-      const icon = (x: number, y: number, r: number, color: string, angle: number) => {
+      // у задач вместе корпус берет форму задачи: цвет не единственный признак (дальтоники, печать)
+      const icon = (x: number, y: number, r: number, color: string, angle: number, shape = 0, light = color) => {
         const long = r * 1.25;
         const wide = r * 0.9;
         context.save();
         context.translate(x, y);
         context.rotate(angle);
         context.beginPath();
-        context.roundRect(-long, -wide, long * 2, wide * 2, r * 0.45);
+        bodyPath(context, shape, long, wide, r);
         context.fillStyle = paper;
         context.fill();
         context.lineWidth = Math.max(2, r * 0.28);
@@ -93,7 +99,7 @@ export function ShiftLayer({
         context.fillRect(long * 0.35, -wide * 0.55, long * 0.35, wide * 1.1);
         context.beginPath();
         context.arc(-long * 0.55, 0, r * 0.28, 0, Math.PI * 2);
-        context.fillStyle = color;
+        context.fillStyle = light;
         context.fill();
         context.restore();
       };
@@ -115,18 +121,26 @@ export function ShiftLayer({
           const shift = group.length > 1 ? radius * 1.5 : 0;
           group.forEach((spot, k) => {
             const angle = (Math.PI * 2 * k) / group.length - Math.PI / 4;
+            const action = colors[spot.action] ?? colors["без задания"];
+            const team = owners?.of[spot.robot];
+            // робот без задания у задач вместе бледнее: на плане сразу видно, кто едет, а кто стоит
+            context.globalAlpha = team !== undefined && spot.action === "без задания" ? 0.55 : 1;
             icon(
               cx + Math.cos(angle) * shift,
               cy + Math.sin(angle) * shift,
               radius,
-              colors[spot.action] ?? colors["без задания"],
+              team !== undefined ? (teams[team] ?? action) : action,
               heading(spot),
+              team ?? 0,
+              action,
             );
+            context.globalAlpha = 1;
           });
           continue;
         }
         const r = radius * 1.6;
-        dot(cx, cy, r, colors[most(group)] ?? colors["без задания"]);
+        const team = owners ? mostOf(group.map((spot) => String(owners.of[spot.robot]))) : null;
+        dot(cx, cy, r, team !== null ? (teams[Number(team)] ?? ink) : (colors[most(group)] ?? colors["без задания"]));
         context.fillStyle = paper;
         context.font = `600 ${Math.round(r * 1.05)}px 'JetBrains Mono', monospace`;
         context.textAlign = "center";
@@ -136,7 +150,7 @@ export function ShiftLayer({
     };
     draw();
     return clock.subscribe(draw);
-  }, [view, area, length, replay, clock, heat, robots]);
+  }, [view, area, length, replay, clock, heat, robots, owners]);
 
   return <canvas ref={canvas} className="u-shift-layer" style={{ width: area.w, height: area.h }} aria-hidden="true" />;
 }
@@ -160,7 +174,48 @@ function stacks(spots: Spot[], reach: number): Spot[][] {
 
 /* Какое действие в группе у большинства: им красим точку с числом */
 function most(group: Spot[]): string {
+  return mostOf(group.map((spot) => spot.action));
+}
+
+/* Самое частое значение: действие в группе, а у задач вместе задача */
+function mostOf(values: string[]): string {
   const count = new Map<string, number>();
-  for (const spot of group) count.set(spot.action, (count.get(spot.action) ?? 0) + 1);
+  for (const value of values) count.set(value, (count.get(value) ?? 0) + 1);
   return [...count.entries()].sort((a, b) => b[1] - a[1])[0][0];
+}
+
+/* Корпус робота сверху. Форма 0 это прямоугольник со скругленными углами, как у одной задачи;
+   у задач вместе вторая задача круглая, третья ромбом, четвертая шестигранником */
+export function bodyPath(
+  context: CanvasRenderingContext2D | Path2D,
+  shape: number,
+  long: number,
+  wide: number,
+  r: number,
+): void {
+  if (shape === 1) {
+    context.ellipse(0, 0, long, long, 0, 0, Math.PI * 2);
+    return;
+  }
+  if (shape === 2) {
+    const d = long * 1.15;
+    context.moveTo(d, 0);
+    context.lineTo(0, d);
+    context.lineTo(-d, 0);
+    context.lineTo(0, -d);
+    context.closePath();
+    return;
+  }
+  if (shape === 3) {
+    for (let k = 0; k < 6; k++) {
+      const a = (Math.PI / 3) * k;
+      const x = Math.cos(a) * long * 1.05;
+      const y = Math.sin(a) * long * 1.05;
+      if (k) context.lineTo(x, y);
+      else context.moveTo(x, y);
+    }
+    context.closePath();
+    return;
+  }
+  context.roundRect(-long, -wide, long * 2, wide * 2, r * 0.45);
 }

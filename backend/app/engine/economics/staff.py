@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, replace
 
 REPLACE, SPEEDUP = "replace", "speedup"
@@ -170,10 +171,20 @@ def staff_lines(facility: dict) -> list[StaffLine]:
     return lines
 
 
-def role_total_normative(facility: dict, roles: dict, role_id: str, annual_work_hours: float) -> float:
-    """Норматив по всем операциям, которые выполняет роль. Нужен, чтобы разложить штат по операциям."""
+# Пост подрядчика в часах за год: 8 часов * 250 дней. Подрядчик берет деньги за часы и сам дает
+# подмену в отпуск и на больничный, поэтому его норму считаем в постах, без надбавки на потери
+# (config/model.yaml, штат уборки; docs/decisions.md, "Уборка: робот моет и ночью")
+CONTRACTOR_POST_HOURS = 2000.0
+
+
+def role_total_normative(
+    facility: dict, roles: dict, role_id: str, annual_work_hours: float, contractor: bool = False
+) -> float:
+    """Норматив по всем операциям, которые выполняет роль. Нужен, чтобы разложить штат по операциям.
+    contractor: норма в постах подрядчика (CONTRACTOR_POST_HOURS, без надбавки на потери)."""
     days = facility["schedule"]["days_per_year"]
-    loss = facility["staff_loss_share"]
+    loss = 0.0 if contractor else facility["staff_loss_share"]
+    annual_work_hours = CONTRACTOR_POST_HOURS if contractor else annual_work_hours
     total = 0.0
     for operation in facility["operations"]:
         if role_id not in operation.get("performed_by", []):
@@ -198,13 +209,6 @@ def occupied_fte(facility: dict, roles: dict, operation: dict, line: StaffLine, 
     if not productivity:
         return 0.0
     own = normative_fte(operation["volume_per_day"] * days, productivity, annual_work_hours, loss)
-    if operation.get("people_from_volume"):
-        # Людей на задаче считаем от объема по нормативу, а не долей от штата. Так для отбора товара:
-        # штат отборщиков в датасете не сходится с его же объемом, и доля от штата занижала
-        # работу, которую делают руками (docs/decisions.md, «Люди в отборе от объема»)
-        # две строки одной роли делят эту работу пропорционально местам
-        places = sum(other.headcount for other in lines_of_role(facility, line.role))
-        return own * volume_growth(operation) * (line.headcount / places if places else 0.0)
     total = role_total_normative(facility, roles, line.role, annual_work_hours)
     if total <= 0:
         return 0.0
@@ -254,7 +258,9 @@ def takes_on_operation(facility: dict, roles: dict, operation: dict, annual_work
     # работают с другой интенсивностью, и высвободить можно только тех, кто есть.
     # Рост объема уже учтен в occupied_fte, здесь остается только доля, посильная роботам.
     total_occupied = sum(occupied for _, occupied in occupied_by_line)
-    remaining = min(operation["automatable_share"], 1.0) * total_occupied
+    # Доля работы людей, которую забирает робот: у паллет меньше доли объема, разгрузка машин и подъем
+    # на высоту остаются людям (labor_share в config/model.yaml). Нет отдельной доли: та же, что у объема
+    remaining = min(operation.get("labor_share", operation["automatable_share"]), 1.0) * total_occupied
 
     takes: list[Take] = []
     for line, occupied in occupied_by_line:
@@ -273,6 +279,20 @@ def takes_on_operation(facility: dict, roles: dict, operation: dict, annual_work
         remaining -= taken
 
     return takes
+
+
+def nothing_taken(take: Take) -> Take:
+    """Роботов ноль: они ничего не забирают, люди остаются на операции, вакансии не закрываются.
+
+    Живые ставки на этой работе те же, что без роботов, поэтому база "без роботов" не меняется,
+    а высвобождать некого (docs/decisions.md, "Ноль роботов")."""
+    return replace(
+        take,
+        fte_taken=take.people_released,
+        vacancies_closed=0.0,
+        fte_left=take.people_released,
+        reason="роботов нет, работу делают люди",
+    )
 
 
 def scale_takes(takes: list[Take], share: float) -> list[Take]:
@@ -312,6 +332,15 @@ def normative_gap(facility: dict, roles: dict, role_id: str, annual_work_hours: 
 # Расхождение между нормативом и численностью, с которого начинаем предупреждать.
 # Граница наша: ниже нее расхождение объясняется округлением выработки и потерь времени.
 NORM_TOLERANCE = 0.2
+
+
+def within_norm(actual: float, normative: float) -> bool:
+    """Штат сходится с нормативом: расхождение до 20% или это норматив, округленный до целых людей.
+    1,27 ставки по норме это 1 человек (или 2 с запасом), и это не расхождение, хотя в процентах
+    1 от 1,27 дальше 20%. Так штат по умолчанию малых ролей не спорит сам с собой."""
+    if abs(normative / actual - 1) <= NORM_TOLERANCE:
+        return True
+    return actual in (math.floor(normative + 0.5), math.ceil(normative))
 
 
 @dataclass(frozen=True)
@@ -360,9 +389,12 @@ def _role_checks(facility: dict, roles: dict, role_id: str, operations: list[dic
     if not _has_productivity(roles, role_id, operations):
         return [Mismatch(kind="no_productivity", level="warn", role=role_id, line_id=lines[0].id)]
     actual = sum(line.headcount for line in lines)
-    normative = role_total_normative(facility, roles, role_id, hours)
-    if not actual or not normative or abs(normative / actual - 1) <= NORM_TOLERANCE:
+    # все строки роли у подрядчика: штат в постах, и норму с ним сравниваем тоже в постах
+    contractor = all(line.contractor for line in lines)
+    normative = role_total_normative(facility, roles, role_id, hours, contractor)
+    if not actual or not normative or within_norm(actual, normative):
         return []
+
     return [Mismatch(kind="norm_gap", level="warn", role=role_id, actual=actual, expected=normative)]
 
 
@@ -392,7 +424,8 @@ def _line_checks(line: StaffLine, roles: dict, at_work: list[str]) -> list[Misma
                 expected=line.headcount,
             )
         )
-    salary_range = roles.get(line.role, {}).get("salary_range") or []
+    # у людей подрядчика в поле цена договора, а не оклад: с вилкой окладов ее не сравниваем
+    salary_range = [] if line.contractor else roles.get(line.role, {}).get("salary_range") or []
     if len(salary_range) == 2 and not salary_range[0] <= line.salary_month <= salary_range[1]:
         found.append(
             Mismatch(

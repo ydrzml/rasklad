@@ -10,19 +10,24 @@ from functools import lru_cache
 
 from app.engine import plan as plan_engine
 from app.engine import simulation
-from app.engine.economics.fleet import peak_demand, robot_ops_per_hour
+from app.engine.economics.fleet import (
+    peak_demand,
+    robot_hours_per_day,
+    robot_ops_per_hour,
+    station_service_s,
+    work_share,
+)
 from app.engine.economics.scenarios import by_id
-from app.engine.economics.staff import hours_per_day
 from app.schemas import plan as plan_schema
 from app.schemas import simulation as schema
 from app.services import plan as plan_service
 from app.services.calculation import model_with_overrides
+from app.services.memo import Memo
 
 # План живет в памяти по своему отпечатку: кривая кешируется по нему, а словарь в ключ кеша
 # не положить. Плана два-три на расчет, поэтому маленького склада хватает.
 _PLANS: dict[str, plan_engine.Plan] = {}
 ROBOT_ZONE = plan_service.ROBOT_ZONE
-ZONE_PATHS = (".active_area_m2", ".picking_zone_share")
 
 
 def remember(plan: plan_engine.Plan) -> str:
@@ -64,29 +69,39 @@ def task_plan(
     """
     if not picking_on_zone(facility_id, operation_id):
         return drawn if drawn is not None else plan_service.generate(facility_id, [operation_id])
-    # из правок робозоне нужны только площадь склада и ее доля под отбор: станции, как и раньше,
-    # от объема по умолчанию, иначе у смешанного парка каждая часть строила бы свою робозону
-    zone = {path: value for path, value in (overrides or {}).items() if path.endswith(ZONE_PATHS)}
-    return plan_service.generate(facility_id, [operation_id], ROBOT_ZONE, zone)
+    # Робозона строится по правкам человека: площадь и доля под отбор, а станции от его объема,
+    # доли роботам и выработки на станции. До 17.10.2026 станции шли от объема по умолчанию, и на
+    # Восток-Сервисе (75 строк в час на станции) план ставил 4 станции на пик 357 строк: потолок
+    # 300 строк в час при любом парке. Правки сюда приходят на всю задачу, без деления объема между
+    # решениями смешанного парка (with_share), поэтому робозона у всех частей задачи одна
+    return plan_service.generate(facility_id, [operation_id], ROBOT_ZONE, for_shift(overrides))
 
 
-def _station_service_s(model: dict, facility: dict, operation: dict) -> float:
-    rate = operation.get("productivity_after")
-    return 3600 / rate * operation.get("ops_per_trip", 1) if rate else 0.0
+# Схема большого склада собирается секунды, а смена на плане, готовность склада и замер плана
+# собирали ее каждый раз заново. Схема зависит только от плана и чисел ниже, прогон ее только
+# читает (так ее держат и помощники поиска парка, _HELD), поэтому помним несколько последних
+_LAYOUTS: Memo[simulation.Layout] = Memo(limit=6)
 
 
 def _layout(
     model: dict, plan: plan_engine.Plan, facility: dict, operation: dict, with_trails: bool, slotted: bool = False
 ) -> simulation.Layout:
     settings = model["engine"]["simulation"]
-    return simulation.build_layout(
-        plan,
-        plan_service.constants(),
-        plan_service.measure(plan),
-        robots_per_aisle=settings["robots_per_aisle"],
-        station_service_s=_station_service_s(model, facility, operation),
-        with_trails=with_trails,
-        popularity=(facility["fast_share"], facility["fast_picks_share"]) if slotted else None,
+    robots_per_aisle = settings["robots_per_aisle"]
+    service_s = station_service_s(operation)
+    popularity = (facility["fast_share"], facility["fast_picks_share"]) if slotted else None
+    key = (plan_service.digest(plan), robots_per_aisle, service_s, with_trails, popularity)
+    return _LAYOUTS.get(
+        key,
+        lambda: simulation.build_layout(
+            plan,
+            plan_service.constants(),
+            plan_service.measure(plan),
+            robots_per_aisle=robots_per_aisle,
+            station_service_s=service_s,
+            with_trails=with_trails,
+            popularity=popularity,
+        ),
     )
 
 
@@ -138,6 +153,7 @@ MONEY_TAILS = (
     "charger_price_rub",
     "commissioning_share",
     "service_life_years",
+    "amortization_years",
     "station_price_rub",
     "operator_attention_min_per_hour",
     "avg_power_kw",
@@ -224,7 +240,7 @@ def shift_demand(model: dict, facility: dict, operation: dict) -> list[float]:
         peak_demand(operation, facility) / peak_factor,
         peak_factor,
         settings["peak_hours"],
-        hours_per_day(facility["schedule"]),
+        robot_hours_per_day(operation, facility),
         settings["hours"],
     )
 
@@ -320,7 +336,8 @@ def fleet_search(
     demand = search_demand(model, facility, operation)
     availability = availability_of(model, operation)
     route = plan_service.measure(plan).route_m
-    rate = robot_ops_per_hour(robot, route, operation.get("ops_per_trip", 1)) * robot["utilization"]
+    rate = robot_ops_per_hour(robot, route, operation.get("ops_per_trip", 1), station_service_s(operation))
+    rate *= work_share(robot)
     guess = math.ceil(demand / max(rate, 1e-9) * availability)
     top = math.floor(model["engine"]["max_fleet_simulated"] * availability)
     case = (plan_key, plan_service.to_dict(plan), facility_id, operation_id, robot_id, overrides, by_turnover)
@@ -384,7 +401,8 @@ def to_schema(request: schema.SimulationRequest) -> schema.SimulationResult:
     model, facility, operation, robot = _parts(request.facility_id, request.operation_id, request.robot_id, overrides)
     # в запросе план приходит моделью API, а собирается план из словаря, как в расчете
     drawn = plan_service.from_dict(request.plan.model_dump()) if request.plan else None
-    plan = task_plan(request.facility_id, request.operation_id, drawn, overrides)
+    # план робозоны один на всю задачу: по правкам без доли этого решения
+    plan = task_plan(request.facility_id, request.operation_id, drawn, for_shift(request.overrides))
     measures = plan_service.measure(plan)
     # отбор на плане под погрузчик гоняем по робозоне: ее и отдаем, чтобы смену рисовать на ней
     zone = drawn is not None and plan is not drawn

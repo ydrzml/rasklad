@@ -41,12 +41,12 @@ test("черновик: пустой не считается, у проекта 
   assert.equal(draftOf("не json"), null);
   const mine = draftOf(JSON.stringify({ reached: 3, overrides: { "facilities.warehouse.active_area_m2": 12000 } }));
   assert.ok(mine);
-  assert.equal(draftTitle(mine), "Расчет 12\u00a0000 м², дошли до шага «решение»");
+  assert.equal(draftTitle(mine), `Расчет 12\u00a0000 м², дошли до шага "решение"`);
   assert.equal(draftUrl(mine), "/calc");
   const project = draftOf(JSON.stringify({ reached: 4, projectId: 7, projectName: "Склад" }));
   assert.ok(project);
   assert.equal(draftUrl(project), "/calc?project=7");
-  assert.match(draftTitle(project), /проекту «Склад»/);
+  assert.match(draftTitle(project), /проекту "Склад"/);
   // только что сохранили и ничего не правили: это не черновик
   assert.equal(draftOf(JSON.stringify({ reached: 4, projectId: 7, savedAs: { version: 2, key: "{}" } })), null);
 });

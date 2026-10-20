@@ -15,7 +15,7 @@ class TemplateRequest(BaseModel):
 
 
 class DataImportRow(BaseModel):
-    sheet: str = Field(description="Лист Excel или «CSV»")
+    sheet: str = Field(description='Лист Excel или "CSV"')
     row: int = Field(description="Номер строки в файле, как его видит человек. 0, если строки в файле нет")
     field: str = Field(description="Что в строке: параметр или роль")
     value: str = Field(description="Что стояло в ячейке")

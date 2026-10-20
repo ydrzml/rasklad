@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+from app.engine.economics import financing
 from app.engine.economics.facility import FacilityResult
 from app.engine.economics.scenarios import PURCHASE, RAAS, by_id, evaluate
 from app.schemas.budget import BudgetCheck, BudgetFit, BudgetFitRequest, BudgetTask
@@ -36,34 +37,54 @@ def fit_task(
 
     needed = evaluate(model, facility_id, operation_id, robot_id, route_m=route_m, share=share)
     fleet_needed = needed.sizing.fleet if needed.feasible and needed.sizing else None
+    # способы оплаты на карточке решения: старт аренды, кредита и лизинга считаем и без бюджета
+    raas_start = investment(RAAS, fleet_needed) if fleet_needed is not None else None
+    ways = pay_ways(model, needed.scenarios.get(PURCHASE) if needed.feasible else None)
+    raas = by_id(model["robots"], robot_id).get("raas") if fleet_needed is not None else None
+    raas_month = raas["fee_rub_month"] * fleet_needed if raas and fleet_needed and raas_start is not None else None
+    common = {
+        "robot_id": robot_id,
+        "fleet_needed": fleet_needed,
+        "investment_needed_rub": investment(PURCHASE, fleet_needed) if fleet_needed is not None else None,
+        "raas_start_rub": raas_start,
+        "loan_start_rub": ways.get("loan"),
+        "leasing_start_rub": ways.get("leasing"),
+        "raas_month_rub": raas_month,
+    }
     if budget_rub is None:
-        return BudgetFit(
-            robot_id=robot_id,
-            fleet_needed=fleet_needed,
-            fleet_fits=0,
-            investment_rub=0.0,
-            investment_needed_rub=investment(PURCHASE, fleet_needed) if fleet_needed is not None else None,
-            raas_start_rub=None,
-            raas_fits=None,
-        )
+        return BudgetFit(**common, fleet_fits=0, investment_rub=0.0, raas_fits=None)
     top = fleet_needed if fleet_needed is not None else model["engine"]["max_fleet"]
     fits = largest_fitting(lambda fleet: investment(PURCHASE, fleet), budget_rub, top)
-    raas_start = investment(RAAS, fleet_needed) if fleet_needed is not None else None
     return BudgetFit(
-        robot_id=robot_id,
-        fleet_needed=fleet_needed,
+        **common,
         fleet_fits=fits,
         investment_rub=investment(PURCHASE, fits) or 0.0,
-        investment_needed_rub=investment(PURCHASE, fleet_needed) if fleet_needed is not None else None,
-        raas_start_rub=raas_start,
         raas_fits=None if raas_start is None else raas_start <= budget_rub,
     )
 
 
+# financing.method в config/model.yaml: 1 кредит, 2 лизинг
+METHODS = {"loan": 1, "leasing": 2}
+
+
+def pay_ways(model: dict, purchase) -> dict[str, float]:
+    """Свои деньги на старте при кредите и лизинге для покупки нужного парка. Тот же план оплаты,
+    что в расчете (financing.plan), без мер поддержки: вложения минус то, что берет банк или
+    лизинговая компания. Расчет объекта на шаге экономики дает то же при том же парке"""
+    if purchase is None:
+        return {}
+    ways = {}
+    for name, method in METHODS.items():
+        other = {**model, "financing": {**model["financing"], "method": method}}
+        plan, _ = financing.plan(other, purchase.capex, purchase.capex_total, 0.0, len(purchase.years), set(), False)
+        ways[name] = purchase.capex_total - plan.principal_rub - plan.advance_loan_rub
+    return ways
+
+
 def largest_fitting(cost, budget_rub: float, top: int) -> int:
     """Самый большой парк от 0 до top, чья стоимость не больше бюджета. Стоимость с парком не
-    убывает, поэтому половинное деление; если не влезает и ноль роботов (подготовка объекта
-    дороже бюджета), ответ 0."""
+    убывает, поэтому половинное деление; если не влезает и один робот (с подготовкой объекта
+    он дороже бюджета), ответ 0. Ноль роботов стоит 0: без роботов объект не готовят."""
     low, high = 0, top
     if (cost(0) or 0.0) > budget_rub:
         return 0

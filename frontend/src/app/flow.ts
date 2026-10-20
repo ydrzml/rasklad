@@ -137,3 +137,16 @@ export function planBuilds(): PlanBuilds {
 export function autoTemplate(current: string | undefined, chosen: boolean, wanted: string): string {
   return current && (chosen || current === "custom" || current === wanted) ? current : wanted;
 }
+
+/* Пора ли гнать складской подсчет (POST /api/calculations/preview). Только на шаге экономики склада:
+   у медучреждения на том же номере шага свой итог (POST /api/clinic/economics), и складской запрос
+   по его задачам сервер отклоняет с 422. Пустой штат по умолчанию ждем, тот же ввод не считаем дважды */
+export function shouldCount(state: {
+  step: number;
+  last: number;
+  clinic: boolean;
+  staffPending: boolean;
+  alreadyCounted: boolean;
+}): boolean {
+  return state.step === state.last && !state.clinic && !state.staffPending && !state.alreadyCounted;
+}

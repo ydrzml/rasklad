@@ -111,9 +111,9 @@ def suggestions(solution: Solution) -> list[tuple[str, str, str]]:
         if key is None:
             continue
         for use in RULES[key]:
-            found.setdefault(use, f"сценарий организатора «{scenario}»")
+            found.setdefault(use, f'сценарий организатора "{scenario}"')
         if ("warehouse", "pallet_transport") in RULES[key] and any(w in solution.subtype.lower() for w in LIFTING):
-            found.setdefault(("warehouse", "stacking"), f"подтип «{solution.subtype}»")
+            found.setdefault(("warehouse", "stacking"), f'подтип "{solution.subtype}"')
     return [(facility, operation, why) for (facility, operation), why in found.items()]
 
 

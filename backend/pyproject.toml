@@ -23,6 +23,8 @@ dependencies = [
     "python-multipart>=0.0.20",
     "sqladmin[i18n]>=0.32",
     "itsdangerous>=2.2",
+    # чертежи DXF для подложки плана: читает файл как данные, ничего из него не исполняет
+    "ezdxf>=1.4",
 ]
 
 [project.optional-dependencies]

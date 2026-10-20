@@ -8,7 +8,7 @@
 
    Здесь только списки, без проверки, встанет ли: ее делает редактор. Проверка: tests/many.test.ts */
 import type { PlanItem } from "../../api/client";
-import type { Rect } from "./geometry";
+import type { Point, Rect } from "./geometry";
 
 const MANY = "many:";
 
@@ -185,4 +185,73 @@ export function copiedMany(
     if (!next.includes(unit)) next.push(unit);
   }
   return { items: copies, units: next };
+}
+
+/* Копировать и вставить: Ctrl+C берет выбранное, Ctrl+V ставит копию туда, где мышь, а если там
+   занято, на ближайшее свободное место рядом. Ворота и зарядку не копируем, как и при дубле. Здесь
+   только расчет мест, встанет ли копия, проверяет редактор. Проверка: tests/clipboard.test.ts */
+export type Clip = { items: PlanItem[]; units: string[] };
+
+// как далеко от мыши ищем свободное место, метры
+const REACH_M = 8;
+// сдвиги вставки без мыши: те же, что у дубля рядом с оригиналом
+const SHIFTS_M = [2, 4, 8, 12, 20];
+
+/* Что положить в буфер: выбранное без ворот и зарядки. null, если копировать нечего */
+export function clipOf(items: PlanItem[], units: string[]): Clip | null {
+  const members = membersOf(items, units);
+  return members.some((item) => item.kind !== "dock" && item.kind !== "charge") ? { items: members, units } : null;
+}
+
+/* Выбор "все": одной строкой, как выбирает рамка, накрывшая весь лист */
+export function everything(items: PlanItem[]): string {
+  return pickedOf(unitsIn(items, { x: -1e6, y: -1e6, w: 2e6, h: 2e6 }));
+}
+
+/* Сдвиги по порядку: сначала точно под мышью, потом все дальше от нее */
+function around(reach: number): [number, number][] {
+  const found: [number, number][] = [[0, 0]];
+  for (let ring = 1; ring <= reach; ring++)
+    for (let dx = -ring; dx <= ring; dx++)
+      for (let dy = -ring; dy <= ring; dy++) if (Math.max(Math.abs(dx), Math.abs(dy)) === ring) found.push([dx, dy]);
+  return found;
+}
+
+/* Копия буфера. at это место под мышью в метрах: центр копии встает туда, шаг в метр, как сетка
+   листа. Не встала там, ложится на место оригинала или рядом с ним; без мыши сразу рядом. null, если нигде рядом не встала. fits получает
+   вещи копии и говорит, встанут ли они все */
+export function pasted(
+  clip: Clip,
+  at: Point | null,
+  fits: (items: PlanItem[]) => boolean,
+  name: (kind: string) => string,
+): { items: PlanItem[]; units: string[] } | null {
+  const left = Math.min(...clip.items.map((one) => one.x));
+  const bottom = Math.min(...clip.items.map((one) => one.y));
+  const w = Math.max(...clip.items.map((one) => one.x + one.w)) - left;
+  const h = Math.max(...clip.items.map((one) => one.y + one.h)) - bottom;
+  // рядом с оригиналом: справа, сверху, слева, снизу, все дальше
+  const beside = SHIFTS_M.flatMap((shift): [number, number][] => [
+    [w + shift, 0],
+    [0, -(h + shift)],
+    [-(w + shift), 0],
+    [0, h + shift],
+  ]);
+  // под мышью, потом на месте оригинала (он мог уйти с листа), потом рядом с ним: большая копия
+  // у стены под мышью не встанет, и тогда ей находится место возле оригинала
+  const offsets: [number, number][] = at
+    ? [
+        ...around(REACH_M).map(([dx, dy]): [number, number] => [
+          Math.round(at.x - left - w / 2) + dx,
+          Math.round(at.y - bottom - h / 2) + dy,
+        ]),
+        [0, 0],
+        ...beside,
+      ]
+    : beside;
+  for (const [dx, dy] of offsets) {
+    const copy = copiedMany(clip.items, clip.units, dx, dy, name);
+    if (copy.items.length && fits(copy.items)) return copy;
+  }
+  return null;
 }

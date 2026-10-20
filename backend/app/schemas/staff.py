@@ -127,6 +127,13 @@ class RoleSummary(BaseModel):
     role_name: str
     headcount: float
     normative_fte: float | None = Field(default=None, description="Сколько ставок нужно по объему и выработке")
+    productivity: float | None = Field(
+        default=None,
+        description=(
+            "Выработка, по которой считается норма: правка задачи (productivity_before) или справочник роли. "
+            "Пусто: выработки нет"
+        ),
+    )
 
 
 class StaffReview(BaseModel):

@@ -218,7 +218,7 @@ def _object(
                 field="",
                 value="",
                 status="error",
-                message="Не нашли колонки «Параметр» и «Значение». Возьмите шаблон",
+                message='Не нашли колонки "Параметр" и "Значение". Возьмите шаблон',
             )
         )
         return
@@ -259,7 +259,7 @@ def _object(
             continue
         given = _cell(cells, unit)
         if given and _unit(given) != _unit(field.unit):
-            mark("error", f"Ждем в «{field.unit}», в файле «{given}»: переведите в нашу единицу")
+            mark("error", f'Ждем в "{field.unit}", в файле "{given}": переведите в нашу единицу')
             continue
         if amount < 0:
             mark("error", "Меньше нуля быть не может")
@@ -316,7 +316,7 @@ def _staff(sheet: str, table: list[list[str]], roles: list[Role], rows: list[Dat
 
         role = known.get(_norm(name))
         if role is None:
-            mark("error", "Такой роли нет в справочнике: выберите из листа «Роли»")
+            mark("error", 'Такой роли нет в справочнике: выберите из листа "Роли"')
             continue
         headcount = _number(_cell(cells, seats))
         if headcount is None or headcount < 0:
@@ -327,7 +327,7 @@ def _staff(sheet: str, table: list[list[str]], roles: list[Role], rows: list[Dat
         pay = _number(_cell(cells, salary))
         flag = _norm(_cell(cells, outside))
         if flag not in YES | NO:
-            mark("error", "Люди подрядчика: напишите «да» или «нет»")
+            mark("error", 'Люди подрядчика: напишите "да" или "нет"')
             continue
         notes = []
         if pay is None:

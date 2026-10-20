@@ -1,0 +1,627 @@
+/* Страница "Как читается экономика". Цвета, радиусы и отступы из набора (tokens.css), поэтому
+   темная тема берется из тех же переменных. Цвет сценария приходит через --tone (money.css) */
+
+.e-page {
+  padding-bottom: var(--s-6);
+}
+
+.e-page section {
+  scroll-margin-top: var(--s-4);
+}
+
+.e-page .u-panel {
+  box-shadow: var(--hair);
+}
+
+.e-section {
+  margin-top: var(--s-6);
+}
+
+/* Колонка не шире плиты: широкая таблица по годам листается сама, а не распирает график */
+.e-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-3);
+  padding: var(--s-4);
+}
+
+.e-body > * {
+  min-width: 0;
+}
+
+.e-text {
+  margin: 0;
+  max-inline-size: 75ch;
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.e-subhead {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.e-muted {
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: 14px;
+}
+
+/* Как читать результат: три шага по порядку. Номер, ссылка на раздел и одна фраза */
+.e-reading {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.e-reading li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px var(--s-2);
+  align-content: start;
+  padding: var(--s-3);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.e-reading-idx {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-pill);
+  background: var(--blue-tint);
+  color: var(--blue);
+  font-size: 14px;
+}
+
+.e-reading a {
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.e-reading a:hover,
+.e-reading a:focus-visible {
+  color: var(--blue);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.e-reading li > span:last-child {
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Оглавление строкой ссылок: длинная страница, к разделу одним щелчком */
+.e-toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-4);
+  margin: var(--s-4) 0 0;
+  padding: var(--s-2) 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.e-toc a {
+  color: var(--blue);
+  text-decoration: none;
+}
+
+.e-toc a:hover,
+.e-toc a:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.e-page > .u-waiting,
+.e-page > .u-notice {
+  margin-top: var(--s-5);
+}
+
+/* Пример: подпись мелко над ответом */
+.e-example {
+  margin-top: var(--s-5);
+}
+
+.e-kicker {
+  margin: 0 0 var(--s-2);
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Три сценария карточками: цветная метка, роль одной фразой, статьи столбиком */
+.e-scens {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
+  margin-bottom: var(--s-3);
+}
+
+.e-scen {
+  display: grid;
+  align-content: start;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.e-scen header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.e-scen h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.e-scen-role {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.e-scen-part {
+  display: grid;
+  gap: var(--s-1);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}
+
+.e-scen-part h4 {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.e-scen-part h4 .mono {
+  font-weight: 500;
+}
+
+.e-lines {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+}
+
+.e-lines div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.e-lines dt {
+  color: var(--ink-soft);
+}
+
+.e-lines dd {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.e-scen-effect {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin: var(--s-1) 0 0;
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--tone) 10%, var(--paper));
+  font-size: 14px;
+}
+
+.e-scen-effect .mono {
+  white-space: nowrap;
+}
+
+.e-after,
+.e-plain {
+  display: grid;
+  gap: var(--s-1);
+  margin: 0;
+  padding-left: 18px;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Таблица по годам: числа по правому краю, на узком экране таблица листается внутри себя */
+.e-table-wrap {
+  overflow-x: auto;
+  margin-bottom: var(--s-2);
+}
+
+.e-table {
+  width: 100%;
+  min-width: 480px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.e-table caption {
+  margin-bottom: var(--s-1);
+  color: var(--ink-soft);
+  text-align: left;
+}
+
+.e-table th,
+.e-table td {
+  padding: 6px var(--s-2);
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+}
+
+.e-table thead th {
+  color: var(--ink-soft);
+  font-weight: 500;
+  vertical-align: bottom;
+}
+
+.e-table th:first-child {
+  text-align: left;
+  font-weight: 500;
+}
+
+/* Показатели: слева что это и как читать, справа числа сценариев */
+.e-metrics {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.e-metric {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: var(--s-4);
+  padding: var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.e-metric-text {
+  display: grid;
+  align-content: start;
+  gap: var(--s-1);
+}
+
+.e-metric h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.e-metric-text p {
+  margin: 0;
+  max-inline-size: 70ch;
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.e-metric-text .e-metric-read {
+  color: var(--ink);
+}
+
+.e-tag {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 1px 6px;
+  border-radius: var(--r-sm);
+  background: var(--blue-tint);
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 500;
+  vertical-align: 1px;
+}
+
+.e-metric-values {
+  display: grid;
+  align-content: start;
+  gap: var(--s-2);
+  margin: 0;
+}
+
+.e-metric-values > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 2px var(--s-2);
+  padding-bottom: var(--s-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.e-metric-values > div:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.e-metric-values dt {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.e-metric-values dt i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--tone);
+}
+
+.e-metric-values dd {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 500;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.e-metric-values .e-metric-sub {
+  grid-column: 1 / -1;
+  color: var(--ink-faint);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 400;
+  text-align: left;
+  white-space: normal;
+}
+
+.e-callout {
+  margin-top: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--blue-tint);
+}
+
+.e-callout h3 {
+  margin: 0 0 var(--s-1);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.e-callout p {
+  margin: 0;
+  max-inline-size: 80ch;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+/* Господдержка: мера строкой, доступность словом, причина под ней */
+.e-supports {
+  margin-top: var(--s-4);
+}
+
+.e-supports ul {
+  display: grid;
+  gap: var(--s-2);
+  margin: var(--s-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.e-supports li {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 2px var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--paper);
+  box-shadow: var(--hair);
+}
+
+.e-support-state {
+  grid-row: span 2;
+  color: var(--go);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.e-supports .is-blocked .e-support-state {
+  color: var(--ink-faint);
+}
+
+.e-support-name {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.e-support-why {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Оценки доверия строкой: буква, что значит, сколько таких в примере */
+.e-trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-4);
+  margin: 0 0 var(--s-3);
+  padding: 0;
+  list-style: none;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.e-trust li {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+.e-trust-count {
+  color: var(--ink);
+}
+
+/* Допущения группами в две колонки */
+.e-groups,
+.e-limits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+  align-items: start;
+}
+
+.e-group {
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-4);
+}
+
+.e-group h3 {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.e-group h3 span {
+  color: var(--ink-faint);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.e-assume {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.e-assume li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--s-2);
+  padding: var(--s-2) 0;
+  border-top: 1px solid var(--line);
+}
+
+.e-assume li:first-child {
+  border-top: 0;
+}
+
+.e-assume-name {
+  display: grid;
+  gap: 2px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* Источник в две строки, целиком при наведении: иначе длинные ссылки растягивали страницу втрое */
+.e-assume-name small {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  color: var(--ink-faint);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.e-assume-value {
+  font-size: 14px;
+  text-align: right;
+}
+
+.e-limits .e-text {
+  font-size: 14px;
+}
+
+/* Дальше: методика и свой расчет */
+.e-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-top: var(--s-6);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--line);
+}
+
+.e-next p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
+.e-next div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+@media (max-width: 1100px) {
+  .e-scens {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 880px) {
+  .e-reading,
+  .e-groups,
+  .e-limits {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .e-metric {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s-3);
+  }
+
+  .e-body,
+  .e-group,
+  .e-scen,
+  .e-metric {
+    padding: var(--s-3);
+  }
+
+  .e-section {
+    margin-top: var(--s-5);
+  }
+
+  .e-supports li {
+    grid-template-columns: 1fr;
+  }
+
+  .e-support-state {
+    grid-row: auto;
+  }
+}

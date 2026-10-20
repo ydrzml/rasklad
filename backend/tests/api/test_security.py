@@ -10,15 +10,16 @@ from fastapi.testclient import TestClient
 from openpyxl import load_workbook
 
 from app.auth import service
+from app.auth.reset import issue_reset_token
 from app.db import get_session
 from app.main import app
 from app.schemas.plan import MAX_PLAN_ITEMS
 from app.schemas.staff import MAX_STAFF_LINES
-from app.services import projects
+from app.services import mail, projects
 from app.settings import settings
 from tests.api.test_projects import IVAN, MASHA, RESULT, STATE, new_project, sign_in
 
-# Что открыто без входа: справочники, расчет, отчеты по введенным цифрам, вход и ссылка "Поделиться"
+# Что открыто без входа: справочники, расчет, готовые разборы, отчеты по введенным цифрам, вход и ссылка "Поделиться"
 PUBLIC = {
     ("GET", "/api/health"),
     ("GET", "/api/auth/me"),
@@ -26,6 +27,11 @@ PUBLIC = {
     ("POST", "/api/auth/demo"),
     ("POST", "/api/auth/login"),
     ("POST", "/api/auth/register"),
+    # забыли пароль: ссылка на почту и новый пароль по ней, доступ дает сама ссылка из письма
+    ("POST", "/api/auth/forgot"),
+    ("POST", "/api/auth/reset"),
+    # регистрация с кодом из письма: код и есть доступ
+    ("POST", "/api/auth/register/confirm"),
     ("POST", "/api/auth/logout"),
     ("GET", "/api/catalog/facilities"),
     ("GET", "/api/catalog/solutions"),
@@ -43,17 +49,37 @@ PUBLIC = {
     ("GET", "/api/plan/templates"),
     ("GET", "/api/plan/rack-types"),
     ("POST", "/api/plan/generate"),
+    ("POST", "/api/plan/dxf"),
+    ("POST", "/api/plan/dxf/build"),
     ("POST", "/api/plan/measure"),
     ("POST", "/api/plan/serpentine"),
     ("POST", "/api/calculations/preview"),
     ("POST", "/api/calculations/sensitivity"),
     ("POST", "/api/calculations/sensitivity/all"),
+    ("GET", "/api/cases/{case_id}"),
     ("POST", "/api/simulation/runs"),
     ("POST", "/api/simulation/log.csv"),
+    # медучреждение как склад: справочники и прогон по введенному корпусу, сохранение в проект под входом
+    ("GET", "/api/clinic/template"),
+    ("GET", "/api/clinic/robots"),
+    ("GET", "/api/clinic/assumptions"),
+    ("POST", "/api/clinic/check"),
+    ("POST", "/api/clinic/fit"),
+    ("POST", "/api/clinic/runs"),
+    ("POST", "/api/clinic/economics"),
+    ("POST", "/api/clinic/generate"),
+    ("POST", "/api/clinic/import"),
+    ("POST", "/api/clinic/workload"),
+    ("POST", "/api/clinic/offers"),
+    ("POST", "/api/clinic/optimize"),
+    ("POST", "/api/clinic/portfolio"),
     ("POST", "/api/reports/pdf"),
     ("POST", "/api/reports/xlsx"),
+    ("POST", "/api/reports/clinic/pdf"),
+    ("POST", "/api/reports/clinic/xlsx"),
     ("POST", "/api/readiness"),
     ("GET", "/api/share/{token}"),
+    ("GET", "/api/share/{token}/report/{kind}"),
 }
 
 # Тела, без которых сервер ответил бы 422 раньше, чем проверил вход
@@ -189,6 +215,34 @@ def test_password_change_signs_out_other_devices(db_client):
     assert laptop.get("/api/auth/me").json()["role"] == "guest"
     assert laptop.get("/api/projects").status_code == 401
     assert db_client.post("/api/auth/login", json={**IVAN, "password": new}).status_code == 200
+
+
+def test_link_from_letter_and_session_cookie_cannot_stand_in_for_each_other(db_client):
+    # Обе подписаны от одного ключа и несут одно и то же: номер и отпечаток пароля. Ключи у них разные,
+    # иначе ссылку из письма подставили бы вместо cookie и вошли бы, не меняя пароль
+    response = db_client.post("/api/auth/register", json=IVAN)
+    user = service.find_by_email(next(app.dependency_overrides[get_session]()), IVAN["email"])
+    cookie = response.cookies["session"]
+    link_token = issue_reset_token(user.id, user.password_hash)
+
+    stranger = TestClient(app)
+    stranger.cookies.set("session", link_token)
+    assert stranger.get("/api/auth/me").json()["role"] == "guest"
+    reused = stranger.post("/api/auth/reset", json={"token": cookie, "new_password": "brand-new-secret"})
+    assert reused.status_code == 400
+
+
+def test_reset_link_points_to_our_site_whatever_host_the_request_names(db_client, monkeypatch):
+    sent: list = []
+    monkeypatch.setattr(settings, "smtp_host", "smtp.example.com")
+    monkeypatch.setattr(settings, "site_url", "https://rasklad.example")
+    monkeypatch.setattr(mail, "deliver", sent.append)
+    service.register(next(app.dependency_overrides[get_session]()), IVAN["email"], IVAN["password"])
+    db_client.post("/api/auth/forgot", json={"email": IVAN["email"]}, headers={"Host": "evil.example"})
+    (letter,) = sent
+    text = letter.get_body(("plain",)).get_content()
+    assert "https://rasklad.example/login/reset#" in text
+    assert "evil" not in text
 
 
 def test_email_and_password_change_need_the_current_password_and_stop_guessing(db_client):

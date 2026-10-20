@@ -76,6 +76,8 @@ def test_crowded_fleet_waits_in_queues():
     assert free.waiting_share < crowded.waiting_share
     assert crowded.waiting_share > 0.3
     assert "очереди" in crowded.bottleneck
+    # доля времени в очереди цифрой: у смены ее показывают крупно
+    assert f"{crowded.waiting_share:.0%}" in crowded.bottleneck
 
 
 def test_stations_make_their_own_queue():
@@ -186,12 +188,15 @@ def test_drawn_plan_changes_the_route_and_the_fleet():
 
 
 def test_simulation_gives_a_different_fleet_than_the_formula():
-    """Симуляция видит очереди и зарядку, поэтому парк получается другим, и это видно в ответе."""
+    """Симуляция видит очереди и маршрут, поэтому парк получается другим, и это видно в ответе.
+    Без плана паллет: спрос с резервом 2 000 * 0,95 / 22 * 1,5 * 1,15 = 149,0 паллеты в час, робот
+    3 600 / 170 = 21,18 рейса в час, с загрузкой 0,75 это 15,88: 149,0 / 15,88 = 9,4, вверх 10 по формуле,
+    прогон смены дает 9. На типовом плане паллет маршрут короче, и формула с прогоном сходятся на 9."""
     by_formula = calculate(CalculationRequest())
     by_shift = calculate(CalculationRequest(use_simulation=True))
     assert by_formula.sizing.fleet_source == "формула"
     assert by_shift.sizing.fleet_source == "прогон смены"
-    assert by_shift.sizing.fleet != by_formula.sizing.fleet
+    assert (by_formula.sizing.fleet, by_shift.sizing.fleet) == (10, 9)
 
 
 def test_robots_queue_only_in_their_own_aisle():
@@ -395,8 +400,10 @@ def test_cleaner_gets_the_whole_shift_at_the_start_and_partial_zones_count():
 
 
 def test_cleaning_shift_on_the_warehouse_covers_the_demand():
-    """Склад по умолчанию, уборка на Клинботикс 400 PRO: сделано столько, сколько спрос. Иначе
-    первый участок появился бы через три часа, третий не успел бы, и сделано 2 участка из 2,97."""
+    """Склад по умолчанию, уборка на Клинботикс 400 PRO: сделано столько, сколько спрос. Спрос на смену
+    8 часов при окне робота 24 часа: 7 000 / 24 * 8 = 2 333 м2, это 2,5 участка по 933 м2. Иначе участки
+    шли бы потоком, первый через 8 / 2,5 = 3,2 часа, и последний неполный участок не засчитался бы.
+    Робот занят мойкой и баком 2,5 * 5 398 = 13 495 с из 28 800, это 0,469 смены, плюс переезды."""
     from app.services import calculation
     from app.services import simulation as service
 
@@ -407,4 +414,4 @@ def test_cleaning_shift_on_the_warehouse_covers_the_demand():
     operation = next(o for o in facility["operations"] if o["id"] == "cleaning")
     demand = sum(service.shift_demand(model, facility, operation))
     assert result.kpi.done * 933 == pytest.approx(demand, rel=0.01)
-    assert result.kpi.busy_share > 0.5
+    assert result.kpi.busy_share > 0.46

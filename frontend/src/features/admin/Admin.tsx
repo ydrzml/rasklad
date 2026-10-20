@@ -16,7 +16,6 @@ import {
   type UseInfo,
 } from "../../api/admin";
 import { ApiError } from "../../api/http";
-import { account, type Me } from "../../api/projects";
 import {
   AccountLinks,
   AccountMenu,
@@ -25,7 +24,6 @@ import {
   BlockHead,
   Button,
   Check,
-  EmptyState,
   Header,
   Hero,
   Notice,
@@ -39,10 +37,11 @@ import {
   Waiting,
   type Choice,
 } from "../../ui";
-import { Keeper03 } from "../../ui/robots";
 import { NormsPanel } from "./Norms";
 import { CatalogTree } from "./Tree";
+import { journalNote } from "./journal";
 import { UpdatesPanel } from "./Updates";
+import { NotAdmin, useAccess } from "./access";
 import "./admin.css";
 
 // Админка: каталог решений. Список с поиском и фильтрами, загрузка выгрузки организатора,
@@ -74,10 +73,10 @@ const RATING_NAMES: Record<string, string> = {
 };
 const ACTIONS: Record<string, string> = {
   seed: "первый запуск",
-  import: "загрузка выгрузки",
+  import: "загрузка файла каталога",
   create: "добавлено",
   update: "поправлено",
-  reset: "возвращено значение организатора",
+  reset: "возвращено значение каталога ФЦ БАС",
   delete: "удалено",
   spec_add: "добавлена характеристика",
   spec_edit: "поправлена характеристика",
@@ -85,8 +84,8 @@ const ACTIONS: Record<string, string> = {
   photo_set: "загружено фото",
   photo_edit: "поправлен источник фото",
   photo_delete: "удалено фото",
-  photo_seed: "фото из папки данных",
-  uses_seed: "объекты и операции из папки данных",
+  photo_seed: "фото при запуске",
+  uses_seed: "объекты и задачи при запуске",
   use_set: "поправлены объект и операция",
   updates_check: "проверка страниц производителей",
   file_edit: "наши колонки из загруженного файла",
@@ -138,8 +137,6 @@ function problem(error: unknown): string {
   return error instanceof Error ? error.message : "Что-то пошло не так, попробуйте еще раз";
 }
 
-type Access = { state: "loading" } | { state: "guest" } | { state: "user"; me: Me } | { state: "admin"; me: Me };
-
 type Tab = "catalog" | "norms";
 const TABS: { id: Tab; name: string; title: string; lead: string }[] = [
   {
@@ -161,7 +158,7 @@ function tabFromAddress(): Tab {
 }
 
 export function Admin() {
-  const [access, setAccess] = useState<Access>({ state: "loading" });
+  const access = useAccess();
   // Раздел помним в адресе: ссылку на нормативы можно отправить, и после обновления страницы он тот же
   const [tab, setTab] = useState<Tab>(tabFromAddress);
   const current = TABS.find((item) => item.id === tab) ?? TABS[0];
@@ -170,21 +167,6 @@ export function Admin() {
     setTab(next);
     window.history.replaceState(null, "", next === "catalog" ? "/admin" : `/admin?tab=${next}`);
   }
-
-  useEffect(() => {
-    account
-      .me()
-      .then((me) =>
-        setAccess(
-          me.role === "admin"
-            ? { state: "admin", me }
-            : me.role === "user"
-              ? { state: "user", me }
-              : { state: "guest" },
-        ),
-      )
-      .catch(() => setAccess({ state: "guest" }));
-  }, []);
 
   return (
     <div className="u-page">
@@ -198,35 +180,7 @@ export function Admin() {
       />
       <main className="u-main u-wrap">
         <Hero compact title={current.title} lead={current.lead} />
-        {access.state === "loading" && <Waiting title="Проверяем, кто вошел" />}
-        {access.state === "guest" && (
-          <EmptyState
-            apart
-            title="Админка открывается после входа"
-            robot={<Keeper03 />}
-            actions={
-              <a className="u-btn u-btn-dark" href="/login">
-                Войти
-              </a>
-            }
-          >
-            Каталог правит администратор. Для проверки есть демо-аккаунт администратора, пароль не нужен.
-          </EmptyState>
-        )}
-        {access.state === "user" && (
-          <EmptyState
-            apart
-            title="Сюда только администратору"
-            robot={<Keeper03 />}
-            actions={
-              <a className="u-btn u-btn-dark" href="/projects">
-                В мои проекты
-              </a>
-            }
-          >
-            Вы вошли как {access.me.email}. Каталог правит администратор, а подборку решений вы увидите в расчете.
-          </EmptyState>
-        )}
+        <NotAdmin access={access} />
         {access.state === "admin" && (
           <>
             <Toolbar>
@@ -252,7 +206,8 @@ function Catalog() {
     origin: "",
     with_specs: false,
     facility: "",
-    to_check: false,
+    // с главной администратора приходят по ссылке /admin?to_check=1: сразу показываем, что ждет проверки
+    to_check: new URLSearchParams(window.location.search).get("to_check") === "1",
     incomplete: false,
     sort: "name",
     limit: PAGE,
@@ -366,7 +321,7 @@ function Catalog() {
         <CreatePanel
           onCreated={(card) => {
             setPanel("none");
-            changed(`Решение «${card.name}» добавлено, заполните характеристики`, card.id);
+            changed(`Решение "${card.name}" добавлено, заполните характеристики`, card.id);
           }}
           onClose={() => setPanel("none")}
         />
@@ -421,7 +376,7 @@ function Catalog() {
                 onChange={(origin) => set({ origin })}
                 options={[
                   { id: "", name: "из выгрузки и наши" },
-                  { id: "organizer", name: "из выгрузки организатора" },
+                  { id: "organizer", name: "из выгрузки ФЦ БАС" },
                   { id: "team", name: "добавила команда" },
                 ]}
               />
@@ -605,11 +560,11 @@ function ImportPanel({ onDone, onClose }: { onDone: (message: string) => void; o
     <div className="a-plate">
       <h3>Загрузить выгрузку каталога</h3>
       <p className="a-faint">
-        Файл CSV в UTF-8 с разделителем ";": выгрузка организатора catalog_export как есть или наш файл из кнопки
-        "Скачать каталог", дополненный в Excel. Сначала можно только проверить: в базу ничего не запишется. В выгрузке
-        организатора характеристик нет, их загрузка не трогает; в нашем файле пустая ячейка ничего не меняет,
-        заполненная пишется в карточку и журнал. Объекты и задачи из нашего списка подтверждаются сразу, остальные
-        решения получают предложения по сценарию, их подтверждает администратор.
+        Файл CSV в UTF-8 с разделителем ";": выгрузка ФЦ БАС catalog_export как есть или наш файл из кнопки "Скачать
+        каталог", дополненный в Excel. Сначала можно только проверить: в базу ничего не запишется. В выгрузке ФЦ БАС
+        характеристик нет, их загрузка не трогает; в нашем файле пустая ячейка ничего не меняет, заполненная пишется в
+        карточку и журнал. Объекты и задачи из нашего списка подтверждаются сразу, остальные решения получают
+        предложения по сценарию, их подтверждает администратор.
       </p>
       <div className="a-row">
         <label className="u-btn u-btn-ghost a-file">
@@ -702,8 +657,8 @@ function CreatePanel({ onCreated, onClose }: { onCreated: (card: SolutionCard) =
     <div className="a-plate">
       <h3>Новое решение</h3>
       <p className="a-faint">
-        Например, решение для медучреждения, которого нет в выгрузке организатора. Характеристики с источниками добавите
-        в карточке после создания.
+        Например, решение для медучреждения, которого нет в выгрузке ФЦ БАС. Характеристики с источниками добавите в
+        карточке после создания.
       </p>
       <div className="a-form">
         <Field label="Название">
@@ -861,9 +816,9 @@ function Editor({
 
   function remove() {
     const sure = window.confirm(
-      `Удалить «${card!.name}» вместе с ${card!.specs.length} характеристиками? В журнале останется запись, но вернуть решение придется вручную.`,
+      `Удалить "${card!.name}" вместе с ${card!.specs.length} характеристиками? В журнале останется запись, но вернуть решение придется вручную.`,
     );
-    if (sure) act(() => catalog.remove(id), `Решение «${card!.name}» удалено`, null);
+    if (sure) act(() => catalog.remove(id), `Решение "${card!.name}" удалено`, null);
   }
 
   const missing = fields.filter((f) => !card.specs.some((s) => s.field === f.id));
@@ -875,18 +830,18 @@ function Editor({
     const theirs = show(card.organizer_values[key]);
     return (
       <span className="a-manual">
-        <span title={known ? `У организатора: ${theirs}` : "Выгрузку организатора еще не загружали"}>
+        <span title={known ? `В выгрузке ФЦ БАС: ${theirs}` : "Выгрузку ФЦ БАС еще не загружали"}>
           <Badge tone="blue">вручную</Badge>
         </span>
         {known && (
           <button
             type="button"
             className="a-reset"
-            title={`Вернуть как у организатора: ${theirs}`}
+            title={`Вернуть как в выгрузке ФЦ БАС: ${theirs}`}
             disabled={busy}
             onClick={(event) => {
               event.preventDefault();
-              act(() => catalog.reset(id, key), `«${LABELS[key] ?? key}» вернули к значению организатора`);
+              act(() => catalog.reset(id, key), `"${LABELS[key] ?? key}" вернули к значению из выгрузки ФЦ БАС`);
             }}
           >
             вернуть
@@ -990,7 +945,7 @@ function Editor({
 
       <div className="a-row">
         <Button
-          onClick={() => act(() => catalog.update(id, dirty), `Решение «${draft.name}» сохранено`)}
+          onClick={() => act(() => catalog.update(id, dirty), `Решение "${draft.name}" сохранено`)}
           disabled={busy || !changedCount}
         >
           {changedCount ? `Сохранить ${changedCount === 1 ? "правку" : `правки (${changedCount})`}` : "Правок нет"}
@@ -1038,10 +993,10 @@ function Editor({
             key={`${spec.id}-${spec.value}-${spec.rating}-${spec.source}-${spec.retrieved}-${spec.unit}`}
             spec={spec}
             busy={busy}
-            onSave={(body) => act(() => catalog.updateSpec(id, spec.id, body), `«${spec.label}» сохранено`)}
+            onSave={(body) => act(() => catalog.updateSpec(id, spec.id, body), `"${spec.label}" сохранено`)}
             onRemove={() => {
-              if (window.confirm(`Удалить характеристику «${spec.label}»?`)) {
-                act(() => catalog.removeSpec(id, spec.id), `«${spec.label}» удалено`);
+              if (window.confirm(`Удалить характеристику "${spec.label}"?`)) {
+                act(() => catalog.removeSpec(id, spec.id), `"${spec.label}" удалено`);
               }
             }}
           />
@@ -1059,7 +1014,7 @@ function Editor({
               onClick={() =>
                 act(
                   () => catalog.addSpec(id, { field: f.id, unit: f.unit, rating: "F" }),
-                  `Характеристика «${f.label}» добавлена, заполните значение и источник`,
+                  `Характеристика "${f.label}" добавлена, заполните значение и источник`,
                 )
               }
             >
@@ -1118,7 +1073,7 @@ function Uses({
           <Button
             kind="link"
             disabled={busy}
-            onClick={() => onSet(use, "confirmed", `${use.facility_label}: «${use.label}» подтверждено`)}
+            onClick={() => onSet(use, "confirmed", `${use.facility_label}: "${use.label}" подтверждено`)}
           >
             Подтвердить
           </Button>
@@ -1127,7 +1082,7 @@ function Uses({
           <Button
             kind="link"
             disabled={busy}
-            onClick={() => onSet(use, "rejected", `${use.facility_label}: «${use.label}» отклонено`)}
+            onClick={() => onSet(use, "rejected", `${use.facility_label}: "${use.label}" отклонено`)}
           >
             Отклонить
           </Button>
@@ -1161,7 +1116,7 @@ function Uses({
               const [facility, operation] = adding.split("/");
               const op = free.find((o) => o.facility === facility && o.id === operation);
               setAdding("");
-              onSet({ facility, operation }, "confirmed", `${op?.facility_label}: «${op?.label}» добавлено`);
+              onSet({ facility, operation }, "confirmed", `${op?.facility_label}: "${op?.label}" добавлено`);
             }}
           >
             Добавить
@@ -1368,7 +1323,7 @@ function SpecRow({
               Сохранить
             </Button>
           )}
-          <Button kind="link" onClick={onRemove} disabled={busy} title={`Удалить «${spec.label}»`}>
+          <Button kind="link" onClick={onRemove} disabled={busy} title={`Удалить "${spec.label}"`}>
             Удалить
           </Button>
         </span>,
@@ -1395,7 +1350,7 @@ function History({
             <b>{ACTIONS[change.action] ?? change.action}</b>
             {withName && change.solution_name && <> · {change.solution_name}</>}
             <span className="a-faint"> · {change.user_email || "система"}</span>
-            {change.note && <span className="a-faint"> · {change.note}</span>}
+            {journalNote(change) && <span className="a-faint"> · {journalNote(change)}</span>}
             {!withName &&
               Object.entries(change.changes).map(([key, pair]) =>
                 Array.isArray(pair) ? (

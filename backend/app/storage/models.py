@@ -46,6 +46,33 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class MailOutbox(Base):
+    """Письма, которые не ушли, потому что почта на сервере не настроена (app/services/mail.py).
+    Администратор видит их в служебных таблицах и может сам передать ссылку человеку."""
+
+    __tablename__ = "mail_outbox"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    to_email: Mapped[str] = mapped_column(String(254))
+    subject: Mapped[str] = mapped_column(String(200))
+    link: Mapped[str] = mapped_column(Text)
+
+
+class PendingSignup(Base):
+    """Регистрация, которая ждет код из письма (app/auth/signup.py). Аккаунта еще нет: он появится,
+    когда человек введет код. Пароль уже хешем, код тоже только отпечатком."""
+
+    __tablename__ = "pending_signups"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(254), unique=True)
+    password_hash: Mapped[str] = mapped_column(String(200))
+    code_hash: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class Folder(Base):
     """Папка в кабинете: проекты одного склада и их варианты лежат рядом, их удобно сравнивать.
     Удалить папку значит разложить ее проекты обратно в общий список, сами проекты остаются."""
@@ -113,6 +140,8 @@ class ProjectVersion(Base):
     result: Mapped[dict[str, Any] | None] = mapped_column(JSON, deferred=True)
     model_version: Mapped[str] = mapped_column(String(40))
     data_version: Mapped[str] = mapped_column(String(40))
+    # тот же отпечаток словами: модель, файлы, правка каталога и нормативов. У версий постарше пусто
+    data_note: Mapped[str] = mapped_column(String(300), default="", server_default="")
     saved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     project: Mapped[Project] = relationship(back_populates="versions")

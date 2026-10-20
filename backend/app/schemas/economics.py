@@ -69,7 +69,11 @@ class CalculationRequest(BaseModel):
         ),
     )
     subsidy_ids: list[str] = Field(default_factory=list)
-    raas_buyout: bool = Field(default=True, description="Выкупить роботов в конце контракта или продлить аренду")
+    raas_buyout: bool = Field(
+        default=False,
+        description="Аренда с выкупом в конце договора. По умолчанию без выкупа: договор продлевается с индексацией, "
+        "а выкуп показан отдельным кейсом в ответе (scenarios[].buyout)",
+    )
     budget_rub: float | None = Field(
         default=None,
         gt=0,
@@ -104,7 +108,9 @@ class Sizing(BaseModel):
     fleet_capacity_ops_per_hour: float | None
     chargers: int
     stations: int
-    operator_posts: int = Field(description="Сколько операторов на объекте одновременно, в каждую смену")
+    operator_posts: float = Field(
+        description="Присмотр за роботами в постах: доля человека на объекте одновременно, в каждую смену"
+    )
     operators_fte: float
     fte_per_post: float
     fte_before: float
@@ -119,6 +125,9 @@ class Sizing(BaseModel):
     people_per_shift_after: float
     worker_cost_rub_year: float
     operator_cost_rub_year: float
+    packing_fte: float = Field(default=0.0, description="Ставок на упаковке у станций, одни и те же до роботов и после")
+    packing_per_shift: float = Field(default=0.0, description="Человек на упаковке одновременно, в каждую смену")
+    packing_places: int = Field(default=0, description="Мест упаковки у станций под пиковый поток")
 
 
 class YearRow(BaseModel):
@@ -147,7 +156,7 @@ class Amortization(BaseModel):
     base_rub: float = Field(description="Что списываем: стартовые вложения до господдержки")
     years: int | None = Field(
         description=(
-            "На сколько лет: срок службы робота, а при аренде срок договора. Пусто, когда задач несколько "
+            "На сколько лет: срок амортизации робота, а при аренде срок договора. Пусто, когда задач несколько "
             "и у их роботов сроки разные: каждая задача списывается на свой"
         )
     )
@@ -232,9 +241,53 @@ class FinancingResult(BaseModel):
 
 
 class Verdict(BaseModel):
-    band: str = Field(description="Интервал окупаемости: до 3 лет, 3-5 лет, более 5 лет или не окупается")
+    band: str = Field(
+        description="Интервал окупаемости: до 3 лет, 3-5 лет, более 5 лет, не окупается или роботов нет (парк 0)"
+    )
     text: str
     risks: list[str]
+
+
+class RaasBuyout(BaseModel):
+    """Выкуп роботов в конце договора аренды: отдельный кейс рядом с арендой без выкупа.
+
+    Аренда базово как найм: платим каждый год. Выкуп это вопрос "стоит ли купить роботов, когда
+    кончится договор": сколько заплатить, сколько потом стоит год своих роботов вместо платежа,
+    через сколько выкуп окупится и насколько он дешевле за горизонт."""
+
+    year: int = Field(description="Год, в конце которого выкупаем: конец договора")
+    price_rub: float = Field(
+        description="Цена выкупа по остаточной стоимости: роботы * цена * (1 - договор / срок амортизации)"
+    )
+    rent_year_rub: float = Field(
+        description="Аренда в год после конца договора: плата и ответственность за порчу, среднее"
+    )
+    own_year_rub: float = Field(
+        description="Свои роботы в год после выкупа: ТО, лицензии, АКБ и обновление парка, среднее"
+    )
+    saving_year_rub: float = Field(description="Насколько год со своими роботами дешевле года аренды")
+    payback_years: float | None = Field(description="Через сколько лет после выкупа он окупится: цена / экономия в год")
+    tco_rub: float = Field(description="Стоимость владения за горизонт, если выкупить")
+    cheaper_rub: float = Field(description="Насколько выкуп дешевле аренды без выкупа за горизонт, со знаком")
+    worth: bool = Field(description="Выкуп окупается до конца горизонта")
+
+
+class RaasTrial(BaseModel):
+    """Год в аренду как проверка, потом выкуп тех же роботов: допущение рядом с арендой и покупкой.
+
+    Тот же расчет, что выкуп в конце договора, только договор на 12 месяцев: первый год аренда
+    (подготовка склада, плата, порча), в конце года выкуп по остаточной стоимости, дальше свои роботы.
+    У поставщиков в данных договоры от 30-36 месяцев, поэтому это вариант для разговора с поставщиком,
+    а не его предложение (docs/calculation.md, раздел 5)."""
+
+    months: int = Field(description="Срок пробной аренды, месяцев")
+    price_rub: float = Field(
+        description="Цена выкупа в конце пробного года: роботы * цена * (1 - год / срок амортизации)"
+    )
+    tco_rub: float = Field(description="Стоимость владения за горизонт: год аренды, выкуп и свои роботы")
+    cumulative_cost_rub: list[float] = Field(
+        default_factory=list, description="Накопленные затраты на конец каждого года, как у сценариев"
+    )
 
 
 class ScenarioResult(BaseModel):
@@ -260,7 +313,7 @@ class ScenarioResult(BaseModel):
     payback_later_years: float | None = Field(
         default=None,
         description=(
-            "Окупаемость на горизонте later_horizon_years, с заменой изношенных роботов. Считаем, только "
+            "Окупаемость на горизонте later_horizon_years, с заменой роботов по физическому сроку службы. Считаем, только "
             "если за горизонт расчета не окупается. Пусто: не считали или не окупается и там"
         ),
     )
@@ -287,6 +340,12 @@ class ScenarioResult(BaseModel):
         default=None, description="Вложения проекта на старте за вычетом гранта, как бы за них ни платили"
     )
     financing: FinancingResult | None = Field(default=None, description="Только у покупки: способ оплаты и меры")
+    buyout: RaasBuyout | None = Field(
+        default=None, description="Только у аренды без выкупа: что даст выкуп роботов в конце договора"
+    )
+    trial: RaasTrial | None = Field(
+        default=None, description="Только у аренды без выкупа: год аренды как проверка, потом выкуп"
+    )
 
 
 class PartScenario(BaseModel):
@@ -327,10 +386,34 @@ class SharedPart(BaseModel):
     """Общее на объект: интеграция с учетной системой, переделка инфраструктуры, связь и дежурные
     операторы с их переобучением. Делается один раз, сколько бы задач ни выбрали."""
 
-    operator_posts: int = Field(description="Дежурных на объекте одновременно, на весь парк")
+    operator_posts: float = Field(description="Присмотр за всем парком объекта в постах, доля человека в смену")
     operators_fte: float
     retrained_fte: float
     scenarios: list[PartScenario]
+
+
+class UnitCostScenario(BaseModel):
+    id: str = Field(description="baseline, purchase или raas")
+    rub_per_unit: float = Field(description="Все расходы за горизонт на одну операцию, рублей")
+
+
+class UnitCost(BaseModel):
+    """Сколько стоит одна операция задачи в каждом сценарии: все расходы за горизонт, деленные на
+    число операций за горизонт. Общие на объект затраты разложены по задачам пропорционально их доле."""
+
+    operation_id: str
+    operation_name: str
+    per: str = Field(description='Что считаем одной операцией, для подписи: "перевозку паллеты"')
+    operations_horizon: float = Field(description="Сколько операций задачи за горизонт в сценарии без роботов")
+    scenarios: list[UnitCostScenario]
+
+
+class SupplierQuestion(BaseModel):
+    """Вопрос поставщику перед покупкой: то, что расчет принять на слово не может"""
+
+    topic: str = Field(description='Тема коротко: "Зарядка", "Связь с WMS"')
+    question: str
+    why: str = Field(default="", description="Что в расчете от ответа зависит, если ответ известен")
 
 
 class PaymentProblem(BaseModel):
@@ -355,12 +438,63 @@ class PickingZone(BaseModel):
     )
 
 
+class PaybackNeed(BaseModel):
+    """Граница одной цифры, за которой покупка окупается за горизонт. Остальные цифры как в ответе."""
+
+    path: str = Field(description="Какую цифру двигали, путь в модели")
+    label: str
+    value: float = Field(description="Граница: выше или ниже нее покупка окупается за горизонт")
+    now: float = Field(description="Сколько сейчас в расчете")
+    unit: str
+    text: str = Field(description="Готовая часть фразы для экрана")
+
+
+class RoundTheClock(BaseModel):
+    """Тот же склад, если бы он работал круглосуточно: 3 смены по 8 часов, 365 дней. Тот же объем в сутки,
+    людей по той же выработке больше на 365 / дней. Считаем по формуле парка, без прогона смены."""
+
+    fleet: int
+    purchase_payback_years: float | None
+    raas_payback_years: float | None
+    text: str = Field(description="Готовая строка для экрана")
+
+
+class PlausibilityCheck(BaseModel):
+    """Итог расчета против диапазона опубликованных внедрений (шаг 5, аудит Б2). Диапазон и его источник
+    из config/model.yaml, economics.plausibility. Это сверка, а не поправка: цифры расчета не меняются."""
+
+    id: Literal["payback_years", "staff_cut_share"]
+    scenario_id: str | None = Field(
+        default=None, description="Сценарий у окупаемости: только purchase. Пусто у остальных"
+    )
+    value: float | None = Field(description="Значение расчета. Пусто: окупаемости за горизонт нет")
+    low: float
+    high: float
+    status: Literal["inside", "above", "below"] = Field(
+        description="inside: в диапазоне внедрений, above: выше верхней границы, below: ниже нижней"
+    )
+    source: str
+    date: str | None
+    trust: str
+
+
 class CalculationResult(BaseModel):
     model_version: str
     facility_id: str
     operation_id: str = Field(description="Первая задача расчета, как в старых ответах")
     robot_id: str = Field(description="Решение первой задачи")
     horizon_years: int
+    payback_needs: list[PaybackNeed] = Field(
+        default_factory=list,
+        description=(
+            "Покупка не окупается за горизонт, а среди задач есть товар к человеку: при какой одной цифре "
+            "она окупится. Пусто: окупается или подсказать нечего"
+        ),
+    )
+    round_the_clock: RoundTheClock | None = Field(
+        default=None,
+        description="Окупаемость, если склад работает круглосуточно. Пусто: он и так работает круглосуточно",
+    )
     later_horizon_years: int | None = Field(
         default=None,
         description="На сколько лет пересчитали сценарии, которые не окупаются за горизонт. Пусто: не пересчитывали",
@@ -387,6 +521,13 @@ class CalculationResult(BaseModel):
         default_factory=list, description="Разбивка по задачам: сумма задач и shared дает объект целиком"
     )
     shared: SharedPart | None = Field(default=None, description="Общее на объект, одно на все задачи")
+    supplier_questions: list[SupplierQuestion] = Field(
+        default_factory=list, description="Что спросить у поставщика до покупки: список для разговора с ним"
+    )
+    unit_costs: list[UnitCost] = Field(
+        default_factory=list,
+        description="Стоимость одной операции по задачам в трех сценариях: рублей за паллету, строку отбора, м2 уборки",
+    )
     picking_zones: list[PickingZone] = Field(
         default_factory=list,
         description="Задачи отбора, которые посчитали по робозоне: план человека под погрузчик. Пусто: все по плану",
@@ -398,6 +539,10 @@ class CalculationResult(BaseModel):
             "Неверные условия оплаты, мер или выхода на режим. Расчет их не взял и посчитал без них, "
             "при неверном кредите или лизинге покупку за свои деньги"
         ),
+    )
+    plausibility: list[PlausibilityCheck] = Field(
+        default_factory=list,
+        description="Сверка окупаемости покупки и сокращения людей с реальными внедрениями. Нет данных: нет строки",
     )
 
 

@@ -174,32 +174,26 @@ def picking(headcount, lines=1, **operation):
     return takes_on_operation(f, roles, f["operations"][0], HOURS)
 
 
-def test_picking_people_come_from_volume_not_from_staff():
-    """Руками: 30 000 штучных строк в сутки * 365 / (80 строк/ч * 1972 ч) * 1,25 = 86,8 ставки.
-    Это работа, которую делают люди при таком объеме, и от того, сколько отборщиков в штате, она не зависит."""
-    need = 100_000 * 0.3 * 365 / (80 * HOURS) * 1.25
-    for headcount in (25, 100, 300):
-        result = picking(headcount, people_from_volume=1)
-        assert sum(t.fte_taken for t in result) == pytest.approx(need)
-        # после: те же люди на станциях при выработке 250 вместо 80
-        assert sum(t.fte_left for t in result) == pytest.approx(need * 80 / 250)
+def test_picking_people_come_from_staff():
+    """Отбор считается от анкеты, как паллеты: доля работы, посильная роботам, от мест в штате.
+    Руками: 289 мест * 30% = 86,7 ставки; после роботов те же люди на станциях: 86,7 * 80 / 250 = 27,74."""
+    result = picking(289)
+    assert sum(t.fte_taken for t in result) == pytest.approx(86.7)
+    assert sum(t.fte_left for t in result) == pytest.approx(86.7 * 80 / 250)
+    # меньше людей в анкете, меньше и экономии: 100 мест * 30% = 30 ставок
+    assert sum(t.fte_taken for t in picking(100)) == pytest.approx(30)
 
 
-def test_picking_from_volume_splits_between_lines_of_one_role():
+def test_picking_staff_splits_between_lines_of_one_role():
     """Две строки отборщиков делят работу, а не считают ее каждая заново."""
-    one = picking(100, people_from_volume=1)
-    two = picking(100, lines=2, people_from_volume=1)
+    one = picking(100)
+    two = picking(100, lines=2)
     assert sum(t.fte_taken for t in two) == pytest.approx(sum(t.fte_taken for t in one))
 
 
-def test_without_the_flag_people_are_a_share_of_staff():
-    """Остальные задачи считаются по-старому: доля от штата, 100 * 30% = 30 ставок."""
-    result = picking(100)
-    assert sum(t.fte_taken for t in result) == pytest.approx(30)
-
-
-def test_vacancies_are_not_closed_beyond_the_line():
-    """Работы по объему больше, чем мест в строке: вакансий закрывается не больше, чем их есть."""
+def test_picking_vacancies_close_first_but_not_beyond_the_work():
+    """25 мест, занято 20, роботы берут 30% работы: 25 * 0,3 = 7,5 ставки. Сначала закрываются 5 вакансий,
+    потом высвобождаются 2,5 живых ставки, как у паллет (docs/calculation.md, раздел 2.3)."""
     roles = {"picker": {"id": "picker", "productivity": 80}}
     f = {
         "schedule": {"shifts": 2, "shift_hours": 11, "days_per_year": 365},
@@ -213,12 +207,13 @@ def test_vacancies_are_not_closed_beyond_the_line():
                 "performed_by": ["picker"],
                 "productivity_before": 80,
                 "productivity_after": 250,
-                "people_from_volume": 1,
             }
         ],
     }
     take = takes_on_operation(f, roles, f["operations"][0], HOURS)[0]
+    assert take.fte_taken == pytest.approx(7.5)
     assert take.vacancies_closed == pytest.approx(5)
+    assert take.people_released == pytest.approx(2.5)
 
 
 def test_closed_vacancies_are_not_money():
@@ -229,7 +224,14 @@ def test_closed_vacancies_are_not_money():
     18,75 * 1 880 640 = 35 262 000 рублей в год, а не 23,75 ставки и 44 665 200.
     """
     model = copy.deepcopy(load_full_model(settings.config_dir)[0])
+    # штат как в датасете, 25 ставок: от режима склада пример не зависит, занятое задачей это весь штат
+    model["facilities"][0]["staff"][0]["headcount"] = 25
     model["facilities"][0]["staff"][0]["filled"] = 20
+    # пример раздела 2.3 считает механику вакансий: роботу 95% работы, пик людям не доплачиваем
+    pallets = next(op for op in model["facilities"][0]["operations"] if op["id"] == "pallet_transport")
+    pallets["labor_share"] = 0.95
+    model["economics"]["peak_staffing"] = {}
+
     result = evaluate(model, "warehouse", "pallet_transport", "ronavi-h1500")
     s = result.sizing
     assert sum(t.fte_taken for t in s.takes) == pytest.approx(23.75)  # работу роботы делают всю

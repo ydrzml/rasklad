@@ -97,7 +97,7 @@ export function requestFrom(state: SavedInput) {
     overrides: state.overrides ?? {},
     staff: state.staff ?? null,
     plan: state.plan ?? null,
-    raas_buyout: true,
+    raas_buyout: false,
     use_simulation: true,
     budget_rub: state.budget ?? null,
   };
@@ -171,10 +171,10 @@ export function draftOf(raw: string | null): Draft | null {
   }
 }
 
-// Строка про черновик: «Склад 12 000 м2, дошли до шага «решение»» или про проект
+// Строка про черновик: 'Расчет 12 000 м2, дошли до шага "решение"' или про проект
 export function draftTitle(draft: Draft): string {
-  const where = `дошли до шага «${STEP_NAMES[Math.min(draft.step, STEP_NAMES.length - 1)]}»`;
-  if (draft.projectId && draft.projectName) return `Правки к проекту «${draft.projectName}», ${where}`;
+  const where = `дошли до шага "${STEP_NAMES[Math.min(draft.step, STEP_NAMES.length - 1)]}"`;
+  if (draft.projectId && draft.projectName) return `Правки к проекту "${draft.projectName}", ${where}`;
   const size = draft.area ? ` ${draft.area.toLocaleString("ru-RU")} м²` : "";
   return `Расчет${size}, ${where}`;
 }

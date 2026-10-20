@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import type { CalculationResult, Parameter, Plan, PlanMeasures, RackType, Solution, StaffLine } from "../api/client";
 import { api } from "../api/client";
-import { shared, type SharedCalculation } from "../api/projects";
+import { shared, sharedReport, type SharedCalculation } from "../api/projects";
 import { ActionBar, ActionMore, Button, EmptyState, Header, Hero, Waiting } from "../ui";
 import { Scout04 } from "../ui/robots";
 import "./app.css";
@@ -110,8 +110,8 @@ export function Shared() {
   const download = (kind: "pdf" | "xlsx") => {
     setExporting(kind);
     setExportError(null);
-    api
-      .report(kind, request)
+    // отчет из сохраненных цифр, как на странице: сервер расчет не повторяет
+    sharedReport(token, kind)
       .then(({ blob, name }) => {
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
@@ -170,21 +170,29 @@ export function Shared() {
           summary={
             exportError ??
             (exporting
-              ? `Собираем ${exporting === "pdf" ? "отчет" : "таблицы"}: сервер считает заново вместе со сменой, до полуминуты`
+              ? `Собираем ${exporting === "pdf" ? "отчет" : "таблицы"} из сохраненных цифр, до полуминуты`
               : "Расчет открыт по ссылке. Свой склад можно посчитать без регистрации")
           }
         >
           <span className="u-action-end">
             <ActionMore label="Файлы">
               <Button kind="light" disabled={exporting !== null} onClick={() => download("xlsx")}>
-                <span>
-                  <span className="u-wide">Таблицы </span>Excel
-                </span>
+                {exporting === "xlsx" ? (
+                  "Собираем..."
+                ) : (
+                  <span>
+                    <span className="u-wide">Таблицы </span>Excel
+                  </span>
+                )}
               </Button>
               <Button kind="light" disabled={exporting !== null} onClick={() => download("pdf")}>
-                <span>
-                  <span className="u-wide">Отчет </span>PDF
-                </span>
+                {exporting === "pdf" ? (
+                  "Собираем..."
+                ) : (
+                  <span>
+                    <span className="u-wide">Отчет </span>PDF
+                  </span>
+                )}
               </Button>
             </ActionMore>
           </span>

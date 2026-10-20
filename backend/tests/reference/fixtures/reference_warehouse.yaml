@@ -52,6 +52,7 @@ robots:
   license_rub_year: 60000
   avg_power_kw: 0.5
   operator_attention_min_per_hour: 1.5
+  amortization_years: 5
   service_life_years: 5
   battery_price_rub: 270000
   battery_life_years: 3
@@ -76,6 +77,7 @@ robots:
   license_rub_year: 60000
   avg_power_kw: 0.5
   operator_attention_min_per_hour: 1.5
+  amortization_years: 5
   service_life_years: 5
   battery_price_rub: 240000
   battery_life_years: 3

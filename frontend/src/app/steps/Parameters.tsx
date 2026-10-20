@@ -1,5 +1,5 @@
 import type { Parameter } from "../../api/client";
-import { BlockHead, FieldRow, Fold, KeyValue } from "../../ui";
+import { BlockHead, FieldRow, Fold, KeyValue, TrustKey } from "../../ui";
 import { overDay, rangeWarning, sourceTitle } from "../format";
 
 type Props = {
@@ -17,9 +17,11 @@ type Props = {
 // Значения, которые мы берем на себя (доля работы для роботов, число дежурных, рост зарплат),
 // сюда не попадают: клиент их не знает. Он увидит их в экономике списком допущений и там же поправит.
 // Границы не запрещают ввод: выход за них это предупреждение, свой объект пользователь знает лучше.
-export function Parameters({ parameters, overrides, onChange, place = "свой склад", dataset }: Props) {
+export function Parameters({ parameters, overrides, onChange, place = "свой склад" }: Props) {
   const asked = parameters.filter((field) => !field.ours);
-  const main = asked.filter((field) => field.key);
+  const main = asked.filter((field) => field.key && !field.yes_no);
+  // главный выбор "да или нет" (как сейчас убирают) стоит сразу под главными числами, а не в списке ниже
+  const choices = asked.filter((field) => field.key && field.yes_no);
   const rest = asked.filter((field) => !field.key);
   const blocks = [...new Map(rest.map((field) => [field.group, field.group_name])).entries()];
   const tooLong = overDay(parameters, overrides);
@@ -33,22 +35,26 @@ export function Parameters({ parameters, overrides, onChange, place = "свой 
   return (
     <section>
       <BlockHead title="Главное про объект" note={`значения отраслевые, поправьте то, что знаете про ${place}`} />
+      <TrustKey levels={main.map((field) => field.trust)} />
 
       <div className="u-keys">
         {main.map((field) => (
           <KeyValue key={field.path} {...props(field)} />
         ))}
       </div>
+      {choices.map((field) => (
+        <FieldRow key={field.path} {...props(field)} yesNo={field.yes_no} yesNoNames={field.yes_no_names} />
+      ))}
 
       {rest.length > 0 && (
-        <Fold title={`Остальные параметры ${dataset ? "из датасета" : "расчета"}: ${rest.length}`}>
+        <Fold title={`Остальные параметры: ${rest.length}`}>
           {blocks.map(([group, name]) => (
             <div key={group}>
               <h3>{name}</h3>
               {rest
                 .filter((field) => field.group === group)
                 .map((field) => (
-                  <FieldRow key={field.path} {...props(field)} yesNo={field.yes_no} />
+                  <FieldRow key={field.path} {...props(field)} yesNo={field.yes_no} yesNoNames={field.yes_no_names} />
                 ))}
             </div>
           ))}

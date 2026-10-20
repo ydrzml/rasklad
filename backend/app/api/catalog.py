@@ -87,7 +87,7 @@ def facility_solutions(body: FacilitySolutionsRequest) -> FacilitySolutions:
     description=(
         "Поля второго шага по объекту и по каждой выбранной задаче. Задач может быть несколько, "
         "и у каждого поля видно, к какому блоку оно относится. Штата здесь нет: он вводится строками, "
-        "и для него есть свои методы в разделе «штат»."
+        'и для него есть свои методы в разделе "штат".'
     ),
 )
 def parameters(facility: str = "warehouse", operations: Tasks = None) -> list[Parameter]:

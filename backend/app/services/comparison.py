@@ -4,10 +4,12 @@
 что человек видел, когда сохранял. Если нормативы с тех пор поменялись, колонка это говорит.
 Чужие проекты сравнить нельзя: версии достаем через те же проверки владельца, что и везде."""
 
+import math
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.reports.words import about_years
 from app.schemas import projects as schemas
 from app.services import catalog, projects
 from app.services.calculation import model_with_overrides
@@ -55,6 +57,10 @@ def _row(key: str, label: str, group: str, values: list, unit: str = "", better:
     return schemas.CompareRow(
         key=key, label=label, group=group, unit=unit, values=values, differs=differs, better=better
     )
+
+
+def _heads(values: list) -> list:
+    return [None if value is None else math.ceil(value - 1e-9) for value in values]
 
 
 def _same(value: Any) -> Any:
@@ -108,13 +114,10 @@ def _inputs(session: Session, states: list[dict[str, Any]]) -> list[schemas.Comp
             continue
         rows.append(_row(path, field.label, field.group_name, values, field.unit))
 
-    # Решение на каждую задачу: у старого снимка одно решение, оно у первой задачи
+    # Решение на каждую задачу: у смешанного парка два с долями, у старого снимка одно на первую задачу
     tasks = list(dict.fromkeys(t for state in states for t in state.get("taskIds") or []))
     for task in tasks:
-        values = []
-        for state in states:
-            robot = _choices(state).get(task)
-            values.append(robot_names.get(robot, robot) if robot else None)
+        values = [_solution(projects.picks_of(state).get(task) or [], robot_names) for state in states]
         rows.append(_row(f"solution.{task}", "Решение", operation_names.get(task, task), values))
 
     rows.append(_row("staff.people", "Людей в штате сейчас", "Штат", [_people(s) for s in states], "чел"))
@@ -132,11 +135,17 @@ def _parameter(state: dict[str, Any], path: str, fields: dict[str, Any]) -> floa
     return fields[path].value if path in own else None
 
 
-def _choices(state: dict[str, Any]) -> dict[str, str]:
-    if state.get("choices"):
-        return state["choices"]
-    first = (state.get("taskIds") or [None])[0]
-    return {first: state["robotId"]} if first and state.get("robotId") else {}
+def _solution(picks: list[dict[str, Any]], robot_names: dict[str, str]) -> str | None:
+    named = [
+        (robot_names.get(pick["robotId"], pick["robotId"]), pick.get("share", 1))
+        for pick in picks
+        if pick.get("robotId")
+    ]
+    if not named:
+        return None
+    if len(named) == 1:
+        return named[0][0]
+    return " + ".join(f"{name} {round(share * 100)}%" for name, share in named)
 
 
 def _people(state: dict[str, Any]) -> float | None:
@@ -186,8 +195,16 @@ def _results(results: list[dict[str, Any]]) -> list[schemas.CompareRow]:
 
     rows = [
         _row("fleet", "Роботов в парке", "Парк и люди", sizing("fleet"), "шт"),
-        _row("people_before", "Людей в смену сейчас", "Парк и люди", sizing("people_per_shift_before"), "чел"),
-        _row("people_after", "Людей в смену с роботами", "Парк и люди", sizing("people_per_shift_after"), "чел", "low"),
+        # людей целыми, вверх: 7,5 ставки в смену это 8 человек на смене
+        _row("people_before", "Людей в смену сейчас", "Парк и люди", _heads(sizing("people_per_shift_before")), "чел"),
+        _row(
+            "people_after",
+            "Людей в смену с роботами",
+            "Парк и люди",
+            _heads(sizing("people_per_shift_after")),
+            "чел",
+            "low",
+        ),
     ]
     names: dict[str, str] = {}
     for result in results:
@@ -221,9 +238,20 @@ def _results(results: list[dict[str, Any]]) -> list[schemas.CompareRow]:
         if scenario_id != "baseline":
             payback = pick(scenario_id, "payback_cumulative_years")
             calculated = pick(scenario_id, "tco_rub")
-            # окупаемости нет, а расчет есть: значит, не окупается за горизонт
+            later = pick(scenario_id, "payback_later_years")
+            horizons = [result.get("horizon_years") or 5 for result in results]
+            # окупаемости нет, а расчет есть: окупится дольше горизонта или не окупается (как в отчетах)
             payback = [
-                p if p is not None or c is None else "не окупается" for p, c in zip(payback, calculated, strict=True)
+                p if p is not None or c is None else _later_words(more, horizon)
+                for p, c, more, horizon in zip(payback, calculated, later, horizons, strict=True)
             ]
             rows.append(_row(f"{scenario_id}.payback", "Окупаемость", group, payback, "лет", "low"))
     return rows
+
+
+def _later_words(later: float | None, horizon: int) -> str:
+    """Окупаемости за горизонт нет: окупится дольше горизонта (досчет до economics.later_payback_years)
+    или не окупается. Те же слова, что в PDF и Excel (reports/content.py, payback_words)."""
+    if later is None:
+        return "не окупается"
+    return f"примерно {about_years(later, horizon)}, дольше горизонта расчета в {horizon} лет"

@@ -1,15 +1,20 @@
 import { useEffect, useState } from "react";
+import { api } from "../../api/client";
+import { plural } from "../../app/steps/economicsNames";
 import { AccountLinks, AccountMenu, Arrow, Header } from "../../ui";
 import { useMe } from "../../ui/account";
-import { FloorBot, Mover, Pallet07, Picker12, Sleeper06 } from "../../ui/robots";
-import { HeatFloor } from "../landing/HeatFloor";
+import { FloorBot, Mover, Picker12, Sleeper06 } from "../../ui/robots";
 import { shouldShowSplash, Splash } from "../landing/Splash";
 import "../landing/landing.css";
+import { HeroReel } from "./HeroReel";
+import { LiveFloor } from "./LiveFloor";
+import { Assemble, StepPic, StepRoute } from "./Variants";
 import "./landing-a.css";
+import "./variants.css";
 
-// Второй вариант лендинга, рядом со старым, пока выбираем. Шапка и кнопки из набора, оранжевого нет.
-// На первом экране чертеж склада: приемка, стеллажи, зарядка, отгрузка и роботы на маршрутах.
-// Роботы ездят только по чертежам, пол фона стоит: движение там, где оно объясняет, как работает план.
+// Лендинг гостя "/". Шапка и кнопки из набора, оранжевого нет. На первом экране ролик-петля (HeroReel):
+// подбор, смена на плане, деньги, три сценария. Ниже склад собирается по прокрутке (Assemble), пять шагов
+// с картинками, прогон смены, методика, объекты. Фон: клетка плана с тихими волнами (LiveFloor).
 
 const CALC = "/calc";
 const LOGIN = "/login";
@@ -32,7 +37,7 @@ const LETTERS = [
   ["A", "проверено: производитель и независимая проверка"],
   ["B", "подтверждено: сходятся два типа источников"],
   ["C", "один источник"],
-  ["D", "слабо: только организатор или СМИ"],
+  ["D", "слабо: только каталог ФЦ БАС или СМИ"],
   ["E", "спорно: берем вариант хуже для окупаемости"],
   ["F", "нет данных: допущение с обоснованием"],
 ];
@@ -41,6 +46,20 @@ export function LandingA() {
   const [splash, setSplash] = useState(shouldShowSplash);
   const me = useMe();
   const signedIn = me !== null && me.role !== "guest";
+  // сколько решений разобрали под аэропорт и медучреждение: то же число, что на шаге 1 мастера
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    api
+      .facilities()
+      .then((list) => setCounts(Object.fromEntries(list.map((one) => [one.id, one.catalog.count]))))
+      .catch(() => undefined);
+  }, []);
+  const solved = (id: string, where: string) => {
+    const count = counts[id];
+    return count
+      ? `${count} ${plural(count, "решение", "решения", "решений")} каталога разобрали под задачи ${where}. Экономики пока нет.`
+      : `Решения каталога разобрали под задачи ${where}. Экономики пока нет.`;
+  };
 
   // Глаза роботов смотрят в сторону указателя
   useEffect(() => {
@@ -63,17 +82,37 @@ export function LandingA() {
     };
   }, []);
 
+  const heroText = (
+    <>
+      <h1 id="hero-title">
+        Рассчитайте автоматизацию склада <span>до покупки роботов</span>
+      </h1>
+      <p className="la-lead">
+        Задайте параметры и план склада. Сервис подберет роботов, прогонит смену на вашем плане и посчитает окупаемость
+        в трех сценариях: без роботов, покупка и аренда.
+      </p>
+      <a className="u-btn u-btn-primary la-go" href={CALC}>
+        Посчитать свой склад
+        <span className="u-knob">
+          <Arrow />
+        </span>
+      </a>
+      <a className="u-btn u-btn-light la-go" href="/cases">
+        Смотреть готовые разборы
+      </a>
+      <p className="la-note">Начните с готового примера, свои данные можно поменять на любом шаге.</p>
+    </>
+  );
+
   return (
-    <div className="l-page la-page">
+    // la-v1 и la-live: стили этого лендинга (variants.css), на главных вошедшего их нет
+    <div className="l-page la-page la-guest la-v1 la-live">
       {splash && <Splash onDone={() => setSplash(false)} />}
-      <HeatFloor />
+      <LiveFloor />
       <svg width="0" height="0" className="l-defs" aria-hidden="true">
         <defs>
           <pattern id="l-slots" width="14" height="10" patternUnits="userSpaceOnUse">
             <path d="M14 0V10" stroke={BLUE} strokeWidth="0.9" />
-          </pattern>
-          <pattern id="la-slots" width="12" height="8" patternUnits="userSpaceOnUse">
-            <path d="M0 8H12" stroke={BLUE} strokeWidth="0.7" />
           </pattern>
         </defs>
       </svg>
@@ -86,10 +125,16 @@ export function LandingA() {
               <a className="u-wide-only" href="#how">
                 Как это работает
               </a>
-              <a className="u-wide-only" href="#sources">
+              {/* методика целиком на своей странице; блок "Откуда цифры" на лендинге ведет из подвала */}
+              <a className="u-wide-only" href="/method">
                 Методика расчета
               </a>
               <AccountLinks />
+              {/* главная кнопка всегда под рукой: шапка прилипает к верху */}
+              <a className="u-btn u-btn-primary v-head-go" href={CALC}>
+                <span className="u-wide-only">Посчитать склад</span>
+                <span className="u-narrow-only">Посчитать</span>
+              </a>
               <AccountMenu />
             </>
           }
@@ -98,32 +143,9 @@ export function LandingA() {
 
       <main className="l-wrap">
         <section className="la-hero" aria-labelledby="hero-title">
-          <div data-floor-busy>
-            <h1 id="hero-title">
-              Рассчитайте автоматизацию склада <span>до покупки роботов</span>
-            </h1>
-            <p className="la-lead">
-              Задайте параметры и план склада. Сервис подберет роботов, прогонит смену на вашем плане и посчитает
-              окупаемость в трех сценариях: без роботов, покупка и аренда.
-            </p>
-            <a className="u-btn u-btn-primary la-go" href={CALC}>
-              Посчитать свой склад
-              <span className="u-knob">
-                <Arrow />
-              </span>
-            </a>
-            <p className="la-note">Начните с готового примера, свои данные можно поменять на любом шаге.</p>
-          </div>
-
-          <figure className="la-scene" data-floor-busy>
-            <div className="la-sheet">
-              <figcaption className="l-sheet-top">
-                <span className="l-label">Пример · типовой склад</span>
-                <span className="l-label">перевозка паллет</span>
-              </figcaption>
-              <HeroPlan />
-            </div>
-            <Pallet07 className="la-07" />
+          <div data-floor-busy>{heroText}</div>
+          <figure className="la-scene v1-scene" data-floor-busy>
+            <HeroReel />
           </figure>
         </section>
         <div className="l-facts" data-floor-busy>
@@ -141,6 +163,8 @@ export function LandingA() {
           </span>
         </div>
 
+        <Assemble />
+
         <section className="l-block" id="how" aria-labelledby="how-title">
           <BlockHead
             label="Как это работает"
@@ -148,9 +172,11 @@ export function LandingA() {
             title="Пять шагов на одной странице"
             note="Шаги идут по порядку, пройденный сворачивается в строку с итогом. Вернуться и поправить можно в любой момент, расчет пересчитается."
           />
+          <StepRoute />
           <ol className="l-steps" data-floor-busy>
             {STEPS.map(([name, text], i) => (
               <li key={name}>
+                <StepPic step={i} />
                 <span className="l-n">{String(i + 1).padStart(2, "0")}</span>
                 <h3>{name}</h3>
                 <p>{text}</p>
@@ -197,7 +223,7 @@ export function LandingA() {
                 <li>Маршруты по вашему плану</li>
                 <li>Очереди в проездах и у ворот</li>
                 <li>Зарядка и простои</li>
-                <li>Кривая «роботов → операций в час», по ней считается парк</li>
+                <li>Кривая "роботов → операций в час", по ней считается парк</li>
               </ul>
               <div className="l-sleeper">
                 <Sleeper06 />
@@ -331,9 +357,9 @@ export function LandingA() {
                   </span>
                 </li>
                 <li>
-                  <span className="l-t">организатор</span>
+                  <span className="l-t">каталог ФЦ БАС</span>
                   <span>
-                    Примеры решений по типам объектов, файл организатора
+                    Примеры решений по типам объектов
                     <q>Грузоподъемность: до 1500 кг</q>
                   </span>
                 </li>
@@ -393,7 +419,7 @@ export function LandingA() {
                   <h3>
                     Аэропорт <span className="l-badge">Выбор и параметры</span>
                   </h3>
-                  <p>Около тридцати позиций каталога по подходящим сценариям. Экономики пока нет.</p>
+                  <p>{solved("airport", "аэропорта")}</p>
                 </div>
               </article>
               <article className="l-panel l-row" data-floor-busy>
@@ -407,7 +433,7 @@ export function LandingA() {
                   <h3>
                     Медучреждение <span className="l-badge">Выбор и параметры</span>
                   </h3>
-                  <p>Около тридцати позиций каталога по подходящим сценариям. Экономики пока нет.</p>
+                  <p>{solved("clinic", "медучреждения")}</p>
                 </div>
               </article>
             </div>
@@ -448,7 +474,7 @@ export function LandingA() {
             <Spec
               term="Каталог"
               value="31 складское решение с характеристиками"
-              note="из 223 позиций каталога организатора"
+              note="из 223 позиций каталога ФЦ БАС"
             />
             <Spec term="Доверие" value="Буква от S до F у каждого значения" note="источник виден под буквой" />
           </dl>
@@ -457,6 +483,12 @@ export function LandingA() {
           <span>Расклад · задача хакатона ЛЦТ-2026</span>
           <a href="#how">Как это работает</a>
           <a href="#sources">Откуда цифры</a>
+          <a href="/cases">Готовые разборы</a>
+          <a href="/catalog">Каталог решений</a>
+          {/* пример файла отчета: перевозка паллет, готовый разбор */}
+          <a href="/examples/primer-otcheta-pallety.pdf" target="_blank" rel="noreferrer">
+            Пример отчета PDF
+          </a>
           {!signedIn && <a href={LOGIN}>Войти</a>}
         </div>
       </footer>
@@ -526,77 +558,6 @@ function Charger({ x, y, w, h }: { x: number; y: number; w: number; h: number })
         strokeWidth="1.6"
         strokeLinejoin="round"
       />
-    </g>
-  );
-}
-
-/* Чертеж первого экрана. Раскладка как у шаблона «Сквозной» из мастера: приемка на одной стене,
-   отгрузка на противоположной, между ними ряды стеллажей с поперечным проездом. Маршруты идут по
-   проездам между рядами, а не сквозь стеллажи */
-const ROWS = Array.from({ length: 14 }, (_, i) => 92 + i * 28);
-const aisle = (i: number) => ROWS[i] + 20;
-
-function HeroPlan() {
-  const inbound = `M${aisle(3)} 84V178H${aisle(5)}V84Z`;
-  const outbound = `M${aisle(1)} 300V200H${aisle(4)}V300Z`;
-  const across = `M78 190H${aisle(13)}V190Z`;
-  return (
-    <svg viewBox="0 0 560 380" role="img" aria-labelledby="la-plan-title">
-      <title id="la-plan-title">
-        План типового склада: приемка сверху, отгрузка снизу, ряды стеллажей, зарядка и роботы на маршрутах
-      </title>
-      <g fill="none" stroke={BLUE}>
-        <path d="M20 16H540M20 12v8M540 12v8M8 32V352M4 32h8M4 352h8" strokeWidth="0.9" />
-        <rect x="20" y="32" width="520" height="320" strokeWidth="1.6" />
-      </g>
-      <g fontFamily="JetBrains Mono, monospace" fontSize="10" fill="var(--ink-soft)">
-        <text x="280" y="11" textAnchor="middle">
-          122 м
-        </text>
-        <text x="0" y="0" transform="translate(3 200) rotate(-90)" textAnchor="middle">
-          82 м
-        </text>
-      </g>
-
-      {/* ворота: приемка и отгрузка разным цветом, как на плане в мастере */}
-      <Docks y={28} xs={[160, 212, 264]} color="var(--dock-in)" />
-      <Docks y={348} xs={[120, 172, 224]} color="var(--dock-out)" />
-      <g fill="none" stroke={BLUE} strokeWidth="0.9" strokeDasharray="4 3">
-        <rect x="150" y="44" width="164" height="34" rx="3" />
-        <rect x="110" y="306" width="164" height="34" rx="3" />
-      </g>
-
-      {/* ряды стеллажей двумя блоками, между ними поперечный проезд */}
-      <g stroke={BLUE} strokeWidth="1">
-        {ROWS.map((x) => (
-          <g key={x}>
-            <rect x={x} y="96" width="12" height="80" fill="url(#la-slots)" />
-            <rect x={x} y="204" width="12" height="90" fill="url(#la-slots)" />
-          </g>
-        ))}
-      </g>
-
-      <Charger x={34} y={214} w={30} h={46} />
-
-      <g fill="none" stroke={ROUTE} strokeWidth="2" strokeLinejoin="round" opacity="0.45">
-        <path d={inbound} />
-        <path d={outbound} />
-        <path d={`M78 190H${aisle(13)}`} />
-      </g>
-      <Mover kind="pallet" path={inbound} seconds={16} />
-      <Mover kind="long" path={outbound} seconds={18} delay={7} />
-      <Mover kind="small" path={across} seconds={20} delay={3} />
-      <FloorBot kind="small" transform="translate(49 280) rotate(-90)" />
-    </svg>
-  );
-}
-
-function Docks({ y, xs, color }: { y: number; xs: number[]; color: string }) {
-  return (
-    <g fill={color}>
-      {xs.map((x) => (
-        <rect key={x} x={x} y={y} width="40" height="8" rx="1.5" />
-      ))}
     </g>
   );
 }

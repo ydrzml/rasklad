@@ -16,7 +16,7 @@ XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     "/template",
     summary="Шаблон Excel для данных объекта",
     description=(
-        "Листы «Объект» (параметры с единицей и допустимым диапазоном), «Штат» и «Роли». "
+        'Листы "Объект" (параметры с единицей и допустимым диапазоном), "Штат" и "Роли". '
         "Заполнен тем, что пользователь уже ввел, или значениями по умолчанию."
     ),
     response_class=Response,

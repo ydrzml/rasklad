@@ -62,9 +62,7 @@ def _item(row: CatalogChange, solution: Solution | None) -> News | None:
         added = len(changes.get("added") or [])
         if not added:
             return None
-        return News(
-            row.at, "new", "Каталог ФЦ БАС", f"Загружена выгрузка организатора: новых позиций {added}", None, None
-        )
+        return News(row.at, "new", "Каталог ФЦ БАС", f"Новых решений в каталоге: {added}", None, None)
     if row.action == "create":
         return make("new", "Новое решение в каталоге")
     if row.action == "update" and "price_rub" in changes:

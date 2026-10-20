@@ -21,7 +21,11 @@ const cell = (delta: number, purchase: number | null, raas: number | null = 1, f
 test("что будет, если: от и до по окупаемости сервера, худший сдвиг словами", () => {
   const data = {
     params: [
-      { id: "salary", name: "Зарплаты", cells: [cell(-0.2, 1.7), cell(-0.1, 1.5), cell(0, 1.3), cell(0.1, 1.2), cell(0.2, 1.1)] },
+      {
+        id: "salary",
+        name: "Зарплаты",
+        cells: [cell(-0.2, 1.7), cell(-0.1, 1.5), cell(0, 1.3), cell(0.1, 1.2), cell(0.2, 1.1)],
+      },
       { id: "price", name: "Цена робота", cells: [cell(-0.2, 1.2), cell(0, 1.3), cell(0.2, 1.4)] },
     ],
   };

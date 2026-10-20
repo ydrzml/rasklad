@@ -3,6 +3,8 @@ import { Mark, Wordmark } from "../../ui";
 import { safeNext } from "../../app/saving";
 import { homeOf } from "../../ui/account";
 import { Pallet07, type Pallet07Eyes, type Pallet07Mood } from "../../ui/robots";
+import { CodeStep } from "./CodeStep";
+import { post, send } from "./send";
 import "./login.css";
 
 // Вход и регистрация по почте и паролю. Демо-аккаунты для экспертизы существуют, но входят
@@ -20,33 +22,31 @@ const CHEER_MS = 700;
 
 type Focus = "none" | "email" | "password";
 
-type Mode = "login" | "register";
+// forgot: забыли пароль, просим ссылку на почту. Сам новый пароль задают по ссылке, Reset.tsx
+type Mode = "login" | "register" | "forgot";
 
-async function send(path: string, body: object): Promise<string | null> {
-  try {
-    const response = await fetch(`/api/auth/${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "same-origin",
-      body: JSON.stringify(body),
-    });
-    if (response.ok) return null;
-    if (response.status === 401) return "Неверная почта или пароль";
-    const data = (await response.json().catch(() => null)) as { detail?: unknown } | null;
-    if (typeof data?.detail === "string") return data.detail;
-    // Сервер объясняет по-русски, что не так с почтой или паролем: пароль из одних цифр, слишком простой
-    if (response.status === 422) {
-      const first = Array.isArray(data?.detail) ? (data.detail[0] as { msg?: unknown } | undefined) : undefined;
-      return typeof first?.msg === "string" ? first.msg : "Проверьте почту и пароль: пароль не короче 8 символов";
-    }
-    return "Сервер не ответил, попробуйте еще раз через минуту";
-  } catch {
-    return "Нет связи с сервером. Проверьте интернет и попробуйте еще раз";
-  }
+function modeFromHash(): Mode {
+  if (window.location.hash === "#register") return "register";
+  if (window.location.hash === "#forgot") return "forgot";
+  return "login";
 }
 
+const TITLES: Record<Mode, string> = {
+  login: "Войдите, чтобы сохранять расчеты",
+  register: "Заведите аккаунт",
+  forgot: "Новый пароль по почте",
+};
+
+const LEADS: Record<Mode, string> = {
+  login: "Проекты, их копии и отчеты хранятся в кабинете. Считать можно и без входа.",
+  register: "Нужны только почта и пароль.",
+  forgot: "Пришлем на почту ссылку, по ней зададите новый пароль. Проекты останутся на месте.",
+};
+
+const SUBMITS: Record<Mode, string> = { login: "Войти", register: "Зарегистрироваться", forgot: "Прислать ссылку" };
+
 export function Login() {
-  const [mode, setMode] = useState<Mode>(window.location.hash === "#register" ? "register" : "login");
+  const [mode, setMode] = useState<Mode>(modeFromHash);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +57,10 @@ export function Login() {
   const [mood, setMood] = useState<Pallet07Mood>("calm");
   const [moodRun, setMoodRun] = useState(0);
   const [agreed, setAgreed] = useState(false);
+  // Письмо со ссылкой попросили: вместо формы говорим, что делать дальше
+  const [sent, setSent] = useState(false);
+  // Регистрация ждет код из письма: на какую почту он ушел. Так бывает, когда на сервере настроена почта
+  const [codeFor, setCodeFor] = useState<string | null>(null);
   const timer = useRef<number | undefined>(undefined);
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
@@ -82,19 +86,38 @@ export function Login() {
     setTurned(shown);
   }
 
+  function oops() {
+    react("oops");
+    later(950, () => setMood("calm"));
+  }
+
+  function fail(problem: string) {
+    setBusy(false);
+    setError(problem);
+    oops();
+  }
+
+  function signedIn() {
+    react("cheer");
+    later(CHEER_MS, () => void afterLogin().then((url) => window.location.assign(url)));
+  }
+
   async function run(action: () => Promise<string | null>) {
     setBusy(true);
     setError(null);
     const problem = await action();
-    if (problem) {
-      setBusy(false);
-      setError(problem);
-      react("oops");
-      later(950, () => setMood("calm"));
-      return;
-    }
-    react("cheer");
-    later(CHEER_MS, () => void afterLogin().then((url) => window.location.assign(url)));
+    if (problem) fail(problem);
+    else signedIn();
+  }
+
+  async function registerNow() {
+    setBusy(true);
+    setError(null);
+    const { problem, status } = await post("register", { email, password });
+    if (problem) return fail(problem);
+    if (status !== 202) return signedIn();
+    setBusy(false);
+    setCodeFor(email.trim().toLowerCase());
   }
 
   // Куда смотрит 07. Форма ниже и левее его, поэтому «на поле» это влево и вниз.
@@ -111,16 +134,53 @@ export function Login() {
     lean = -4;
   }
 
+  function switchTo(next: Mode) {
+    setMode(next);
+    setError(null);
+    setSent(false);
+  }
+
+  async function askLink() {
+    setBusy(true);
+    setError(null);
+    const problem = await send("forgot", { email });
+    setBusy(false);
+    if (problem) {
+      setError(problem);
+      react("oops");
+      later(950, () => setMood("calm"));
+      return;
+    }
+    setSent(true);
+    react("cheer");
+  }
+
   function submit(event: FormEvent) {
     event.preventDefault();
+    // пустые поля не шлем на сервер: он ответил бы "почта записана с ошибкой", хотя поле просто пустое
+    if (!email.trim()) {
+      setError("Впишите почту");
+      return;
+    }
+    if (mode !== "forgot" && !password) {
+      setError("Впишите пароль");
+      return;
+    }
+    if (mode === "forgot") {
+      void askLink();
+      return;
+    }
     if (mode === "register" && !agreed) {
       setError("Отметьте согласие на обработку почты, без него аккаунт не завести");
       return;
     }
-    run(() => send(mode, { email, password }));
+    if (mode === "register") void registerNow();
+    else void run(() => send(mode, { email, password }));
   }
 
   const isLogin = mode === "login";
+  const isForgot = mode === "forgot";
+  const isRegister = mode === "register";
 
   return (
     <div className="g-page">
@@ -141,89 +201,124 @@ export function Login() {
             mood={mood}
             idle={focus === "none" && mood === "calm" && !busy}
           />
-          <div className="g-tabs" role="group" aria-label="Что сделать">
-            <button type="button" aria-pressed={isLogin} onClick={() => setMode("login")}>
-              Вход
-            </button>
-            <button type="button" aria-pressed={!isLogin} onClick={() => setMode("register")}>
-              Регистрация
-            </button>
-          </div>
-          <h1 id="login-title">{isLogin ? "Войдите, чтобы сохранять расчеты" : "Заведите аккаунт"}</h1>
-          <p className="g-lead">
-            {isLogin
-              ? "Проекты, их копии и отчеты хранятся в кабинете. Считать можно и без входа."
-              : "Нужны только почта и пароль. Подтверждать почту не придется."}
-          </p>
-
-          <form onSubmit={submit} noValidate>
-            <label htmlFor="login-email">Почта</label>
-            <input
-              id="login-email"
-              type="email"
-              autoComplete="email"
-              placeholder="ivan@company.ru"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              onFocus={() => setFocus("email")}
-              onBlur={() => setFocus("none")}
-              required
+          {codeFor ? (
+            <CodeStep
+              email={codeFor}
+              onBack={() => setCodeFor(null)}
+              onResend={() => send("register", { email, password })}
+              onDone={signedIn}
+              onOops={oops}
             />
-            <label htmlFor="login-password">Пароль</label>
-            <div className="g-pass">
-              <input
-                id="login-password"
-                type={shown ? "text" : "password"}
-                autoComplete={isLogin ? "current-password" : "new-password"}
-                minLength={8}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                onFocus={focusPassword}
-                onBlur={() => setFocus("none")}
-                required
-              />
-              <button
-                type="button"
-                className="g-eye"
-                aria-label={shown ? "Скрыть пароль" : "Показать пароль"}
-                aria-pressed={shown}
-                onMouseDown={(event) => event.preventDefault()}
-                onFocus={() => setFocus("password")}
-                onBlur={() => setFocus("none")}
-                onClick={toggleShown}
-              >
-                <svg width="20" height="20" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-                  <path
-                    d="M1.5 9S4.5 3.5 9 3.5 16.5 9 16.5 9 13.5 14.5 9 14.5 1.5 9 1.5 9z"
-                    stroke="currentColor"
-                    strokeWidth="1.4"
+          ) : (
+            <>
+              <div className="g-tabs" role="group" aria-label="Что сделать">
+                <button type="button" aria-pressed={!isRegister} onClick={() => switchTo("login")}>
+                  Вход
+                </button>
+                <button type="button" aria-pressed={isRegister} onClick={() => switchTo("register")}>
+                  Регистрация
+                </button>
+              </div>
+              <h1 id="login-title">{TITLES[mode]}</h1>
+              <p className="g-lead">{LEADS[mode]}</p>
+
+              {isForgot && sent ? (
+                <div className="g-sent" role="status">
+                  <p>
+                    Если почта {email.trim()} у нас зарегистрирована, письмо уже в пути. Откройте его и нажмите "Задать
+                    новый пароль".
+                  </p>
+                  <p className="g-hint">Письма нет через пару минут? Загляните в папку Спам.</p>
+                  <button className="g-submit" type="button" onClick={() => switchTo("login")}>
+                    Вернуться ко входу
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={submit} noValidate>
+                  <label htmlFor="login-email">Почта</label>
+                  <input
+                    id="login-email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="ivan@company.ru"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    onFocus={() => setFocus("email")}
+                    onBlur={() => setFocus("none")}
+                    required
                   />
-                  <circle cx="9" cy="9" r="2.4" stroke="currentColor" strokeWidth="1.4" />
-                  {!shown && <path d="M3 15L15 3" stroke="currentColor" strokeWidth="1.4" />}
-                </svg>
-              </button>
-            </div>
-            {!isLogin && <p className="g-hint">Не короче 8 символов</p>}
-            {!isLogin && (
-              <label className="g-consent">
-                <input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} />
-                <span>
-                  Соглашаюсь на обработку моей почты для входа в сервис.{" "}
-                  <a href="/privacy" target="_blank" rel="noopener">
-                    Какие данные храним и зачем
-                  </a>
-                </span>
-              </label>
-            )}
-            {error && (
-              <p className="g-error" role="alert">
-                {error}
-              </p>
-            )}
-            <button className="g-submit" type="submit" disabled={busy}>
-              {isLogin ? "Войти" : "Зарегистрироваться"}
-            </button>
-          </form>
+                  {!isForgot && (
+                    <>
+                      <label htmlFor="login-password">Пароль</label>
+                      <div className="g-pass">
+                        <input
+                          id="login-password"
+                          type={shown ? "text" : "password"}
+                          autoComplete={isLogin ? "current-password" : "new-password"}
+                          minLength={8}
+                          value={password}
+                          onChange={(event) => setPassword(event.target.value)}
+                          onFocus={focusPassword}
+                          onBlur={() => setFocus("none")}
+                          required
+                        />
+                        <button
+                          type="button"
+                          className="g-eye"
+                          aria-label={shown ? "Скрыть пароль" : "Показать пароль"}
+                          aria-pressed={shown}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onFocus={() => setFocus("password")}
+                          onBlur={() => setFocus("none")}
+                          onClick={toggleShown}
+                        >
+                          <svg width="20" height="20" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                            <path
+                              d="M1.5 9S4.5 3.5 9 3.5 16.5 9 16.5 9 13.5 14.5 9 14.5 1.5 9 1.5 9z"
+                              stroke="currentColor"
+                              strokeWidth="1.4"
+                            />
+                            <circle cx="9" cy="9" r="2.4" stroke="currentColor" strokeWidth="1.4" />
+                            {!shown && <path d="M3 15L15 3" stroke="currentColor" strokeWidth="1.4" />}
+                          </svg>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                  {isLogin && (
+                    <button type="button" className="g-forgot" onClick={() => switchTo("forgot")}>
+                      Забыли пароль?
+                    </button>
+                  )}
+                  {isRegister && <p className="g-hint">Не короче 8 символов</p>}
+                  {isRegister && (
+                    <label className="g-consent">
+                      <input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} />
+                      <span>
+                        Соглашаюсь на обработку моей почты для входа в сервис.{" "}
+                        <a href="/privacy" target="_blank" rel="noopener">
+                          Какие данные храним и зачем
+                        </a>
+                      </span>
+                    </label>
+                  )}
+                  {error && (
+                    <p className="g-error" role="alert">
+                      {error}
+                    </p>
+                  )}
+                  <button className="g-submit" type="submit" disabled={busy}>
+                    {SUBMITS[mode]}
+                  </button>
+                  {isForgot && (
+                    <button type="button" className="g-forgot g-back" onClick={() => switchTo("login")}>
+                      Вернуться ко входу
+                    </button>
+                  )}
+                </form>
+              )}
+            </>
+          )}
         </section>
       </main>
     </div>

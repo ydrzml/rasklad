@@ -120,6 +120,7 @@ def install(app: FastAPI) -> None:
     from app.engine.plan import TooBig
     from app.services import projects
     from app.services.calculation import Impossible, UnknownPath
+    from app.services.clinic_contract import BadInput
 
     @app.exception_handler(NotFound)
     def not_found(_: Request, error: NotFound) -> JSONResponse:
@@ -139,6 +140,11 @@ def install(app: FastAPI) -> None:
     # Здание длиннее километра: план не строим и говорим, что проверить
     @app.exception_handler(TooBig)
     def too_big(_: Request, error: TooBig) -> JSONResponse:
+        return JSONResponse(status_code=422, content={"detail": str(error)})
+
+    # Правка датасета медучреждения вне его границ или неизвестный параметр: понятный отказ
+    @app.exception_handler(BadInput)
+    def bad_input(_: Request, error: BadInput) -> JSONResponse:
         return JSONResponse(status_code=422, content={"detail": str(error)})
 
     @app.exception_handler(UnknownPath)

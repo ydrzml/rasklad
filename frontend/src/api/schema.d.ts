@@ -52,8 +52,28 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Регистрация по почте и паролю, сразу со входом */
+    /**
+     * Регистрация по почте и паролю
+     * @description Если на сервере настроена почта, отвечает 202 и шлет на почту код: аккаунт появится после POST /api/auth/register/confirm. Без почты аккаунт создается сразу, ответ 201 со входом.
+     */
     post: operations["register_api_auth_register_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/auth/register/confirm": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Код из письма: аккаунт создан, сразу вход */
+    post: operations["confirm_registration_api_auth_register_confirm_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -77,6 +97,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/auth/forgot": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Забыли пароль: прислать на почту ссылку для нового
+     * @description Ответ одинаковый, есть такая почта или нет. Письмо уходит в фоне. Если почта на сервере не настроена (SMTP_HOST пустой), письмо ложится в служебную таблицу "Письма без отправки".
+     */
+    post: operations["forgot_api_auth_forgot_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/auth/reset": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Новый пароль по ссылке из письма, сразу со входом
+     * @description Ссылка одноразовая: после смены пароля она и все прежние ссылки перестают работать, входы на других компьютерах сбрасываются.
+     */
+    post: operations["reset_api_auth_reset_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/auth/demo": {
     parameters: {
       query?: never;
@@ -89,7 +149,7 @@ export interface paths {
     put?: never;
     /**
      * Вход в демо-аккаунт без пароля
-     * @description Для экспертизы: одной кнопкой войти пользователем или администратором. На открытом сервере выключается настройкой DEMO_LOGIN=false, тогда отвечает 404.
+     * @description Для экспертизы: одной кнопкой войти пользователем или администратором. Включается настройкой DEMO_LOGIN=true, по умолчанию выключен и отвечает 404.
      */
     post: operations["demo_api_auth_demo_post"];
     delete?: never;
@@ -224,7 +284,7 @@ export interface paths {
     };
     /**
      * Поля формы: значение, единица, границы из датасета и источник
-     * @description Поля второго шага по объекту и по каждой выбранной задаче. Задач может быть несколько, и у каждого поля видно, к какому блоку оно относится. Штата здесь нет: он вводится строками, и для него есть свои методы в разделе «штат».
+     * @description Поля второго шага по объекту и по каждой выбранной задаче. Задач может быть несколько, и у каждого поля видно, к какому блоку оно относится. Штата здесь нет: он вводится строками, и для него есть свои методы в разделе "штат".
      */
     get: operations["parameters_api_catalog_parameters_get"];
     put?: never;
@@ -363,7 +423,7 @@ export interface paths {
     put?: never;
     /**
      * Шаблон Excel для данных объекта
-     * @description Листы «Объект» (параметры с единицей и допустимым диапазоном), «Штат» и «Роли». Заполнен тем, что пользователь уже ввел, или значениями по умолчанию.
+     * @description Листы "Объект" (параметры с единицей и допустимым диапазоном), "Штат" и "Роли". Заполнен тем, что пользователь уже ввел, или значениями по умолчанию.
      */
     post: operations["template_api_import_template_post"];
     delete?: never;
@@ -401,7 +461,7 @@ export interface paths {
     };
     /**
      * Шаблоны планировки склада
-     * @description Четыре схемы потока: сквозная, Г-образная, с одной стороны и робозона «товар к человеку». Норматива на планировку склада нет, это рыночная классификация и отраслевая практика, поэтому у чисел шаблонов оценки C и D, а не S.
+     * @description Четыре схемы потока: сквозная, Г-образная, с одной стороны и робозона "товар к человеку". Норматива на планировку склада нет, это рыночная классификация и отраслевая практика, поэтому у чисел шаблонов оценки C и D, а не S.
      */
     get: operations["templates_api_plan_templates_get"];
     put?: never;
@@ -443,7 +503,7 @@ export interface paths {
     put?: never;
     /**
      * Построить план объекта из шаблона
-     * @description Сначала генерация, потом правка: план строится из шаблона планировки и площади объекта, а человек его уже двигает. План из шаблона и план, нарисованный руками, это одна структура, поэтому пропуск шага не особый случай. Габариты можно задать свои: в датасете их нет, там только площадь. Шаблон «custom» строит план по анкете: стена с воротами, их число и направление рядов, или совсем без стеллажей, чтобы человек нарисовал свои.
+     * @description Сначала генерация, потом правка: план строится из шаблона планировки и площади объекта, а человек его уже двигает. План из шаблона и план, нарисованный руками, это одна структура, поэтому пропуск шага не особый случай. Габариты можно задать свои: в датасете их нет, там только площадь. Шаблон "custom" строит план по анкете: стена с воротами, их число и направление рядов, или совсем без стеллажей, чтобы человек нарисовал свои.
      */
     post: operations["generate_api_plan_generate_post"];
     delete?: never;
@@ -492,6 +552,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/plan/dxf": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Разобрать чертеж DXF для подложки
+     * @description Чертеж из AutoCAD, сохраненный как DXF, до 80 МБ. Сервер находит единицы и габарит и отдает линии по слоям: экран сам включает и выключает слои и кладет чертеж под план в точном масштабе. Разбор идет в отдельном процессе со сроком 25 секунд, у файла от 16 МБ до 170 секунд. Ничего из файла не исполняется и не сохраняется. DWG не читаем: сохраните его в AutoCAD как DXF.
+     */
+    post: operations["dxf_api_plan_dxf_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/plan/dxf/build": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Построить план по слоям чертежа DXF
+     * @description Файл DXF и роли слоев: какой слой стены, какой стеллажи, какой ворота. Сервер берет самый большой контур на слоях стен как здание, прямоугольники на слоях стеллажей как ряды (соседние секции склеивает, косые заменяет прямоугольниками вдоль оси) и значки на слоях ворот как ворота у ближайшей стены. Чертеж, повернутый целиком, разворачивается по стенам. Края встают на сетку в метр. Координаты в метрах от юго-западного угла здания. Что не прочиталось, названо в предупреждениях. Ничего не сохраняется.
+     */
+    post: operations["dxf_build_api_plan_dxf_build_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/calculations/preview": {
     parameters: {
       query?: never;
@@ -503,7 +603,7 @@ export interface paths {
     put?: never;
     /**
      * Расчет трех сценариев без сохранения
-     * @description Считает операцию объекта в трех сценариях по ТЗ: без роботизации, покупка и роботы как услуга. Любое значение модели можно поправить через overrides, правка возвращается в ответе.
+     * @description Считает операцию объекта в трех сценариях по ТЗ: без роботизации, покупка и роботы как услуга. Любое значение модели можно поправить через overrides, правка возвращается в ответе. С заголовком X-Priority: background это досчет страницы: он ждет, пока посчитается ответ на нажатие, и не считается, если страница его уже отменила.
      */
     post: operations["preview_api_calculations_preview_post"];
     delete?: never;
@@ -546,6 +646,26 @@ export interface paths {
      * @description Каждое число с источником, которое участвует в расчете, и штат по одному сдвигаются на -20, -10, +10 и +20%. Без проверок подходит ли робот, правил счета (горизонт, дисконт) и целых чисел вроде смен. Порядок по размаху выгоды за горизонт между -20% и +20%. Отдельно числа, которые итог не двигают, и нули, которые в процентах не сдвинуть.
      */
     post: operations["sensitivity_all_api_calculations_sensitivity_all_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/cases/{case_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Готовый разбор для гостя
+     * @description Без входа, только чтение. Разборы: pallets, picking, cleaning. Тот же расчет, что мастер дает на значениях по умолчанию: план по типовой схеме, прогон смены, покупка за свои деньги, в кредит и в лизинг. Ответ сервер держит в памяти, пока не поменялись нормативы, каталог или модель.
+     */
+    get: operations["case_api_cases__case_id__get"];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -606,6 +726,248 @@ export interface paths {
      * @description Тот же прогон, что /simulation/runs с теми же планом, парком и правками, строками: робот, начало и конец отрезка в секундах и часах смены, действие, координаты начала и конца в метрах плана и длина пути. Разделитель точка с запятой, десятичная запятая, UTF-8 с меткой: открывается в Excel.
      */
     post: operations["log_csv_api_simulation_log_csv_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/clinic/portfolio": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Полная, частичная роботизация или сохранение ручной работы */
+    post: operations["portfolio_api_clinic_portfolio_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/clinic/template": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Типовой корпус медучреждения
+     * @description Четыре этажа 60 x 24 м, два лифта (один с интеграцией), аптека и склад расходников на первом, посты отделений на 2-4, зарядки и базы уборщиков. Чертеж наш, ширина дверей по СП 158.13330, кабина лифта по паспорту больничного лифта.
+     */
+    get: operations["template_api_clinic_template_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/clinic/generate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Построить корпус по размерам */
+    post: operations["generate_api_clinic_generate_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/clinic/import": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Прочитать сохраненный корпус JSON */
+    post: operations["import_building_api_clinic_import_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/clinic/robots": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Доставщики и уборщики для прогона
+     * @description Решения медучреждения из каталога под доставку по этажам и уборку, кроме тех, что купить нельзя. Характеристики из data/specs с оценками S-F; без нужной характеристики робот не считается.
+     */
+    get: operations["robots_api_clinic_robots_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/clinic/assumptions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Откуда цифры модели медучреждения
+     * @description Все числа config/clinic.yaml: значение, источник, дата и оценка от S до F.
+     */
+    get: operations["assumptions_api_clinic_assumptions_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/clinic/check": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Проверка плана корпуса
+     * @description Ошибки (нет аптеки, постов, зарядки, помещение без двери) не дают считать смену. Предупреждения: дверь уже прохода робота, лифт без интеграции или мал для робота, пост, куда робот не доедет.
+     */
+    post: operations["check_api_clinic_check_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/clinic/fit": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Кому из роботов корпус не подходит
+     * @description Без прогона, по плану и габаритам: уборщик не выезжает с базы ни на одном этаже, доставщик не доезжает ни до одного поста. Шаг решений показывает таких как "не подходит" с причиной.
+     */
+    post: operations["fit_api_clinic_fit_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/clinic/workload": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Объем процессов на корпус и окно прогона */
+    post: operations["workload_api_clinic_workload_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/clinic/runs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Прогон смены в корпусе
+     * @description Доставщики везут лекарства и расходники из аптеки на посты по этажам, ждут лифт и двери, заряжаются; уборщики моют коридоры своего этажа. Без парка ищем самый маленький, при котором вовремя не меньше цели на всех seed. Ответ: KPI, часы персонала, заявки, лог роботов и лифтов.
+     */
+    post: operations["run_api_clinic_runs_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/clinic/economics": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Итог медучреждения: роботы, деньги, люди
+     * @description Прогон на выбранном корпусе: без роботов, покупка, аренда и добавленный пользователем кредит. Чистое высвобождение времени отдельно от экономии бюджета; помощь роботам и сохраняющаяся зарплата учтены. assumptions задает хронометраж, реализацию эффекта и дополнительные расходы.
+     */
+    post: operations["economics_api_clinic_economics_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/clinic/offers": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Стоимость медицинского парка на карточках решений */
+    post: operations["offers_api_clinic_offers_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/clinic/optimize": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Сравнить медицинские парки по затратам и выполнению работы */
+    post: operations["optimize_api_clinic_optimize_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -771,6 +1133,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/projects/{project_id}/versions/{number}/report/{kind}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Отчет PDF или таблицы Excel по сохраненной версии
+     * @description Цифры из сохраненного результата, расчет не повторяется: отчет выходит таким же, как в день сохранения, с номером версии, датой расчета, версией модели и данных. Если нормативы с тех пор поменялись, разделов, которые считаются заново (что будет, если, смена, подготовка склада), в нем нет.
+     */
+    get: operations["version_report_api_projects__project_id__versions__number__report__kind__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/projects/{project_id}/versions/{number}/recalculate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Пересчитать версию как новую
+     * @description Тот же ввод считается на текущих нормативах и каталоге и сохраняется новой версией. Старая версия не меняется.
+     */
+    post: operations["recalculate_api_projects__project_id__versions__number__recalculate_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/projects/{project_id}/files": {
     parameters: {
       query?: never;
@@ -861,6 +1263,26 @@ export interface paths {
      * @description Без входа. Отдает одну версию: название проекта, что ввели и что получилось. Почты владельца нет.
      */
     get: operations["shared_api_share__token__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/share/{token}/report/{kind}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Отчет по расчету из ссылки
+     * @description Без входа. Цифры из сохраненной версии, как на странице ссылки, расчет не повторяется.
+     */
+    get: operations["shared_report_api_share__token__report__kind__get"];
     put?: never;
     post?: never;
     delete?: never;
@@ -989,7 +1411,7 @@ export interface paths {
     put?: never;
     /**
      * Загрузить выгрузку каталога организатора
-     * @description CSV с разделителем «;» в UTF-8, колонки как в catalog_export. Каждая строка проверяется: номер, тип, статус, УГТ, цена. Строки с ошибками пропускаются и перечисляются в ответе. Дубли с тем же номером и ценой склеиваются в одно решение, отрасли и сценарии собираются списком. Собранные командой характеристики не затираются. С dry_run=true файл только проверяется.
+     * @description CSV с разделителем ";" в UTF-8, колонки как в catalog_export. Каждая строка проверяется: номер, тип, статус, УГТ, цена. Строки с ошибками пропускаются и перечисляются в ответе. Дубли с тем же номером и ценой склеиваются в одно решение, отрасли и сценарии собираются списком. Собранные командой характеристики не затираются. С dry_run=true файл только проверяется.
      */
     post: operations["import_file_api_admin_catalog_import_post"];
     delete?: never;
@@ -1031,7 +1453,7 @@ export interface paths {
     put?: never;
     /**
      * Вернуть поле к значению организатора
-     * @description Снимает пометку «введено вручную»: следующая загрузка выгрузки снова обновляет это поле.
+     * @description Снимает пометку "введено вручную": следующая загрузка выгрузки снова обновляет это поле.
      */
     post: operations["reset_api_admin_catalog__solution_id__reset__field__post"];
     delete?: never;
@@ -1337,7 +1759,7 @@ export interface paths {
     put?: never;
     /**
      * Отчет PDF по расчету
-     * @description Считает тот же расчет, что /api/calculations/preview, и собирает отчет: вывод по трем сценариям, график затрат, параметры объекта, план, решение и состав оборудования, затраты по статьям, штат, риски и все значения с источником и оценкой доверия. Дата, версия модели и пометка «предварительная оценка» стоят на каждой странице. Сохранять ничего не нужно: отчет доступен и гостю.
+     * @description Считает тот же расчет, что /api/calculations/preview, и собирает отчет: вывод по трем сценариям, график затрат, параметры объекта, план, решение и состав оборудования, затраты по статьям, штат, риски и все значения с источником и оценкой доверия. Дата, версия модели и пометка "предварительная оценка" стоят на каждой странице. Сохранять ничего не нужно: отчет доступен и гостю.
      */
     post: operations["report_pdf_api_reports_pdf_post"];
     delete?: never;
@@ -1360,6 +1782,46 @@ export interface paths {
      * @description Тот же расчет таблицами: итог по сценариям, сценарии по годам, затраты по статьям, парк и штат, параметры объекта и все значения с источником. Числа лежат числами, их можно пересчитать у себя.
      */
     post: operations["report_xlsx_api_reports_xlsx_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/reports/clinic/pdf": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Отчет PDF медучреждения
+     * @description Тот же итог, что /api/clinic/economics: ответ, три сценария, затраты по годам, парк и смена на корпусе, что с людьми, что может сдвинуть вывод и все значения с источником и оценкой. Доступен и гостю.
+     */
+    post: operations["clinic_pdf_api_reports_clinic_pdf_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/reports/clinic/xlsx": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Расчетные таблицы Excel медучреждения
+     * @description Тот же итог таблицами: итог, по годам с формулами, парк и смена, люди, ограничения, источники.
+     */
+    post: operations["clinic_xlsx_api_reports_clinic_xlsx_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -1409,7 +1871,7 @@ export interface components {
       base_rub: number;
       /**
        * Years
-       * @description На сколько лет: срок службы робота, а при аренде срок договора. Пусто, когда задач несколько и у их роботов сроки разные: каждая задача списывается на свой
+       * @description На сколько лет: срок амортизации робота, а при аренде срок договора. Пусто, когда задач несколько и у их роботов сроки разные: каждая задача списывается на свой
        */
       years: number | null;
       /**
@@ -1427,10 +1889,43 @@ export interface components {
       /** After Buyout Per Year Rub */
       after_buyout_per_year_rub?: number | null;
     };
+    /** Assumption */
+    Assumption: {
+      /** Path */
+      path: string;
+      /** Value */
+      value: number | number[];
+      /** Source */
+      source: string;
+      /** Date */
+      date: string | null;
+      /** Trust */
+      trust: string;
+    };
     /** Body_add_file_api_projects__project_id__files_post */
     Body_add_file_api_projects__project_id__files_post: {
       /** File */
       file: string;
+    };
+    /** Body_dxf_api_plan_dxf_post */
+    Body_dxf_api_plan_dxf_post: {
+      /** File */
+      file: string;
+    };
+    /** Body_dxf_build_api_plan_dxf_build_post */
+    Body_dxf_build_api_plan_dxf_build_post: {
+      /** File */
+      file: string;
+      /**
+       * Roles
+       * @description JSON вида {имя слоя: walls, racks или doors}
+       */
+      roles: string;
+      /**
+       * Unit M
+       * @description Метров в одной единице чертежа
+       */
+      unit_m: number;
     };
     /** Body_import_file_api_admin_catalog_import_post */
     Body_import_file_api_admin_catalog_import_post: {
@@ -1547,6 +2042,21 @@ export interface components {
        * @description Укладывается ли старт аренды в бюджет
        */
       raas_fits: boolean | null;
+      /**
+       * Loan Start Rub
+       * @description Свои деньги на старте при покупке в кредит, нужный парк; пусто: парк не сходится
+       */
+      loan_start_rub?: number | null;
+      /**
+       * Leasing Start Rub
+       * @description Свои деньги на старте при лизинге: аванс и то, что лизинг не берет
+       */
+      leasing_start_rub?: number | null;
+      /**
+       * Raas Month Rub
+       * @description Плата за аренду всего нужного парка в месяц; пусто: аренды у решения нет
+       */
+      raas_month_rub?: number | null;
     };
     /**
      * BudgetFitRequest
@@ -1631,6 +2141,22 @@ export interface components {
        */
       ops_per_hour: number | null;
     };
+    /** Building */
+    Building: {
+      /**
+       * Version
+       * @default 1
+       * @constant
+       */
+      version: 1;
+      /** Floor Height M */
+      floor_height_m: number;
+      /** Floors */
+      floors: components["schemas"]["Floor"][];
+      /** Lifts */
+      lifts?: components["schemas"]["Lift"][];
+      scenario?: components["schemas"]["ClinicScenario"] | null;
+    };
     /** CalculationRequest */
     CalculationRequest: {
       /**
@@ -1673,8 +2199,8 @@ export interface components {
       subsidy_ids?: string[];
       /**
        * Raas Buyout
-       * @description Выкупить роботов в конце контракта или продлить аренду
-       * @default true
+       * @description Аренда с выкупом в конце договора. По умолчанию без выкупа: договор продлевается с индексацией, а выкуп показан отдельным кейсом в ответе (scenarios[].buyout)
+       * @default false
        */
       raas_buyout: boolean;
       /**
@@ -1707,6 +2233,13 @@ export interface components {
       robot_id: string;
       /** Horizon Years */
       horizon_years: number;
+      /**
+       * Payback Needs
+       * @description Покупка не окупается за горизонт, а среди задач есть товар к человеку: при какой одной цифре она окупится. Пусто: окупается или подсказать нечего
+       */
+      payback_needs?: components["schemas"]["PaybackNeed"][];
+      /** @description Окупаемость, если склад работает круглосуточно. Пусто: он и так работает круглосуточно */
+      round_the_clock?: components["schemas"]["RoundTheClock"] | null;
       /**
        * Later Horizon Years
        * @description На сколько лет пересчитали сценарии, которые не окупаются за горизонт. Пусто: не пересчитывали
@@ -1748,6 +2281,16 @@ export interface components {
       /** @description Общее на объект, одно на все задачи */
       shared?: components["schemas"]["SharedPart"] | null;
       /**
+       * Supplier Questions
+       * @description Что спросить у поставщика до покупки: список для разговора с ним
+       */
+      supplier_questions?: components["schemas"]["SupplierQuestion"][];
+      /**
+       * Unit Costs
+       * @description Стоимость одной операции по задачам в трех сценариях: рублей за паллету, строку отбора, м2 уборки
+       */
+      unit_costs?: components["schemas"]["UnitCost"][];
+      /**
        * Picking Zones
        * @description Задачи отбора, которые посчитали по робозоне: план человека под погрузчик. Пусто: все по плану
        */
@@ -1762,6 +2305,34 @@ export interface components {
        * @description Неверные условия оплаты, мер или выхода на режим. Расчет их не взял и посчитал без них, при неверном кредите или лизинге покупку за свои деньги
        */
       payment_problems?: components["schemas"]["PaymentProblem"][];
+      /**
+       * Plausibility
+       * @description Сверка окупаемости покупки и сокращения людей с реальными внедрениями. Нет данных: нет строки
+       */
+      plausibility?: components["schemas"]["PlausibilityCheck"][];
+    };
+    /** CaseAssessment */
+    CaseAssessment: {
+      profile: components["schemas"]["StressProfile"];
+      training: components["schemas"]["ServiceScore"];
+      validation?: components["schemas"]["ServiceScore"] | null;
+      /** Incremental Cost Range Rub */
+      incremental_cost_range_rub: [number, number];
+      /** Labour Balance Range Hours */
+      labour_balance_range_hours: [number, number];
+      /**
+       * Payback Years
+       * @description Худший устойчивый срок; null, если хотя бы один прогон не окупается
+       */
+      payback_years?: number | null;
+      /**
+       * Payback Met
+       * @description Положительная денежная экономия и окупаемость на всех подборочных и новых прогонах
+       * @default false
+       */
+      payback_met: boolean;
+      /** Runs */
+      runs: number;
     };
     /**
      * CatalogMatches
@@ -1883,6 +2454,129 @@ export interface components {
       outcome: string;
       /** Detail */
       detail: string;
+    };
+    /** CheckOut */
+    CheckOut: {
+      /**
+       * Level
+       * @enum {string}
+       */
+      level: "error" | "warning" | "info";
+      /** Code */
+      code: string;
+      /** Text */
+      text: string;
+      /** Floor */
+      floor?: number | null;
+      /**
+       * Target
+       * @default
+       */
+      target: string;
+    };
+    /** CheckRequest */
+    CheckRequest: {
+      building: components["schemas"]["Building"];
+      /** Operation Ids */
+      operation_ids?: string[];
+      /**
+       * Robot Id
+       * @description Доставщик из решений медучреждения
+       * @default ext-pudu-flashbot-max
+       */
+      robot_id: string;
+      /**
+       * Cleaner Id
+       * @description Уборщик или null
+       * @default f31223c1-44c8-4410-8381-6356e2158b61
+       */
+      cleaner_id: string | null;
+    };
+    /** CheckResult */
+    CheckResult: {
+      /**
+       * Valid
+       * @description Ошибок нет: смену можно считать
+       */
+      valid: boolean;
+      /** Checks */
+      checks: components["schemas"]["CheckOut"][];
+      /**
+       * Corridor M2
+       * @description Коридоры этажа, м2: их моет уборщик
+       */
+      corridor_m2: {
+        [key: string]: number;
+      };
+    };
+    /** CleaningKpi */
+    CleaningKpi: {
+      /** Floor */
+      floor: number;
+      /** Area M2 */
+      area_m2: number;
+      /** Done M2 */
+      done_m2: number;
+    };
+    /**
+     * ClinicScenario
+     * @description Процессы и расписание хранятся вместе с геометрией, одинаковы во всех расчетах.
+     */
+    ClinicScenario: {
+      /**
+       * Shift Start H
+       * @default 7
+       */
+      shift_start_h: number;
+      /**
+       * Shift Hours
+       * @default 24
+       */
+      shift_hours: number;
+      /**
+       * Schedule
+       * @default industry
+       * @enum {string}
+       */
+      schedule: "industry" | "uniform" | "custom";
+      /** Hourly Weights */
+      hourly_weights?: number[];
+      meds?: components["schemas"]["DeliveryProcess"];
+      supplies?: components["schemas"]["DeliveryProcess"];
+      /** Point Weights */
+      point_weights?: {
+        [key: string]: number;
+      };
+      /**
+       * Cleaning Passes
+       * @default 2
+       */
+      cleaning_passes: number;
+      /** Floor Cleaning Passes */
+      floor_cleaning_passes?: {
+        [key: string]: number;
+      };
+      /**
+       * Days Per Year
+       * @description Дней работы объекта в году
+       */
+      days_per_year?: number | null;
+    };
+    /**
+     * CodeSent
+     * @description Регистрация ждет код из письма: аккаунта еще нет.
+     */
+    CodeSent: {
+      /**
+       * Email
+       * @description Куда отправили код
+       */
+      email: string;
+      /**
+       * Minutes
+       * @description Сколько минут работает код
+       */
+      minutes: number;
     };
     /** CompareColumn */
     CompareColumn: {
@@ -2039,7 +2733,7 @@ export interface components {
     DataImportRow: {
       /**
        * Sheet
-       * @description Лист Excel или «CSV»
+       * @description Лист Excel или "CSV"
        */
       sheet: string;
       /**
@@ -2129,6 +2823,58 @@ export interface components {
       /** Trust */
       trust: string;
     };
+    /** DeliveryProcess */
+    DeliveryProcess: {
+      /**
+       * Enabled
+       * @default true
+       */
+      enabled: boolean;
+      /**
+       * Mode
+       * @default per_point
+       * @enum {string}
+       */
+      mode: "per_point" | "building" | "routes";
+      /** Per Day */
+      per_day?: number | null;
+      /** Urgent Share */
+      urgent_share?: number | null;
+      /** Picking Min */
+      picking_min?: number | null;
+      /** Deadline Min */
+      deadline_min?: number | null;
+      /** Urgent Deadline Min */
+      urgent_deadline_min?: number | null;
+      /** Flows */
+      flows?: components["schemas"]["ProcessFlow"][];
+    };
+    /**
+     * DemoCase
+     * @description Готовый разбор для гостя: тот же расчет, что мастер дает на значениях по умолчанию.
+     */
+    DemoCase: {
+      /** Id */
+      id: string;
+      /** @description Запрос расчета: с ним мастер и отчеты посчитают то же самое */
+      request: components["schemas"]["CalculationRequest"];
+      plan: components["schemas"]["Plan"];
+      measures: components["schemas"]["Measures"];
+      /** @description Расчет при покупке за свои деньги, как в мастере по умолчанию */
+      result: components["schemas"]["CalculationResult"];
+      /**
+       * Financing
+       * @description Покупка тех же роботов в кредит (loan) и в лизинг (leasing): тот же расчет с другим способом оплаты
+       */
+      financing?: {
+        [key: string]: components["schemas"]["ScenarioResult"];
+      };
+      /**
+       * Computed At
+       * Format: date-time
+       */
+      computed_at: string;
+    };
     /** DemoLogin */
     DemoLogin: {
       /**
@@ -2159,6 +2905,187 @@ export interface components {
       wall: "west" | "east" | "south" | "north";
       /** Count */
       count: number;
+    };
+    /** DxfBuilt */
+    DxfBuilt: {
+      /**
+       * Width M
+       * @description Рамка здания по длинам, метры
+       */
+      width_m: number;
+      /** Length M */
+      length_m: number;
+      /**
+       * Outline
+       * @description Контур здания точками, если он не прямоугольник; пусто значит прямоугольник
+       */
+      outline: [number, number][];
+      /** Items */
+      items: components["schemas"]["DxfBuiltItem"][];
+      /**
+       * Warnings
+       * @description Что не удалось прочитать или пришлось приблизить, словами для человека
+       */
+      warnings: string[];
+      /** Counts */
+      counts: {
+        [key: string]: number;
+      };
+      /**
+       * Turn Deg
+       * @description На сколько градусов чертеж развернули по стенам, ноль значит не разворачивали
+       */
+      turn_deg: number;
+    };
+    /**
+     * DxfBuiltItem
+     * @description Вещь плана в метрах от юго-западного угла здания: экран сдвигает ее на угол здания на листе
+     */
+    DxfBuiltItem: {
+      /** Id */
+      id: string;
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: "racks" | "dock" | "buffer";
+      /** X */
+      x: number;
+      /** Y */
+      y: number;
+      /** W */
+      w: number;
+      /** H */
+      h: number;
+      /**
+       * Rows
+       * @default y
+       */
+      rows: string;
+      /**
+       * Row M
+       * @default 0
+       */
+      row_m: number;
+      /**
+       * Block Rows
+       * @default 1
+       */
+      block_rows: number;
+      /**
+       * Aisle M
+       * @default 0
+       */
+      aisle_m: number;
+      /**
+       * Role
+       * @default
+       */
+      role: string;
+    };
+    /** DxfDrawing */
+    DxfDrawing: {
+      units: components["schemas"]["DxfUnits"];
+      /**
+       * Width
+       * @description Ширина всего чертежа в единицах чертежа
+       */
+      width: number;
+      /** Height */
+      height: number;
+      /** Layers */
+      layers: components["schemas"]["DxfLayer"][];
+      /**
+       * Far Away
+       * @description Сколько ломаных далеко за пределами чертежа убрано
+       */
+      far_away: number;
+      /**
+       * Skipped
+       * @description Объекты, которые не умеем рисовать, по видам
+       */
+      skipped: {
+        [key: string]: number;
+      };
+    };
+    /** DxfLayer */
+    DxfLayer: {
+      /** Name */
+      name: string;
+      /**
+       * Lines
+       * @description Сколько ломаных на слое
+       */
+      lines: number;
+      /**
+       * Texts
+       * @description Надписей на слое: они не рисуются
+       */
+      texts: number;
+      /**
+       * Fills
+       * @description Штриховок и заливок на слое: они не рисуются
+       */
+      fills: number;
+      /**
+       * Role
+       * @description Что за слой по имени: стены, стеллажи, ворота, размеры и штамп; пусто если неясно
+       * @enum {string}
+       */
+      role: "" | "walls" | "racks" | "doors" | "noise";
+      /**
+       * On
+       * @description Включать ли слой сразу
+       */
+      on: boolean;
+      /**
+       * Off In File
+       * @description В самом чертеже слой выключен или заморожен
+       */
+      off_in_file: boolean;
+      /**
+       * Box
+       * @description Рамка слоя в единицах чертежа от юго-западного угла чертежа: x0, y0, x1, y1
+       */
+      box: number[];
+      /**
+       * D
+       * @description Линии слоя как путь SVG в единицах чертежа, ноль в левом верхнем углу, y вниз
+       */
+      d: string;
+    };
+    /** DxfUnits */
+    DxfUnits: {
+      /**
+       * Code
+       * @description Код единицы из $INSUNITS: 4 мм, 5 см, 6 м, 1 дюймы, 2 футы, 14 дм
+       */
+      code: number;
+      /** Name */
+      name: string;
+      /**
+       * Factor M
+       * @description Сколько метров в одной единице чертежа
+       */
+      factor_m: number;
+      /**
+       * Source
+       * @description Откуда единицы: записаны в файле, угаданы по размеру здания или определить не удалось
+       * @enum {string}
+       */
+      source: "file" | "guess" | "unknown";
+    };
+    /**
+     * Effect
+     * @description Эффект в часах персонала. В рубли его переводит POST /api/clinic/economics по цене часа.
+     */
+    Effect: {
+      /** Staff Hours Per Shift */
+      staff_hours_per_shift: number;
+      /** Cleaned M2 Per Shift */
+      cleaned_m2_per_shift: number;
+      /** Note */
+      note: string;
     };
     /** EmailChange */
     EmailChange: {
@@ -2512,6 +3439,51 @@ export interface components {
        */
       plain_tco_rub: number;
     };
+    /** FitRequest */
+    FitRequest: {
+      building: components["schemas"]["Building"];
+    };
+    /**
+     * FitResult
+     * @description Кто на этом корпусе не работает совсем: id робота и причина словами. Остальные подходят.
+     */
+    FitResult: {
+      /** Delivery */
+      delivery: {
+        [key: string]: string;
+      };
+      /** Cleaning */
+      cleaning: {
+        [key: string]: string;
+      };
+    };
+    /** Floor */
+    Floor: {
+      /**
+       * Number
+       * @description Номер этажа, как в здании
+       */
+      number: number;
+      /**
+       * Name
+       * @default
+       */
+      name: string;
+      /**
+       * Width M
+       * @description Размер участка этажа, а не здания
+       */
+      width_m: number;
+      /** Length M */
+      length_m: number;
+      /**
+       * Sections
+       * @description Пол этажа, как у склада
+       */
+      sections?: components["schemas"]["Section"][];
+      /** Items */
+      items?: components["schemas"]["app__schemas__clinic__Item"][];
+    };
     /** Folder */
     Folder: {
       /** Id */
@@ -2541,32 +3513,6 @@ export interface components {
     FolderRename: {
       /** Name */
       name: string;
-    };
-    /** GenerateRequest */
-    GenerateRequest: {
-      /**
-       * Facility Id
-       * @default warehouse
-       */
-      facility_id: string;
-      /** Operation Ids */
-      operation_ids?: string[];
-      /**
-       * Template Id
-       * @description Схема потока или «custom»: план по анкете
-       * @default one_side
-       */
-      template_id: string;
-      /** Width M */
-      width_m?: number | null;
-      /** Length M */
-      length_m?: number | null;
-      /** Overrides */
-      overrides?: {
-        [key: string]: number;
-      };
-      /** @description Анкета для шаблона «custom» */
-      custom?: components["schemas"]["CustomLayout"] | null;
     };
     /**
      * GeneratedPlan
@@ -2640,150 +3586,50 @@ export interface components {
       /** Message */
       message: string;
     };
-    /**
-     * Item
-     * @description Одна вещь на плане. Все вещи это прямоугольники на сетке в метр.
-     */
-    Item: {
+    /** JobOut */
+    JobOut: {
       /** Id */
       id: string;
       /**
        * Kind
-       * @description Что это: racks, dock, buffer, station, charge, blocked, ramp, aisle, flow
-       */
-      kind: string;
-      /** X */
-      x: number;
-      /** Y */
-      y: number;
-      /** W */
-      w: number;
-      /** H */
-      h: number;
-      /**
-       * Aisle M
-       * @description Зона хранения: ширина проезда между рядами
-       * @default 0
-       */
-      aisle_m: number;
-      /**
-       * Run M
-       * @description Зона хранения: длина ряда до поперечного проезда
-       * @default 0
-       */
-      run_m: number;
-      /**
-       * Rows
-       * @description Зона хранения: вдоль какой оси тянутся ряды
-       * @default y
-       */
-      rows: string;
-      /**
-       * Rack Top M
-       * @description Зона хранения: отметка верхнего яруса от пола
-       * @default 0
-       */
-      rack_top_m: number;
-      /**
-       * Rack Type
-       * @description Зона хранения: тип стеллажа, пусто значит фронтальный
-       * @default
-       */
-      rack_type: string;
-      /**
-       * Row M
-       * @description Зона хранения: толщина ряда, ноль значит двойная рама
-       * @default 0
-       */
-      row_m: number;
-      /**
-       * Block Rows
-       * @description Зона хранения: рядов вплотную между проездами
-       * @default 1
-       */
-      block_rows: number;
-      /**
-       * Cross M
-       * @description Зона хранения: поперечный проезд, ноль значит главный
-       * @default 0
-       */
-      cross_m: number;
-      /**
-       * Tiers
-       * @description Зона хранения: число ярусов, ноль значит верхний ярус задан сам
-       * @default 0
-       */
-      tiers: number;
-      /**
-       * Tier M
-       * @description Зона хранения: шаг яруса по высоте
-       * @default 0
-       */
-      tier_m: number;
-      /**
-       * Role
-       * @description Ворота и буфер: приемка, отгрузка или и то и другое
-       * @default
-       */
-      role: string;
-      /**
-       * Auto
-       * @description Зарядка: место выбрала программа, а не человек
-       * @default false
-       */
-      auto: boolean;
-      /**
-       * Turnover
-       * @description Зона хранения: ходовая или редкая, пусто значит по пути до ворот
-       * @default
        * @enum {string}
        */
-      turnover: "" | "fast" | "slow";
-      /**
-       * Direction
-       * @description Линия движения: куда можно ехать по полосе, против нельзя
-       * @default
-       * @enum {string}
-       */
-      direction: "" | "east" | "west" | "north" | "south";
-      /**
-       * Group
-       * @description Ряд стеллажей: ряды, поставленные вместе, щелчок выбирает их все
-       * @default
-       */
-      group: string;
+      kind: "meds" | "supplies";
+      /** Source */
+      source: string;
+      /** Target */
+      target: string;
+      /** Urgent */
+      urgent: boolean;
+      /** Created S */
+      created_s: number;
+      /** Ready S */
+      ready_s: number | null;
+      /** Picked S */
+      picked_s: number | null;
+      /** Done S */
+      done_s: number | null;
+      /** Deadline S */
+      deadline_s: number;
+      /** Robot */
+      robot: number | null;
+      /** Blocked */
+      blocked: string;
     };
-    /** Kpi */
-    Kpi: {
+    /** KindKpi */
+    KindKpi: {
+      /** Kind */
+      kind: string;
+      /** Created */
+      created: number;
       /** Done */
       done: number;
-      /** Ops Per Hour */
-      ops_per_hour: number;
-      /**
-       * Busy Share
-       * @description Доля времени, когда робот едет или грузит
-       */
-      busy_share: number;
-      /**
-       * Waiting Share
-       * @description Доля времени в очередях: проезды и ворота
-       */
-      waiting_share: number;
-      /** Charging Share */
-      charging_share: number;
-      /** Avg Cycle S */
-      avg_cycle_s: number;
-      /** Avg Wait S */
-      avg_wait_s: number;
-      /** Bottleneck */
-      bottleneck: string;
-      /**
-       * Waits
-       * @description Доля времени парка в очереди у каждого места: ворота, проезд, пандус
-       */
-      waits?: {
-        [key: string]: number;
-      };
+      /** Due */
+      due: number;
+      /** On Time */
+      on_time: number;
+      /** Blocked */
+      blocked: number;
     };
     /**
      * Layout
@@ -2821,6 +3667,87 @@ export interface components {
        * @default 0
        */
       ceiling_m: number;
+    };
+    /** Lift */
+    Lift: {
+      /** Id */
+      id: string;
+      /**
+       * Name
+       * @default
+       */
+      name: string;
+      /** Cabin W Mm */
+      cabin_w_mm: number;
+      /** Cabin D Mm */
+      cabin_d_mm: number;
+      /** Door Mm */
+      door_mm: number;
+      /**
+       * Robots
+       * @description Есть интеграция: робот сам вызывает лифт
+       * @default true
+       */
+      robots: boolean;
+      /**
+       * People Calls Per Hour
+       * @description Сколько раз в час лифт занимают люди
+       * @default 0
+       */
+      people_calls_per_hour: number;
+    };
+    /** LiftKpi */
+    LiftKpi: {
+      /** Lift */
+      lift: string;
+      /** Busy Share */
+      busy_share: number;
+      /** Robot Rides */
+      robot_rides: number;
+      /** People Rides */
+      people_rides: number;
+      /** Avg Robot Wait S */
+      avg_robot_wait_s: number;
+    };
+    /** LiftSegment */
+    LiftSegment: {
+      /** Lift */
+      lift: string;
+      /** From S */
+      from_s: number;
+      /** To S */
+      to_s: number;
+      /** Action */
+      action: string;
+      /** From Floor */
+      from_floor: number;
+      /** To Floor */
+      to_floor: number;
+      /** Robots */
+      robots: number[];
+    };
+    /** LoanOut */
+    LoanOut: {
+      /** Principal Rub */
+      principal_rub: number;
+      /** Rate */
+      rate: number;
+      /** Term Months */
+      term_months: number;
+      /** First Month Rub */
+      first_month_rub: number;
+      /** Last Month Rub */
+      last_month_rub: number;
+      /** Payments Rub */
+      payments_rub: number[];
+      /** Debt Left Rub */
+      debt_left_rub: number[];
+      /** Interest Rub */
+      interest_rub: number;
+      /** Insurance Rub */
+      insurance_rub: number[];
+      /** Equity Payback Years */
+      equity_payback_years: number | null;
     };
     /**
      * Me
@@ -2941,7 +3868,7 @@ export interface components {
        * @description Клетки мест у стеллажей, до которых не доехать: столбец и строка
        */
       unreachable?: number[][];
-      /** @description Слой «далеко от ворот» для плана */
+      /** @description Слой "далеко от ворот" для плана */
       route_map?: components["schemas"]["RouteMap"];
       /**
        * Checks
@@ -2950,6 +3877,357 @@ export interface components {
       checks?: components["schemas"]["PlanCheck"][];
       /** Warnings */
       warnings?: string[];
+    };
+    /**
+     * MoneyAssumptions
+     * @description Проверяемые сценарные условия. None: значение config/clinic.yaml, а не факт объекта.
+     */
+    MoneyAssumptions: {
+      /** Delivery Hour Rub */
+      delivery_hour_rub?: number | null;
+      /** Manual Delivery Min Per Job */
+      manual_delivery_min_per_job?: number | null;
+      /** Manual Cleaning M2 Per Hour */
+      manual_cleaning_m2_per_hour?: number | null;
+      /** Delivery Staff Per Shift */
+      delivery_staff_per_shift?: number | null;
+      /** Cleaning Staff Per Shift */
+      cleaning_staff_per_shift?: number | null;
+      /** Cash Saving Cap Rub Year */
+      cash_saving_cap_rub_year?: number | null;
+      /** Annual Work Hours */
+      annual_work_hours?: number | null;
+      /** Paid Leave Hours */
+      paid_leave_hours?: number | null;
+      /** Wage Growth */
+      wage_growth?: number | null;
+      /** Inflation */
+      inflation?: number | null;
+      /** Discount Rate */
+      discount_rate?: number | null;
+      /** Cash Realization Share */
+      cash_realization_share?: number | null;
+      /** Cleaning Time Saving Share */
+      cleaning_time_saving_share?: number | null;
+      /** Delivery Support Min Per Job */
+      delivery_support_min_per_job?: number | null;
+      /** Cleaner Support Min Per Shift */
+      cleaner_support_min_per_shift?: number | null;
+      /** Manual Door Assist S */
+      manual_door_assist_s?: number | null;
+      /** Integration Rub */
+      integration_rub?: number | null;
+      /** Extra Annual Rub */
+      extra_annual_rub?: number | null;
+      /** Days Per Year */
+      days_per_year?: number | null;
+      /** Cleaner Hour Rub */
+      cleaner_hour_rub?: number | null;
+      /** Rent Service Included */
+      rent_service_included?: number | null;
+      /** Loan Enabled */
+      loan_enabled?: number | null;
+      /** Loan Rate */
+      loan_rate?: number | null;
+      /** Loan Months */
+      loan_months?: number | null;
+      /** Loan Own Share */
+      loan_own_share?: number | null;
+      /** Loan Insurance Share */
+      loan_insurance_share?: number | null;
+    };
+    /** MoneyFleet */
+    MoneyFleet: {
+      /** Operation Id */
+      operation_id: string;
+      /** Robot Id */
+      robot_id: string;
+      /** Task */
+      task: string;
+      /** Name */
+      name: string;
+      /** Count */
+      count: number;
+      /** Price Rub */
+      price_rub: number;
+      /** Price Source */
+      price_source: string;
+    };
+    /** MoneyPeople */
+    MoneyPeople: {
+      /**
+       * Hours Per Shift
+       * @description Часы санитаров и уборщиц за прогнанную смену, которые забирают роботы
+       */
+      hours_per_shift: number;
+      /** Hours Per Year */
+      hours_per_year: number;
+      /**
+       * Hour Rub
+       * @description Час санитара с начислениями
+       */
+      hour_rub: number;
+      /**
+       * Fte
+       * @description Те же часы в полных ставках
+       */
+      fte: number;
+      /**
+       * Orderlies
+       * @description Общая численность из ввода заказчика, null если неизвестна; не штат в смене
+       */
+      orderlies: number | null;
+      /** Manual Hours Per Shift */
+      manual_hours_per_shift: number;
+      /** Manual Delivery Hours Per Shift */
+      manual_delivery_hours_per_shift: number;
+      /** Manual Cleaning Hours Per Shift */
+      manual_cleaning_hours_per_shift: number;
+      /** Remaining Hours Per Shift */
+      remaining_hours_per_shift: number;
+      /** Delivery Hours Per Shift */
+      delivery_hours_per_shift: number;
+      /** Cleaning Hours Per Shift */
+      cleaning_hours_per_shift: number;
+      /** Support Hours Per Shift */
+      support_hours_per_shift: number;
+      /** Extra Hours Per Shift */
+      extra_hours_per_shift: number;
+      /** Cleaner Hour Rub */
+      cleaner_hour_rub: number;
+      /**
+       * Released Value Year Rub
+       * @description Стоимость чистого времени, не экономия бюджета
+       */
+      released_value_year_rub: number;
+      /** Cash Saving Year Rub */
+      cash_saving_year_rub: number;
+      /**
+       * Positions Released
+       * @description Целых ставок, которые сокращают бюджет по правилу целых ставок; 0 при доле, заданной вручную
+       * @default 0
+       */
+      positions_released: number;
+    };
+    /**
+     * MoneyRequest
+     * @description Итог медучреждения: задачи с шага объекта, правки шага параметров и корпус с шага плана.
+     */
+    MoneyRequest: {
+      /**
+       * Operation Ids
+       * @description Задачи с шага объекта
+       */
+      operation_ids: string[];
+      /**
+       * Robot Id
+       * @description Доставщик
+       * @default ext-pudu-flashbot-max
+       */
+      robot_id: string;
+      /**
+       * Cleaner Id
+       * @description Уборщик
+       * @default f31223c1-44c8-4410-8381-6356e2158b61
+       */
+      cleaner_id: string;
+      /**
+       * Overrides
+       * @description clinic.<ключ датасета>
+       */
+      overrides?: {
+        [key: string]: number;
+      };
+      /** @description Корпус с шага плана. Нет: типовой */
+      building?: components["schemas"]["Building"] | null;
+      assumptions?: components["schemas"]["MoneyAssumptions"];
+      /** Quotes */
+      quotes?: {
+        [key: string]: components["schemas"]["RobotQuote"];
+      };
+      /** Fleet */
+      fleet?: number | null;
+      /** Cleaners */
+      cleaners?: {
+        [key: string]: number;
+      } | null;
+    };
+    /** MoneyResult */
+    MoneyResult: {
+      /** Horizon Years */
+      horizon_years: number;
+      /**
+       * Tasks
+       * @description Что посчитали: доставка по этажам, уборка коридоров
+       */
+      tasks: string[];
+      /**
+       * Skipped
+       * @description Отмеченные задачи без расчета
+       */
+      skipped: string[];
+      /** Fleets */
+      fleets: components["schemas"]["MoneyFleet"][];
+      people: components["schemas"]["MoneyPeople"];
+      shift: components["schemas"]["MoneyShift"];
+      /** Scenarios */
+      scenarios: components["schemas"]["MoneyScenario"][];
+      /**
+       * Not Counted
+       * @description Чего в деньгах нет: так и пишем
+       */
+      not_counted: string[];
+      /** Sources */
+      sources: components["schemas"]["MoneySource"][];
+      /** Assumptions */
+      assumptions: {
+        [key: string]: number;
+      };
+      /** Warnings */
+      warnings: string[];
+      /**
+       * Readiness
+       * @description Неизвестные исходные данные и ограничения решения
+       */
+      readiness?: string[];
+    };
+    /** MoneyScenario */
+    MoneyScenario: {
+      /**
+       * Id
+       * @enum {string}
+       */
+      id: "baseline" | "purchase" | "raas" | "loan";
+      /** Available */
+      available: boolean;
+      /** Why Not */
+      why_not: string;
+      /** Start Rub */
+      start_rub: number;
+      /** Years Rub */
+      years_rub: number[];
+      /** Tco Rub */
+      tco_rub: number;
+      /** Saving Rub */
+      saving_rub: number;
+      /** Effect Year1 Rub */
+      effect_year1_rub: number;
+      /** Payback Years */
+      payback_years: number | null;
+      /** Month Rub */
+      month_rub: number | null;
+      /** First Payment Rub */
+      first_payment_rub: number | null;
+      /** Robot Cost Rub */
+      robot_cost_rub: number;
+      /**
+       * Rent Period
+       * @enum {string}
+       */
+      rent_period: "month" | "year";
+      /** Rental Options Rub */
+      rental_options_rub: {
+        [key: string]: number;
+      };
+      financing?: components["schemas"]["LoanOut"] | null;
+      /** Cash Share For Break Even */
+      cash_share_for_break_even?: number | null;
+      /**
+       * Minimum Cash Saving Year Rub
+       * @default 0
+       */
+      minimum_cash_saving_year_rub: number;
+      /**
+       * Annual Gap Rub
+       * @default 0
+       */
+      annual_gap_rub: number;
+      /**
+       * Npv Rub
+       * @default 0
+       */
+      npv_rub: number;
+      /** Discounted Payback Years */
+      discounted_payback_years?: number | null;
+      /**
+       * Residual Rub
+       * @description Остаток срока службы парка на конец горизонта: вычтен из итога, не поступление денег
+       * @default 0
+       */
+      residual_rub: number;
+    };
+    /** MoneyShift */
+    MoneyShift: {
+      service: components["schemas"]["ServiceScore"];
+      /** Hours */
+      hours: number;
+      /** Shift Start H */
+      shift_start_h: number;
+      /** Expected Jobs */
+      expected_jobs: number;
+      /** Checks */
+      checks: components["schemas"]["CheckOut"][];
+      /** Fleet */
+      fleet: number;
+      /** Cleaners */
+      cleaners: {
+        [key: string]: number;
+      };
+      search: components["schemas"]["Search"] | null;
+      /** Floors */
+      floors: number;
+      /** Wards */
+      wards: number;
+      /** Lifts */
+      lifts: number;
+      /** Jobs */
+      jobs: number;
+      /** On Time Share */
+      on_time_share: number | null;
+      /** Avg Delivery Min */
+      avg_delivery_min: number | null;
+      /** Bottleneck */
+      bottleneck: string;
+      /** Lift Busy Share */
+      lift_busy_share: number | null;
+      /** Cleaned M2 */
+      cleaned_m2: number;
+      /** Done */
+      done: number;
+      /** Due */
+      due: number;
+      /** Cleaning Required M2 */
+      cleaning_required_m2: number;
+      /** Cleaning Coverage */
+      cleaning_coverage: number | null;
+    };
+    /** MoneySource */
+    MoneySource: {
+      /**
+       * Group
+       * @description Раздел в "Откуда цифры"
+       * @enum {string}
+       */
+      group: "Объект" | "Роботы" | "Смена" | "Деньги";
+      /** Name */
+      name: string;
+      /** Value */
+      value: string;
+      /**
+       * Source
+       * @description Откуда; у допущения без источника так и написано
+       */
+      source: string;
+      /**
+       * Date
+       * @description Когда проверили, ГГГГ-ММ; null: дата не указана
+       */
+      date?: string | null;
+      /**
+       * Trust
+       * @description Оценка S-F, F: источника нет
+       */
+      trust: string;
     };
     /** Norm */
     Norm: {
@@ -3124,6 +4402,59 @@ export interface components {
        */
       trust: "S" | "A" | "B" | "C" | "D" | "E" | "F";
     };
+    /** OfferRequest */
+    OfferRequest: {
+      /**
+       * Operation Ids
+       * @description Задачи с шага объекта
+       */
+      operation_ids: string[];
+      /**
+       * Robot Id
+       * @description Доставщик
+       * @default ext-pudu-flashbot-max
+       */
+      robot_id: string;
+      /**
+       * Cleaner Id
+       * @description Уборщик
+       * @default f31223c1-44c8-4410-8381-6356e2158b61
+       */
+      cleaner_id: string;
+      /**
+       * Overrides
+       * @description clinic.<ключ датасета>
+       */
+      overrides?: {
+        [key: string]: number;
+      };
+      /** @description Корпус с шага плана. Нет: типовой */
+      building?: components["schemas"]["Building"] | null;
+      assumptions?: components["schemas"]["MoneyAssumptions"];
+      /** Quotes */
+      quotes?: {
+        [key: string]: components["schemas"]["RobotQuote"];
+      };
+      /** Fleet */
+      fleet?: number | null;
+      /** Cleaners */
+      cleaners?: {
+        [key: string]: number;
+      } | null;
+      /** Robot Ids */
+      robot_ids: string[];
+    };
+    /** Offers */
+    Offers: {
+      /** Offers */
+      offers: {
+        [key: string]: components["schemas"]["MoneyResult"];
+      };
+      /** Errors */
+      errors: {
+        [key: string]: string;
+      };
+    };
     /**
      * Operation
      * @description Задача объекта: что именно роботизируем. На первом шаге их можно выбрать несколько.
@@ -3215,6 +4546,197 @@ export interface components {
        */
       needs: string[];
     };
+    /** OptimizationCandidate */
+    OptimizationCandidate: {
+      /** Id */
+      id: string;
+      /** Robot Id */
+      robot_id: string;
+      /** Cleaner Id */
+      cleaner_id: string;
+      /** Robot Name */
+      robot_name: string;
+      /** Cleaner Name */
+      cleaner_name: string;
+      /** Fleet */
+      fleet: number;
+      /** Cleaners */
+      cleaners: {
+        [key: string]: number;
+      };
+      /**
+       * Payment Id
+       * @enum {string}
+       */
+      payment_id: "purchase" | "raas" | "loan";
+      /** Upfront Rub */
+      upfront_rub: number;
+      /**
+       * Incremental Cost Rub
+       * @description Худшие дополнительные расходы против ручного эквивалента за горизонт
+       */
+      incremental_cost_rub: number;
+      /** Incremental Npv Cost Rub */
+      incremental_npv_cost_rub?: number | null;
+      /** Incremental Cost Range Rub */
+      incremental_cost_range_rub: [number, number];
+      /**
+       * Released Hours Year
+       * @description Минимальный чистый баланс: высвобождение минус дополнительная нагрузка, ч/год
+       */
+      released_hours_year: number;
+      training: components["schemas"]["ServiceScore"];
+      validation?: components["schemas"]["ServiceScore"] | null;
+      /**
+       * Validated
+       * @default false
+       */
+      validated: boolean;
+      /** Payback Years */
+      payback_years?: number | null;
+      /**
+       * Payback Met
+       * @default false
+       */
+      payback_met: boolean;
+      /** Payback Why Not */
+      payback_why_not?: string[];
+      /** Why Not */
+      why_not?: string[];
+      /** Conditions */
+      conditions?: string[];
+      /** Assessments */
+      assessments?: components["schemas"]["CaseAssessment"][];
+    };
+    /** OptimizationRequest */
+    OptimizationRequest: {
+      /**
+       * Operation Ids
+       * @description Задачи с шага объекта
+       */
+      operation_ids: string[];
+      /**
+       * Robot Id
+       * @description Доставщик
+       * @default ext-pudu-flashbot-max
+       */
+      robot_id: string;
+      /**
+       * Cleaner Id
+       * @description Уборщик
+       * @default f31223c1-44c8-4410-8381-6356e2158b61
+       */
+      cleaner_id: string;
+      /**
+       * Overrides
+       * @description clinic.<ключ датасета>
+       */
+      overrides?: {
+        [key: string]: number;
+      };
+      /** @description Корпус с шага плана. Нет: типовой */
+      building?: components["schemas"]["Building"] | null;
+      assumptions?: components["schemas"]["MoneyAssumptions"];
+      /** Quotes */
+      quotes?: {
+        [key: string]: components["schemas"]["RobotQuote"];
+      };
+      /** Fleet */
+      fleet?: number | null;
+      /** Cleaners */
+      cleaners?: {
+        [key: string]: number;
+      } | null;
+      /** Delivery Ids */
+      delivery_ids?: string[] | null;
+      /** Cleaner Ids */
+      cleaner_ids?: string[] | null;
+      /**
+       * Objective
+       * @default min_cost
+       * @enum {string}
+       */
+      objective: "min_cost" | "max_time";
+      /** Payment Ids */
+      payment_ids?: ("purchase" | "raas" | "loan")[];
+      /**
+       * Max Delivery Fleet
+       * @default 12
+       */
+      max_delivery_fleet: number;
+      /**
+       * Max Cleaners Per Floor
+       * @default 4
+       */
+      max_cleaners_per_floor: number;
+      /**
+       * On Time Target
+       * @default 0.95
+       */
+      on_time_target: number;
+      /**
+       * Urgent On Time Target
+       * @default 1
+       */
+      urgent_on_time_target: number;
+      /** Stress Profiles */
+      stress_profiles?: components["schemas"]["StressProfile"][];
+      /**
+       * Completion Target
+       * @default 1
+       */
+      completion_target: number;
+      /**
+       * Cleaning Target
+       * @default 1
+       */
+      cleaning_target: number;
+      /** Max Upfront Rub */
+      max_upfront_rub?: number | null;
+      /**
+       * Time Budget S
+       * @default 12
+       */
+      time_budget_s: number;
+    };
+    /** OptimizationResult */
+    OptimizationResult: {
+      /**
+       * Objective
+       * @enum {string}
+       */
+      objective: "min_cost" | "max_time";
+      /** Horizon Years */
+      horizon_years: number;
+      /** Training Seeds */
+      training_seeds: number[];
+      /** Validation Seeds */
+      validation_seeds: number[];
+      /** Targets */
+      targets: {
+        [key: string]: number;
+      };
+      /** Candidates */
+      candidates: components["schemas"]["OptimizationCandidate"][];
+      /** Recommended Id */
+      recommended_id: string | null;
+      /** Configurations Checked */
+      configurations_checked: number;
+      /** Simulations */
+      simulations: number;
+      /** Fully Enumerated */
+      fully_enumerated: boolean;
+      /** Stopped */
+      stopped: string;
+      /** Elapsed S */
+      elapsed_s: number;
+      /** Excluded */
+      excluded: string[];
+      /** Notes */
+      notes: string[];
+      /** Stress Profiles */
+      stress_profiles?: components["schemas"]["StressProfile"][];
+    };
     /** Parameter */
     Parameter: {
       /** Path */
@@ -3247,6 +4769,11 @@ export interface components {
        * @default false
        */
       yes_no: boolean;
+      /**
+       * Yes No Names
+       * @description Подписи двух кнопок выбора: для 1 и для 0. Если нет, кнопки "Да" и "Нет"
+       */
+      yes_no_names?: string[] | null;
       /** Label */
       label: string;
       /** Unit */
@@ -3352,6 +4879,49 @@ export interface components {
        * @description Текущий пароль, чтобы подтвердить действие
        */
       password: string;
+    };
+    /** PasswordReset */
+    PasswordReset: {
+      /**
+       * Token
+       * @description Токен из ссылки в письме, часть адреса после #
+       */
+      token: string;
+      /**
+       * New Password
+       * @description Новый пароль, не короче 8 и не длиннее 128 символов
+       */
+      new_password: string;
+    };
+    /**
+     * PaybackNeed
+     * @description Граница одной цифры, за которой покупка окупается за горизонт. Остальные цифры как в ответе.
+     */
+    PaybackNeed: {
+      /**
+       * Path
+       * @description Какую цифру двигали, путь в модели
+       */
+      path: string;
+      /** Label */
+      label: string;
+      /**
+       * Value
+       * @description Граница: выше или ниже нее покупка окупается за горизонт
+       */
+      value: number;
+      /**
+       * Now
+       * @description Сколько сейчас в расчете
+       */
+      now: number;
+      /** Unit */
+      unit: string;
+      /**
+       * Text
+       * @description Готовая часть фразы для экрана
+       */
+      text: string;
     };
     /** PaymentProblem */
     PaymentProblem: {
@@ -3498,7 +5068,7 @@ export interface components {
        */
       sections?: components["schemas"]["Section"][];
       /** Items */
-      items?: components["schemas"]["Item"][];
+      items?: components["schemas"]["app__schemas__plan__Item"][];
     };
     /** PlanCheck */
     PlanCheck: {
@@ -3512,6 +5082,64 @@ export interface components {
        * @default
        */
       detail: string;
+    };
+    /**
+     * PlausibilityCheck
+     * @description Итог расчета против диапазона опубликованных внедрений (шаг 5, аудит Б2). Диапазон и его источник
+     *     из config/model.yaml, economics.plausibility. Это сверка, а не поправка: цифры расчета не меняются.
+     */
+    PlausibilityCheck: {
+      /**
+       * Id
+       * @enum {string}
+       */
+      id: "payback_years" | "staff_cut_share";
+      /**
+       * Scenario Id
+       * @description Сценарий у окупаемости: только purchase. Пусто у остальных
+       */
+      scenario_id?: string | null;
+      /**
+       * Value
+       * @description Значение расчета. Пусто: окупаемости за горизонт нет
+       */
+      value: number | null;
+      /** Low */
+      low: number;
+      /** High */
+      high: number;
+      /**
+       * Status
+       * @description inside: в диапазоне внедрений, above: выше верхней границы, below: ниже нижней
+       * @enum {string}
+       */
+      status: "inside" | "above" | "below";
+      /** Source */
+      source: string;
+      /** Date */
+      date: string | null;
+      /** Trust */
+      trust: string;
+    };
+    /** ProcessFlow */
+    ProcessFlow: {
+      /** Source */
+      source: string;
+      /** Target */
+      target: string;
+      /** Per Day */
+      per_day: number;
+    };
+    /** ProcessWorkload */
+    ProcessWorkload: {
+      /** Kind */
+      kind: string;
+      /** Per Day */
+      per_day: number;
+      /** In Window */
+      in_window: number;
+      /** Routes */
+      routes: number;
     };
     /**
      * ProfileUpdate
@@ -3595,7 +5223,7 @@ export interface components {
       };
       /**
        * People
-       * @description Сколько людей в штате у варианта. Штат в проекте введен строками, и сам он под новый объем не растет: без этого числа сценарий без роботов остается прежним. Строки штата меняются пропорционально
+       * @description Сколько людей в штате у варианта, строки штата меняются пропорционально. Без этого числа штат по умолчанию (staffTouched нет) пересчитывается под новый объем, как в мастере, а штат, введенный руками, остается прежним
        */
       people?: number | null;
     };
@@ -3678,6 +5306,92 @@ export interface components {
        * @description В какую папку положить. null вынимает из папки
        */
       folder_id?: number | null;
+    };
+    /**
+     * RaasBuyout
+     * @description Выкуп роботов в конце договора аренды: отдельный кейс рядом с арендой без выкупа.
+     *
+     *     Аренда базово как найм: платим каждый год. Выкуп это вопрос "стоит ли купить роботов, когда
+     *     кончится договор": сколько заплатить, сколько потом стоит год своих роботов вместо платежа,
+     *     через сколько выкуп окупится и насколько он дешевле за горизонт.
+     */
+    RaasBuyout: {
+      /**
+       * Year
+       * @description Год, в конце которого выкупаем: конец договора
+       */
+      year: number;
+      /**
+       * Price Rub
+       * @description Цена выкупа по остаточной стоимости: роботы * цена * (1 - договор / срок амортизации)
+       */
+      price_rub: number;
+      /**
+       * Rent Year Rub
+       * @description Аренда в год после конца договора: плата и ответственность за порчу, среднее
+       */
+      rent_year_rub: number;
+      /**
+       * Own Year Rub
+       * @description Свои роботы в год после выкупа: ТО, лицензии, АКБ и обновление парка, среднее
+       */
+      own_year_rub: number;
+      /**
+       * Saving Year Rub
+       * @description Насколько год со своими роботами дешевле года аренды
+       */
+      saving_year_rub: number;
+      /**
+       * Payback Years
+       * @description Через сколько лет после выкупа он окупится: цена / экономия в год
+       */
+      payback_years: number | null;
+      /**
+       * Tco Rub
+       * @description Стоимость владения за горизонт, если выкупить
+       */
+      tco_rub: number;
+      /**
+       * Cheaper Rub
+       * @description Насколько выкуп дешевле аренды без выкупа за горизонт, со знаком
+       */
+      cheaper_rub: number;
+      /**
+       * Worth
+       * @description Выкуп окупается до конца горизонта
+       */
+      worth: boolean;
+    };
+    /**
+     * RaasTrial
+     * @description Год в аренду как проверка, потом выкуп тех же роботов: допущение рядом с арендой и покупкой.
+     *
+     *     Тот же расчет, что выкуп в конце договора, только договор на 12 месяцев: первый год аренда
+     *     (подготовка склада, плата, порча), в конце года выкуп по остаточной стоимости, дальше свои роботы.
+     *     У поставщиков в данных договоры от 30-36 месяцев, поэтому это вариант для разговора с поставщиком,
+     *     а не его предложение (docs/calculation.md, раздел 5).
+     */
+    RaasTrial: {
+      /**
+       * Months
+       * @description Срок пробной аренды, месяцев
+       */
+      months: number;
+      /**
+       * Price Rub
+       * @description Цена выкупа в конце пробного года: роботы * цена * (1 - год / срок амортизации)
+       */
+      price_rub: number;
+      /**
+       * Tco Rub
+       * @description Стоимость владения за горизонт: год аренды, выкуп и свои роботы
+       */
+      tco_rub: number;
+      /**
+       * Cumulative Cost Rub
+       * @description Накопленные затраты на конец каждого года, как у сценариев
+       */
+      cumulative_cost_rub?: number[];
     };
     /**
      * RackType
@@ -3851,6 +5565,92 @@ export interface components {
        */
       password: string;
     };
+    /** ResetRequest */
+    ResetRequest: {
+      /**
+       * Email
+       * @description Почта, на которую прислать ссылку
+       * @example ivan@example.com
+       */
+      email: string;
+    };
+    /**
+     * ResetSent
+     * @description Ответ одинаковый для любой почты: по нему нельзя узнать, зарегистрирован ли адрес.
+     */
+    ResetSent: {
+      /** Detail */
+      detail: string;
+      /**
+       * Minutes
+       * @description Сколько минут работает ссылка
+       */
+      minutes: number;
+    };
+    /** RobotOut */
+    RobotOut: {
+      /** Id */
+      id: string;
+      /** Product */
+      product: string;
+      /** Operation */
+      operation: string;
+      /** Availability */
+      availability: string;
+      /**
+       * Lift
+       * @description Как ездит на лифте, словами источника; null: про лифт не пишут
+       */
+      lift: string | null;
+      /** Specs */
+      specs: components["schemas"]["SpecOut"][];
+      /**
+       * Missing
+       * @description Каких характеристик нет: такого робота не считаем
+       */
+      missing: string[];
+      /**
+       * Speed M S
+       * @description Скорость в прогоне: доставщик 2/3 максимальной, как у склада
+       */
+      speed_m_s: number | null;
+    };
+    /**
+     * RobotQuote
+     * @description Предложение привязано к конкретной модели, ноль отличается от неизвестного тарифа.
+     */
+    RobotQuote: {
+      /**
+       * Source
+       * @default
+       */
+      source: string;
+      /** Price Rub */
+      price_rub?: number | null;
+      /** Maintenance Rub Year */
+      maintenance_rub_year?: number | null;
+      /** Commissioning Rub */
+      commissioning_rub?: number | null;
+      /** Life Years */
+      life_years?: number | null;
+      /** Rent Month Rub */
+      rent_month_rub?: number | null;
+      /** Rent First Month Rub */
+      rent_first_month_rub?: number | null;
+      /** Rent Year Rub */
+      rent_year_rub?: number | null;
+      /** Rent First Year Rub */
+      rent_first_year_rub?: number | null;
+      /** Rent Service Included */
+      rent_service_included?: number | null;
+    };
+    /** Robots */
+    Robots: {
+      /** Delivery */
+      delivery: components["schemas"]["RobotOut"][];
+      /** Cleaning */
+      cleaning: components["schemas"]["RobotOut"][];
+    };
     /**
      * Role
      * @description Роль справочника. Роли, которые появляются после роботизации, наружу не отдаем: их не вводят.
@@ -3922,6 +5722,29 @@ export interface components {
        * @description Сколько ставок нужно по объему и выработке
        */
       normative_fte?: number | null;
+      /**
+       * Productivity
+       * @description Выработка, по которой считается норма: правка задачи (productivity_before) или справочник роли. Пусто: выработки нет
+       */
+      productivity?: number | null;
+    };
+    /**
+     * RoundTheClock
+     * @description Тот же склад, если бы он работал круглосуточно: 3 смены по 8 часов, 365 дней. Тот же объем в сутки,
+     *     людей по той же выработке больше на 365 / дней. Считаем по формуле парка, без прогона смены.
+     */
+    RoundTheClock: {
+      /** Fleet */
+      fleet: number;
+      /** Purchase Payback Years */
+      purchase_payback_years: number | null;
+      /** Raas Payback Years */
+      raas_payback_years: number | null;
+      /**
+       * Text
+       * @description Готовая строка для экрана
+       */
+      text: string;
     };
     /**
      * RouteMap
@@ -3930,7 +5753,7 @@ export interface components {
     RouteMap: {
       /**
        * Rows
-       * @description Строки участка с юга на север, символ на клетку: цифра это ступень цвета, «!» это проезжая клетка, до которой не доехать, точка это стеллаж, стена или улица
+       * @description Строки участка с юга на север, символ на клетку: цифра это ступень цвета, "!" это проезжая клетка, до которой не доехать, точка это стеллаж, стена или улица
        */
       rows?: string[];
       /**
@@ -3938,6 +5761,84 @@ export interface components {
        * @description Границы ступеней в метрах, на одну больше ступеней
        */
       bands_m?: number[];
+    };
+    /** RunRequest */
+    RunRequest: {
+      /** Operation Ids */
+      operation_ids?: string[];
+      /** @description Корпус. Нет: берем типовой */
+      building?: components["schemas"]["Building"] | null;
+      /**
+       * Robot Id
+       * @default ext-pudu-flashbot-max
+       */
+      robot_id: string;
+      /**
+       * Fleet
+       * @description Доставщиков. Нет: ищем самый маленький парк
+       */
+      fleet?: number | null;
+      /**
+       * Cleaner Id
+       * @default f31223c1-44c8-4410-8381-6356e2158b61
+       */
+      cleaner_id: string | null;
+      /**
+       * Cleaners
+       * @description Уборщиков на этаж. Нет: по одному на этаж
+       */
+      cleaners?: {
+        [key: string]: number;
+      } | null;
+      /**
+       * Seed
+       * @default 42
+       */
+      seed: number;
+      /**
+       * With Events
+       * @description Вернуть лог отрезками для проигрывателя
+       * @default true
+       */
+      with_events: boolean;
+      /**
+       * Overrides
+       * @description Правки параметров датасета, как на шаге параметров: clinic.<ключ>
+       */
+      overrides?: {
+        [key: string]: number;
+      };
+    };
+    /** RunResult */
+    RunResult: {
+      /** Fleet */
+      fleet: number;
+      /** Cleaners */
+      cleaners: {
+        [key: string]: number;
+      };
+      /** Hours */
+      hours: number;
+      /** Shift Start H */
+      shift_start_h: number;
+      robot: components["schemas"]["RobotOut"];
+      cleaner: components["schemas"]["RobotOut"] | null;
+      /**
+       * Demand Per Hour
+       * @description Заявок в час по часам смены на этот корпус
+       */
+      demand_per_hour: number[];
+      kpi: components["schemas"]["app__schemas__clinic__Kpi"];
+      effect: components["schemas"]["Effect"];
+      search: components["schemas"]["Search"] | null;
+      /** Checks */
+      checks: components["schemas"]["CheckOut"][];
+      /** Jobs */
+      jobs: components["schemas"]["JobOut"][];
+      /** Segments */
+      segments: components["schemas"]["app__schemas__clinic__Segment"][];
+      /** Lift Segments */
+      lift_segments: components["schemas"]["LiftSegment"][];
     };
     /** ScenarioResult */
     ScenarioResult: {
@@ -3983,7 +5884,7 @@ export interface components {
       payback_own_years?: number | null;
       /**
        * Payback Later Years
-       * @description Окупаемость на горизонте later_horizon_years, с заменой изношенных роботов. Считаем, только если за горизонт расчета не окупается. Пусто: не считали или не окупается и там
+       * @description Окупаемость на горизонте later_horizon_years, с заменой роботов по физическому сроку службы. Считаем, только если за горизонт расчета не окупается. Пусто: не считали или не окупается и там
        */
       payback_later_years?: number | null;
       /**
@@ -4033,6 +5934,24 @@ export interface components {
       capex_after_grant_rub?: number | null;
       /** @description Только у покупки: способ оплаты и меры */
       financing?: components["schemas"]["FinancingResult"] | null;
+      /** @description Только у аренды без выкупа: что даст выкуп роботов в конце договора */
+      buyout?: components["schemas"]["RaasBuyout"] | null;
+      /** @description Только у аренды без выкупа: год аренды как проверка, потом выкуп */
+      trial?: components["schemas"]["RaasTrial"] | null;
+    };
+    /** Search */
+    Search: {
+      /** Needed */
+      needed: number | null;
+      /** Target */
+      target: number;
+      /**
+       * Curve
+       * @description Парк и худшая по seed доля вовремя
+       */
+      curve: [number, number][];
+      /** Stopped */
+      stopped: string;
     };
     /**
      * Section
@@ -4073,26 +5992,6 @@ export interface components {
        * @description Контур здания точками в метрах. Если точек три и больше, пол это клетки внутри контура, а x, y, w, h рамка вокруг него
        */
       points?: [number, number][];
-    };
-    /**
-     * Segment
-     * @description Отрезок лога: кто, с какой секунды по какую, что делал и по какой ломаной ехал.
-     *
-     *     Точки на момент времени в логе мало: по ней нельзя плавно двигать робота, непонятно,
-     *     куда он едет. Ломаная нужна потому, что прямая от ворот до стеллажа прошла бы
-     *     сквозь ряды. У стоячих действий в ломаной одна точка.
-     */
-    Segment: {
-      /** Robot */
-      robot: number;
-      /** From S */
-      from_s: number;
-      /** To S */
-      to_s: number;
-      /** Action */
-      action: string;
-      /** Path */
-      path: [number, number][];
     };
     /** SensitivityAll */
     SensitivityAll: {
@@ -4220,6 +6119,21 @@ export interface components {
        */
       first: "" | "east" | "west" | "north" | "south";
     };
+    /** ServiceScore */
+    ServiceScore: {
+      /** On Time Share */
+      on_time_share: number | null;
+      /** Urgent On Time Share */
+      urgent_on_time_share?: number | null;
+      /** Completion Share */
+      completion_share: number | null;
+      /** Cleaning Coverage */
+      cleaning_coverage: number | null;
+      /** Overdue Unfinished */
+      overdue_unfinished: number;
+      /** Carryover Jobs */
+      carryover_jobs: number;
+    };
     /** ShareCreate */
     ShareCreate: {
       /**
@@ -4279,7 +6193,7 @@ export interface components {
     SharedPart: {
       /**
        * Operator Posts
-       * @description Дежурных на объекте одновременно, на весь парк
+       * @description Присмотр за всем парком объекта в постах, доля человека в смену
        */
       operator_posts: number;
       /** Operators Fte */
@@ -4288,6 +6202,21 @@ export interface components {
       retrained_fte: number;
       /** Scenarios */
       scenarios: components["schemas"]["PartScenario"][];
+    };
+    /** SignupConfirm */
+    SignupConfirm: {
+      /**
+       * Email
+       * @description Почта, на которую пришел код
+       * @example ivan@example.com
+       */
+      email: string;
+      /**
+       * Code
+       * @description 6 цифр из письма
+       * @example 123456
+       */
+      code: string;
     };
     /** SimulationRequest */
     SimulationRequest: {
@@ -4351,7 +6280,7 @@ export interface components {
        * @default false
        */
       plan_edited: boolean;
-      /** @description Робозона, по которой шел прогон вместо присланного плана: отбор «товар к человеку» на плане под погрузчик считаем по робозоне. Пусто: прогон шел по присланному плану */
+      /** @description Робозона, по которой шел прогон вместо присланного плана: отбор "товар к человеку" на плане под погрузчик считаем по робозоне. Пусто: прогон шел по присланному плану */
       zone_plan?: components["schemas"]["GeneratedPlan"] | null;
       layout: components["schemas"]["Layout"];
       /**
@@ -4365,9 +6294,9 @@ export interface components {
        * @default 0
        */
       design_demand: number;
-      kpi: components["schemas"]["Kpi"];
+      kpi: components["schemas"]["app__schemas__simulation__Kpi"];
       /** Segments */
-      segments?: components["schemas"]["Segment"][];
+      segments?: components["schemas"]["app__schemas__simulation__Segment"][];
       /**
        * Curve Ops Per Hour
        * @description Сколько операций в час вытягивает парк из N роботов, индекс это N
@@ -4424,7 +6353,7 @@ export interface components {
       stations: number;
       /**
        * Operator Posts
-       * @description Сколько операторов на объекте одновременно, в каждую смену
+       * @description Присмотр за роботами в постах: доля человека на объекте одновременно, в каждую смену
        */
       operator_posts: number;
       /** Operators Fte */
@@ -4464,6 +6393,24 @@ export interface components {
       worker_cost_rub_year: number;
       /** Operator Cost Rub Year */
       operator_cost_rub_year: number;
+      /**
+       * Packing Fte
+       * @description Ставок на упаковке у станций, одни и те же до роботов и после
+       * @default 0
+       */
+      packing_fte: number;
+      /**
+       * Packing Per Shift
+       * @description Человек на упаковке одновременно, в каждую смену
+       * @default 0
+       */
+      packing_per_shift: number;
+      /**
+       * Packing Places
+       * @description Мест упаковки у станций под пиковый поток
+       * @default 0
+       */
+      packing_places: number;
     };
     /** Solution */
     Solution: {
@@ -4495,6 +6442,12 @@ export interface components {
       status: string;
       /** Score */
       score: number;
+      /**
+       * At Limit
+       * @description Поднимает груз впритык, запас меньше 10%: в списке после решений с запасом
+       * @default false
+       */
+      at_limit: boolean;
       /** Checks */
       checks: components["schemas"]["Check"][];
       /** Factors */
@@ -5084,6 +7037,25 @@ export interface components {
        */
       field: string;
     };
+    /** SpecOut */
+    SpecOut: {
+      /** Field */
+      field: string;
+      /** Value */
+      value: number;
+      /**
+       * Text
+       * @description Как в источнике, с диапазоном
+       */
+      text: string;
+      /**
+       * Trust
+       * @description Оценка S-F из data/specs/specs.csv
+       */
+      trust: string;
+      /** Note */
+      note: string;
+    };
     /** SpecUpdate */
     SpecUpdate: {
       /**
@@ -5312,6 +7284,80 @@ export interface components {
       days: components["schemas"]["Day"][];
     };
     /**
+     * StressProfile
+     * @description Проверяемое условие, а не оценка вероятности или измеренный отраслевой диапазон.
+     */
+    StressProfile: {
+      /** Id */
+      id: string;
+      /** Name */
+      name: string;
+      /**
+       * Demand Factor
+       * @default 1
+       */
+      demand_factor: number;
+      /**
+       * Speed Factor
+       * @default 1
+       */
+      speed_factor: number;
+      /**
+       * Runtime Factor
+       * @default 1
+       */
+      runtime_factor: number;
+      /**
+       * Cleaning Factor
+       * @default 1
+       */
+      cleaning_factor: number;
+      /**
+       * Handling Factor
+       * @default 1
+       */
+      handling_factor: number;
+      /**
+       * Lift Traffic Factor
+       * @default 1
+       */
+      lift_traffic_factor: number;
+      /**
+       * Door Wait Factor
+       * @default 1
+       */
+      door_wait_factor: number;
+      /**
+       * Support Factor
+       * @default 1
+       */
+      support_factor: number;
+      /**
+       * Arrival Spread
+       * @default 1
+       */
+      arrival_spread: number;
+    };
+    /**
+     * SupplierQuestion
+     * @description Вопрос поставщику перед покупкой: то, что расчет принять на слово не может
+     */
+    SupplierQuestion: {
+      /**
+       * Topic
+       * @description Тема коротко: "Зарядка", "Связь с WMS"
+       */
+      topic: string;
+      /** Question */
+      question: string;
+      /**
+       * Why
+       * @description Что в расчете от ответа зависит, если ответ известен
+       * @default
+       */
+      why: string;
+    };
+    /**
      * SupportResult
      * @description Мера господдержки: условия, отмечена ли, сработала ли и сколько дала.
      */
@@ -5470,6 +7516,42 @@ export interface components {
       solution_id?: string | null;
       /** Children */
       children?: components["schemas"]["TreeNode"][];
+    };
+    /**
+     * UnitCost
+     * @description Сколько стоит одна операция задачи в каждом сценарии: все расходы за горизонт, деленные на
+     *     число операций за горизонт. Общие на объект затраты разложены по задачам пропорционально их доле.
+     */
+    UnitCost: {
+      /** Operation Id */
+      operation_id: string;
+      /** Operation Name */
+      operation_name: string;
+      /**
+       * Per
+       * @description Что считаем одной операцией, для подписи: "перевозку паллеты"
+       */
+      per: string;
+      /**
+       * Operations Horizon
+       * @description Сколько операций задачи за горизонт в сценарии без роботов
+       */
+      operations_horizon: number;
+      /** Scenarios */
+      scenarios: components["schemas"]["UnitCostScenario"][];
+    };
+    /** UnitCostScenario */
+    UnitCostScenario: {
+      /**
+       * Id
+       * @description baseline, purchase или raas
+       */
+      id: string;
+      /**
+       * Rub Per Unit
+       * @description Все расходы за горизонт на одну операцию, рублей
+       */
+      rub_per_unit: number;
     };
     /** UpdateAccept */
     UpdateAccept: {
@@ -5641,7 +7723,7 @@ export interface components {
     Verdict: {
       /**
        * Band
-       * @description Интервал окупаемости: до 3 лет, 3-5 лет, более 5 лет или не окупается
+       * @description Интервал окупаемости: до 3 лет, 3-5 лет, более 5 лет, не окупается или роботов нет (парк 0)
        */
       band: string;
       /** Text */
@@ -5664,6 +7746,12 @@ export interface components {
       model_version: string;
       /** Data Version */
       data_version: string;
+      /**
+       * Data Note
+       * @description Каталог и нормативы словами: число решений и правка каталога, правка нормативов. Без служебных номеров, у старых версий пусто
+       * @default
+       */
+      data_note: string;
       /**
        * Same Data
        * @description Версии модели и данных совпадают с текущими: расчет повторится с теми же цифрами
@@ -5717,10 +7805,55 @@ export interface components {
       /** Data Version */
       data_version: string;
       /**
+       * Data Note
+       * @description Каталог и нормативы словами: число решений и правка каталога, правка нормативов. Без служебных номеров, у старых версий пусто
+       * @default
+       */
+      data_note: string;
+      /**
        * Same Data
        * @description Версии модели и данных совпадают с текущими: расчет повторится с теми же цифрами
        */
       same_data: boolean;
+    };
+    /** WorkloadRequest */
+    WorkloadRequest: {
+      building: components["schemas"]["Building"];
+      /** Overrides */
+      overrides?: {
+        [key: string]: number;
+      };
+      /** Operation Ids */
+      operation_ids?: string[];
+    };
+    /** WorkloadResult */
+    WorkloadResult: {
+      /** Floors */
+      floors: number;
+      /** Area M2 */
+      area_m2: number;
+      /** Points */
+      points: number;
+      /** Effective Points */
+      effective_points: number;
+      /** Reference Points */
+      reference_points: number;
+      /** Shift Start H */
+      shift_start_h: number;
+      /** Shift Hours */
+      shift_hours: number;
+      /** Daily Share */
+      daily_share: number;
+      /** Demand Per Hour */
+      demand_per_hour: number[];
+      /** Processes */
+      processes: components["schemas"]["ProcessWorkload"][];
+      /** Cleaning M2 */
+      cleaning_m2: {
+        [key: string]: number;
+      };
+      /** Warnings */
+      warnings: string[];
     };
     /** YearRow */
     YearRow: {
@@ -5769,6 +7902,372 @@ export interface components {
        * @default 0
        */
       ramp_rub: number;
+    };
+    /** GenerateRequest */
+    app__schemas__clinic__GenerateRequest: {
+      /**
+       * Layout
+       * @default linear
+       * @enum {string}
+       */
+      layout: "linear" | "mixed";
+      /**
+       * Width M
+       * @default 60
+       */
+      width_m: number;
+      /**
+       * Length M
+       * @default 24
+       */
+      length_m: number;
+      /**
+       * Floors
+       * @default 4
+       */
+      floors: number;
+      /**
+       * Wards Per Floor
+       * @default 3
+       */
+      wards_per_floor: number;
+      /**
+       * Lifts
+       * @default 1
+       */
+      lifts: number;
+      /**
+       * Furnished
+       * @default true
+       */
+      furnished: boolean;
+      /**
+       * Floor Height M
+       * @default 3.3
+       */
+      floor_height_m: number;
+    };
+    /**
+     * Item
+     * @description Вещь на этаже: прямоугольник в метрах.
+     */
+    app__schemas__clinic__Item: {
+      /** Id */
+      id: string;
+      /**
+       * Kind
+       * @description Что это: room, door, lift, charge, blocked
+       * @enum {string}
+       */
+      kind: "room" | "door" | "lift" | "charge" | "blocked";
+      /** X */
+      x: number;
+      /** Y */
+      y: number;
+      /** W */
+      w: number;
+      /** H */
+      h: number;
+      /**
+       * Name
+       * @default
+       */
+      name: string;
+      /**
+       * Role
+       * @description room: pharmacy, supplies, ward, other; charge: cleaning, если это база уборщика, иначе пусто
+       * @default
+       * @enum {string}
+       */
+      role: "" | "pharmacy" | "supplies" | "ward" | "other" | "cleaning";
+      /**
+       * Width Mm
+       * @description door: ширина проема, мм
+       * @default 0
+       */
+      width_mm: number;
+      /**
+       * Automatic
+       * @description door: открывается сама; false, ручную открывает человек
+       * @default true
+       */
+      automatic: boolean;
+      /**
+       * Lift
+       * @description lift: id лифта из building.lifts
+       * @default
+       */
+      lift: string;
+    };
+    /** Kpi */
+    app__schemas__clinic__Kpi: {
+      /** Created */
+      created: number;
+      /** Done */
+      done: number;
+      /**
+       * Due
+       * @description Фиксированная когорта: заявки со сроком внутри смены, от них считаем вовремя
+       */
+      due: number;
+      /** On Time */
+      on_time: number;
+      /** On Time Share */
+      on_time_share: number | null;
+      /** Blocked */
+      blocked: number;
+      /**
+       * Avg Delivery Min
+       * @description От заявки до передачи на посту, с комплектацией
+       */
+      avg_delivery_min: number | null;
+      /** P95 Delivery Min */
+      p95_delivery_min: number | null;
+      /**
+       * Shares
+       * @description Доля времени парка: едет, ждет, грузит, заряжается, моет
+       */
+      shares: {
+        [key: string]: number;
+      };
+      /**
+       * Waits
+       * @description Доля времени парка в очереди: лифт, дверь, зарядка
+       */
+      waits: {
+        [key: string]: number;
+      };
+      /** Bottleneck */
+      bottleneck: string;
+      /** Staff Hours */
+      staff_hours: number;
+      /** Cleaned M2 */
+      cleaned_m2: number;
+      /** Kinds */
+      kinds: components["schemas"]["KindKpi"][];
+      /** Lifts */
+      lifts: components["schemas"]["LiftKpi"][];
+      /** Cleaning */
+      cleaning: components["schemas"]["CleaningKpi"][];
+    };
+    /**
+     * Segment
+     * @description Отрезок лога робота. Как у склада, плюс этаж; в лифте этажа нет, есть лифт.
+     */
+    app__schemas__clinic__Segment: {
+      /** Robot */
+      robot: number;
+      /**
+       * Role
+       * @enum {string}
+       */
+      role: "delivery" | "cleaning";
+      /** Floor */
+      floor: number | null;
+      /** From S */
+      from_s: number;
+      /** To S */
+      to_s: number;
+      /** Action */
+      action: string;
+      /** Path */
+      path: [number, number][];
+      /**
+       * Lift
+       * @default
+       */
+      lift: string;
+    };
+    /** GenerateRequest */
+    app__schemas__plan__GenerateRequest: {
+      /**
+       * Facility Id
+       * @default warehouse
+       */
+      facility_id: string;
+      /** Operation Ids */
+      operation_ids?: string[];
+      /**
+       * Template Id
+       * @description Схема потока или "custom": план по анкете
+       * @default one_side
+       */
+      template_id: string;
+      /** Width M */
+      width_m?: number | null;
+      /** Length M */
+      length_m?: number | null;
+      /** Overrides */
+      overrides?: {
+        [key: string]: number;
+      };
+      /** @description Анкета для шаблона "custom" */
+      custom?: components["schemas"]["CustomLayout"] | null;
+    };
+    /**
+     * Item
+     * @description Одна вещь на плане. Все вещи это прямоугольники на сетке в метр.
+     */
+    app__schemas__plan__Item: {
+      /** Id */
+      id: string;
+      /**
+       * Kind
+       * @description Что это: racks, dock, buffer, station, charge, blocked, ramp, aisle, flow
+       */
+      kind: string;
+      /** X */
+      x: number;
+      /** Y */
+      y: number;
+      /** W */
+      w: number;
+      /** H */
+      h: number;
+      /**
+       * Aisle M
+       * @description Зона хранения: ширина проезда между рядами
+       * @default 0
+       */
+      aisle_m: number;
+      /**
+       * Run M
+       * @description Зона хранения: длина ряда до поперечного проезда
+       * @default 0
+       */
+      run_m: number;
+      /**
+       * Rows
+       * @description Зона хранения: вдоль какой оси тянутся ряды
+       * @default y
+       */
+      rows: string;
+      /**
+       * Rack Top M
+       * @description Зона хранения: отметка верхнего яруса от пола
+       * @default 0
+       */
+      rack_top_m: number;
+      /**
+       * Rack Type
+       * @description Зона хранения: тип стеллажа, пусто значит фронтальный
+       * @default
+       */
+      rack_type: string;
+      /**
+       * Row M
+       * @description Зона хранения: толщина ряда, ноль значит двойная рама
+       * @default 0
+       */
+      row_m: number;
+      /**
+       * Block Rows
+       * @description Зона хранения: рядов вплотную между проездами
+       * @default 1
+       */
+      block_rows: number;
+      /**
+       * Cross M
+       * @description Зона хранения: поперечный проезд, ноль значит главный
+       * @default 0
+       */
+      cross_m: number;
+      /**
+       * Tiers
+       * @description Зона хранения: число ярусов, ноль значит верхний ярус задан сам
+       * @default 0
+       */
+      tiers: number;
+      /**
+       * Tier M
+       * @description Зона хранения: шаг яруса по высоте
+       * @default 0
+       */
+      tier_m: number;
+      /**
+       * Role
+       * @description Ворота и буфер: приемка, отгрузка или и то и другое
+       * @default
+       */
+      role: string;
+      /**
+       * Auto
+       * @description Зарядка: место выбрала программа, а не человек
+       * @default false
+       */
+      auto: boolean;
+      /**
+       * Turnover
+       * @description Зона хранения: ходовая или редкая, пусто значит по пути до ворот
+       * @default
+       * @enum {string}
+       */
+      turnover: "" | "fast" | "slow";
+      /**
+       * Direction
+       * @description Линия движения: куда можно ехать по полосе, против нельзя
+       * @default
+       * @enum {string}
+       */
+      direction: "" | "east" | "west" | "north" | "south";
+      /**
+       * Group
+       * @description Ряд стеллажей: ряды, поставленные вместе, щелчок выбирает их все
+       * @default
+       */
+      group: string;
+    };
+    /** Kpi */
+    app__schemas__simulation__Kpi: {
+      /** Done */
+      done: number;
+      /** Ops Per Hour */
+      ops_per_hour: number;
+      /**
+       * Busy Share
+       * @description Доля времени, когда робот едет или грузит
+       */
+      busy_share: number;
+      /**
+       * Waiting Share
+       * @description Доля времени в очередях: проезды и ворота
+       */
+      waiting_share: number;
+      /** Charging Share */
+      charging_share: number;
+      /** Avg Cycle S */
+      avg_cycle_s: number;
+      /** Avg Wait S */
+      avg_wait_s: number;
+      /** Bottleneck */
+      bottleneck: string;
+      /**
+       * Waits
+       * @description Доля времени парка в очереди у каждого места: ворота, проезд, пандус
+       */
+      waits?: {
+        [key: string]: number;
+      };
+    };
+    /**
+     * Segment
+     * @description Отрезок лога: кто, с какой секунды по какую, что делал и по какой ломаной ехал.
+     *
+     *     Точки на момент времени в логе мало: по ней нельзя плавно двигать робота, непонятно,
+     *     куда он едет. Ломаная нужна потому, что прямая от ворот до стеллажа прошла бы
+     *     сквозь ряды. У стоячих действий в ломаной одна точка.
+     */
+    app__schemas__simulation__Segment: {
+      /** Robot */
+      robot: number;
+      /** From S */
+      from_s: number;
+      /** To S */
+      to_s: number;
+      /** Action */
+      action: string;
+      /** Path */
+      path: [number, number][];
     };
   };
   responses: never;
@@ -5954,8 +8453,83 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
+          "application/json": components["schemas"]["Me"] | components["schemas"]["CodeSent"];
+        };
+      };
+      /** @description Код отправлен на почту, ждем его */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CodeSent"];
+        };
+      };
+      /** @description Почта уже зарегистрирована */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Почта с ошибкой или у ее домена нет почтового сервера, слабый пароль */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Слишком много кодов на эту почту или писем с сервера */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Письмо с кодом не ушло */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  confirm_registration_api_auth_register_confirm_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SignupConfirm"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
           "application/json": components["schemas"]["Me"];
         };
+      };
+      /** @description Код неверный, устарел или по нему ошиблись 5 раз */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Почта уже зарегистрирована */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Validation Error */
       422: {
@@ -6005,6 +8579,86 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+    };
+  };
+  forgot_api_auth_forgot_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ResetRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ResetSent"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description На эту почту уже несколько раз отправляли ссылку, нужно подождать */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  reset_api_auth_reset_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PasswordReset"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Me"];
+        };
+      };
+      /** @description Ссылка подделана, устарела или по ней уже меняли пароль */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
       };
     };
   };
@@ -6659,7 +9313,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["GenerateRequest"];
+        "application/json": components["schemas"]["app__schemas__plan__GenerateRequest"];
       };
     };
     responses: {
@@ -6746,6 +9400,110 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["HTTPValidationError"];
         };
+      };
+    };
+  };
+  dxf_api_plan_dxf_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": components["schemas"]["Body_dxf_api_plan_dxf_post"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DxfDrawing"];
+        };
+      };
+      /** @description Файл больше 80 МБ */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Не DXF */
+      415: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Чертеж не удалось разобрать */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Сервер занят другими чертежами */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  dxf_build_api_plan_dxf_build_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": components["schemas"]["Body_dxf_build_api_plan_dxf_build_post"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DxfBuilt"];
+        };
+      };
+      /** @description Файл больше 80 МБ */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Не DXF */
+      415: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description План по чертежу не построить */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Сервер занят другими чертежами */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };
@@ -6848,6 +9606,44 @@ export interface operations {
       };
     };
   };
+  case_api_cases__case_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        case_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DemoCase"];
+        };
+      };
+      /** @description Такого разбора нет */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   fit_api_budget_fit_post: {
     parameters: {
       query?: never;
@@ -6934,6 +9730,396 @@ export interface operations {
         };
         content: {
           "text/csv": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  portfolio_api_clinic_portfolio_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["OptimizationRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  template_api_clinic_template_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Building"];
+        };
+      };
+    };
+  };
+  generate_api_clinic_generate_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["app__schemas__clinic__GenerateRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Building"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  import_building_api_clinic_import_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["Building"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Building"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  robots_api_clinic_robots_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Robots"];
+        };
+      };
+    };
+  };
+  assumptions_api_clinic_assumptions_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Assumption"][];
+        };
+      };
+    };
+  };
+  check_api_clinic_check_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CheckRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CheckResult"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  fit_api_clinic_fit_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["FitRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["FitResult"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  workload_api_clinic_workload_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["WorkloadRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkloadResult"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  run_api_clinic_runs_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RunRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RunResult"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  economics_api_clinic_economics_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["MoneyRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MoneyResult"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  offers_api_clinic_offers_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["OfferRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Offers"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  optimize_api_clinic_optimize_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["OptimizationRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OptimizationResult"];
         };
       };
       /** @description Validation Error */
@@ -7473,6 +10659,95 @@ export interface operations {
       };
     };
   };
+  version_report_api_projects__project_id__versions__number__report__kind__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: number;
+        number: number;
+        kind: "pdf" | "xlsx";
+      };
+      cookie?: {
+        session?: string | null;
+      };
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/pdf": unknown;
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": unknown;
+        };
+      };
+      /** @description Проекта нет или он чужой: эти случаи не различаем */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description В версии нет сохраненных цифр: ее нужно пересчитать как новую версию */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  recalculate_api_projects__project_id__versions__number__recalculate_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: number;
+        number: number;
+      };
+      cookie?: {
+        session?: string | null;
+      };
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Version"];
+        };
+      };
+      /** @description Проекта нет или он чужой: эти случаи не различаем */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description На текущих нормативах расчет не получается */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   add_file_api_projects__project_id__files_post: {
     parameters: {
       query?: never;
@@ -7716,6 +10991,53 @@ export interface operations {
       };
       /** @description Ссылки нет или ее отозвали */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  shared_report_api_share__token__report__kind__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        token: string;
+        kind: "pdf" | "xlsx";
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/pdf": unknown;
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": unknown;
+        };
+      };
+      /** @description Ссылки нет или ее отозвали */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description В версии нет сохраненных цифр */
+      409: {
         headers: {
           [name: string]: unknown;
         };
@@ -8941,7 +12263,10 @@ export interface operations {
   };
   report_pdf_api_reports_pdf_post: {
     parameters: {
-      query?: never;
+      query?: {
+        /** @description Готовый разбор, из которого собран запрос: pallets, picking или cleaning */
+        case?: string | null;
+      };
       header?: never;
       path?: never;
       cookie?: never;
@@ -8974,7 +12299,10 @@ export interface operations {
   };
   report_xlsx_api_reports_xlsx_post: {
     parameters: {
-      query?: never;
+      query?: {
+        /** @description Готовый разбор, из которого собран запрос: pallets, picking или cleaning */
+        case?: string | null;
+      };
       header?: never;
       path?: never;
       cookie?: never;
@@ -8982,6 +12310,72 @@ export interface operations {
     requestBody: {
       content: {
         "application/json": components["schemas"]["CalculationRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  clinic_pdf_api_reports_clinic_pdf_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["MoneyRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/pdf": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  clinic_xlsx_api_reports_clinic_xlsx_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["MoneyRequest"];
       };
     };
     responses: {

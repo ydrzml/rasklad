@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -176,7 +177,8 @@ def test_task_shows_whose_work_it_is_and_how_robots_take_it():
     # у отбора робот подвозит стеллаж, человек остается на станции и работает быстрее
     assert tasks["piece_picking"]["takeover"] == "speedup"
     assert all(task["solutions_count"] > 0 and task["available"] for task in tasks.values())
-    assert tasks["cleaning"]["volume_trust"] == "F"  # частоту уборки организатор не дает, это наше допущение
+    # частоту уборки организатор не дает, раз в сутки это практика клининга, оценка D
+    assert tasks["cleaning"]["volume_trust"] == "D"
 
 
 def test_unknown_facility_is_not_found():
@@ -213,24 +215,37 @@ def test_sources_have_names_in_words():
 
 
 def test_demo_numbers_of_other_tasks_stay_where_they_were():
-    """Правки отбора товара (люди от объема, выработка, строки за подачу) других задач не трогают.
-    Паллетный демо-расчет на типовом плане: 9 роботов, 41,39 млн, 1,33 года; уборка: 1 робот, 3,92 года."""
+    """Правки отбора товара (люди от анкеты, выработка, строки за подачу) других задач не трогают.
+    Паллеты на типовом плане при режиме 2 смены по 11 ч, 365 дней, парк по формуле:
+    2 000 * 0,95 / 22 * 1,5 * 1,15 / 17,83 = 8,4, вверх 9 роботов, 33,04 млн без НДС, 1,06 года, прогон смены
+    дает тот же парк (на пятидневке 2 смены по 8 ч с 17.10.2026 было 12 роботов, 41,93 млн, 2,17 года).
+    Уборка: 1 робот, робот сравнивается с оператором поломоечной машины и моет всю ее площадь,
+    1,46 ставки, окупается за 3,4 года (docs/decisions.md, «Уборка против поломоечной машины»,
+    «Уборка: сравниваем с тем, как убирают сейчас»)."""
     plan = client.post("/api/plan/generate", json={"operation_ids": ["pallet_transport"]}).json()["plan"]
     pallets = preview(operation_id="pallet_transport", robot_id="ronavi-h1500", plan=plan)
     purchase = pallets["scenarios"][1]
     assert pallets["sizing"]["fleet"] == 9
-    assert round(purchase["capex_total_rub"] / 1e6, 2) == 41.39
-    assert round(purchase["payback_cumulative_years"], 2) == 1.33
+    assert round(purchase["capex_total_rub"] / 1e6, 2) == 33.04
+    assert round(purchase["payback_cumulative_years"], 2) == 1.06
     cleaning = preview(operation_id="cleaning", robot_id="clinbotics-600")
     assert cleaning["sizing"]["fleet"] == 1
-    assert round(cleaning["scenarios"][1]["payback_cumulative_years"], 2) == 3.92
+    # машине 10 000 * 365 / 1 250 = 2 920 часов в год, пост 2 000 часов: 1,46 поста, робот берет все
+    assert cleaning["sizing"]["fte_before"] == pytest.approx(1.46)
+    assert cleaning["scenarios"][1]["payback_cumulative_years"] == pytest.approx(3.39, abs=0.05)
 
 
 def test_picking_demo_after_checking_the_dataset():
-    """Отбор на данных датасета после проверки его цифр: 56 роботов, покупка окупается за 3,25 года."""
+    """Отбор на данных датасета при режиме 2 смены по 11 ч, 365 дней: 35 000 строк, 100 отборщиков * 30% = 30
+    ставок, после 30 * 80 / 250 = 9,6. Роботов по формуле 35 000 * 0,3 / 22 * 1,5 * 1,15 / 42,75 = 19,3, вверх 20,
+    станций 823 / 250 = 3,3, вверх 4. Покупка окупается за 2,59 года (docs/decisions.md, "Типовой режим
+    склада"; на пятидневке 2 смены по 8 ч было 27 роботов на 5 станций, и за 5 лет не окупалось)."""
     result = preview(operation_id="piece_picking", robot_id="ronavi-m")
-    assert result["sizing"]["fleet"] == 56
-    assert round(result["scenarios"][1]["payback_cumulative_years"], 2) == 3.25
+    assert result["sizing"]["fleet"] == 20
+    assert result["sizing"]["stations"] == 4
+    assert result["sizing"]["fte_before"] == pytest.approx(30)
+    assert result["sizing"]["fte_after"] == pytest.approx(9.6)
+    assert round(result["scenarios"][1]["payback_cumulative_years"], 2) == 2.59
 
 
 def test_preview_refuses_solution_that_selection_excludes():
@@ -246,3 +261,92 @@ def test_preview_refuses_solution_from_other_task():
     other = preview(robot_id="clinbotics-600")
     assert other["feasible"] is False
     assert "Перевозка паллет" in other["message"]
+
+
+def _risks(result: dict) -> list[str]:
+    return next(s for s in result["scenarios"] if s["id"] == "purchase")["verdict"]["risks"]
+
+
+def test_staff_that_does_not_match_the_volume_is_named_in_the_risks():
+    """Экономия идет от анкеты, роботы от объема. 100 отборщиков на 100 000 строк датасета при нормативе
+    100 000 * 365 / (80 * 1972) * 1,25 = 289,2:
+    отбор считается от анкеты (100 * 0,3 = 30 ставок), и вывод говорит, что по объему нужно больше."""
+    staff = [{"id": "p", "role": "picker", "headcount": 100, "filled": 100, "salary_month": 100_000}]
+    result = preview(
+        operation_id="piece_picking",
+        robot_id="ronavi-m",
+        staff=staff,
+        overrides={"facilities.warehouse.operations.piece_picking.volume_per_day": 100_000},
+    )
+    assert result["sizing"]["fte_before"] == pytest.approx(30)
+    note = next(risk for risk in _risks(result) if risk.startswith("Экономия посчитана от вашего штата"))
+    assert "100 мест" in note and "289,2" in note
+    # штат по нормативу, расхождения нет, строки нет
+    plain = preview(operation_id="piece_picking", robot_id="ronavi-m")
+    assert not any(risk.startswith("Экономия посчитана") for risk in _risks(plain))
+
+
+def test_floor_robot_under_high_racks_is_named_in_the_risks():
+    """На типовом плане верхний ярус 6,8 м, а Ronavi H1500 возит паллеты по полу: кто ставит груз в стеллаж."""
+    plan = client.post("/api/plan/generate", json={"operation_ids": ["pallet_transport"]}).json()["plan"]
+    on_plan = preview(operation_id="pallet_transport", robot_id="ronavi-h1500", plan=plan)
+    assert any("возит паллеты по полу" in risk and "6,8 м" in risk for risk in _risks(on_plan))
+    # без плана стеллажей мы не знаем, строки нет
+    assert not any("возит паллеты по полу" in risk for risk in _risks(preview()))
+
+
+def test_trial_year_of_rent_then_buyout_is_the_same_engine_with_a_one_year_contract():
+    """Год в аренду как проверка, потом выкуп: тот же расчет, что выкуп, только договор на 12 месяцев.
+
+    Руками, паллеты на типовом плане, 9 Ronavi H1500, без НДС 22%: выкуп в конце первого года
+    9 * 2,7 млн * (1 - 1 / 5) / 1,22 = 15,93 млн. Стоимость владения та же, что у аренды с выкупом
+    при договоре 12 месяцев, которую человек может задать сам на шаге параметров."""
+    plan = client.post("/api/plan/generate", json={"operation_ids": ["pallet_transport"]}).json()["plan"]
+    result = preview(operation_id="pallet_transport", robot_id="ronavi-h1500", plan=plan)
+    rent = next(s for s in result["scenarios"] if s["id"] == "raas")
+    trial = rent["trial"]
+    assert trial["months"] == 12
+    assert trial["price_rub"] == pytest.approx(9 * 2_700_000 * 0.8 / 1.22)
+    assert trial["cumulative_cost_rub"][0] == pytest.approx(rent["investment_year0_rub"])
+    assert trial["cumulative_cost_rub"][-1] == pytest.approx(trial["tco_rub"])
+    same = preview(
+        operation_id="pallet_transport",
+        robot_id="ronavi-h1500",
+        plan=plan,
+        raas_buyout=True,
+        overrides={"robots.ronavi-h1500.raas.contract_months": 12},
+    )
+    with_buyout = next(s for s in same["scenarios"] if s["id"] == "raas")
+    assert with_buyout["tco_rub"] == pytest.approx(trial["tco_rub"])
+    assert with_buyout["trial"] is None
+
+
+def test_rent_is_without_buyout_and_buyout_is_a_separate_case():
+    """Аренда базово как найм: договор продлевается с индексацией, выкупа нет. Выкуп отдельным кейсом.
+
+    Руками, паллеты на типовом плане, 9 Ronavi H1500 по формуле, все без НДС 22%. Выкуп в конце 3 года:
+    9 * 2,7 млн * (1 - 3 / 5) / 1,22 = 7,97 млн. После договора аренда в год: плата
+    9 * 100 000 * 12 * 1,04^3 / 1,22 = 9,958 млн и порча 1% цены с инфляцией, в среднем за 4 и 5 год 10,19 млн.
+    Свои роботы: ТО 10% цены и лицензии, 2,79 млн. Разница 7,39 млн в год, выкуп окупается за
+    7,97 / 7,39 = 1,08 года, за 5 лет с выкупом дешевле на 2 * 7,39 - 7,97 = 6,82 млн."""
+    plan = client.post("/api/plan/generate", json={"operation_ids": ["pallet_transport"]}).json()["plan"]
+    result = preview(operation_id="pallet_transport", robot_id="ronavi-h1500", plan=plan)
+    rent = next(s for s in result["scenarios"] if s["id"] == "raas")
+    assert rent["name"] == "Аренда"
+    assert all(year["investment_rub"] == 0 for year in rent["years"])
+    assert rent["years"][3]["opex_rub"]["raas_fee"] == pytest.approx(9 * 100_000 * 12 * 1.04**3 / 1.22)
+    assert rent["verdict"]["text"].startswith("Аренда выгоднее людей с первого года")
+    buyout = rent["buyout"]
+    assert buyout["year"] == 3
+    assert buyout["price_rub"] == pytest.approx(9 * 2_700_000 * 0.4 / 1.22)
+    assert buyout["rent_year_rub"] == pytest.approx(10.19e6, abs=0.01e6)
+    assert buyout["own_year_rub"] == pytest.approx(2.79e6, abs=0.01e6)
+    assert buyout["payback_years"] == pytest.approx(7.97 / 7.39, abs=0.01)
+    assert buyout["cheaper_rub"] == pytest.approx(6.82e6, abs=0.01e6)
+
+    assert buyout["worth"] is True
+    # выкуп по запросу: старая аренда с выкупом, отдельного кейса тогда нет
+    bought = preview(operation_id="pallet_transport", robot_id="ronavi-h1500", plan=plan, raas_buyout=True)
+    with_buyout = next(s for s in bought["scenarios"] if s["id"] == "raas")
+    assert with_buyout["buyout"] is None
+    assert with_buyout["tco_rub"] == pytest.approx(buyout["tco_rub"])

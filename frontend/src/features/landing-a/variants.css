@@ -1,0 +1,630 @@
+/* Лендинг "/": первый экран, сборка склада, пять шагов, шапка и подвал. Все правила под .la-v1 и .la-live:
+   на главных вошедшего (/home, /admin/home) они не действуют. Значения из tokens.css, движение только
+   прозрачностью и сдвигом, кривая из токенов */
+
+/* ===================== Первый экран и блоки ===================== */
+
+/* Ролик главный: занимает больше половины ширины, текст слева прижат к низу, как подпись к сцене */
+.la-v1 .la-hero {
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  align-items: end;
+  gap: var(--s-6);
+  padding-top: clamp(12px, 2.5vh, 32px);
+}
+
+.la-v1 .la-hero h1 {
+  font-size: clamp(36px, min(3.7vw, 7vh), 54px);
+}
+
+.la-v1 .la-lead {
+  font-size: 17px;
+}
+
+/* вторая кнопка всегда строкой ниже: в узкой колонке она то вставала рядом, то переносилась */
+.la-v1 .la-go + .la-go {
+  display: flex;
+  width: fit-content;
+  margin: var(--s-2) 0 0;
+}
+
+.la-v1 .la-scene {
+  width: 100%;
+  justify-self: stretch;
+  margin: 0;
+}
+
+.la-v1 .la-07 {
+  width: 120px;
+  left: -40px;
+  bottom: -24px;
+}
+
+/* Ролик разбора на первом экране: крупный, во всю правую колонку, высота под окно */
+.la-v1 .v1-scene {
+  margin: 0;
+}
+
+/* Ролик второй по важности после заголовка: колонка уже, чем у текста, ролик 576x470 на 1366, под него снята петля,
+   чтобы надписи в нем были мельче заголовка */
+@media (min-width: 1000px) {
+  .la-v1 .la-hero:has(.v1-scene) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 576px);
+    align-items: center;
+  }
+
+  .la-v1 .v1-scene {
+    width: 100%;
+    max-width: 576px;
+    justify-self: end;
+  }
+}
+
+/* Пять шагов: робот едет по маршруту над карточками и встает у каждого шага */
+.la-v1 .v1-route {
+  position: relative;
+  height: 36px;
+  margin-bottom: var(--s-3);
+}
+
+.la-v1 .v1-route-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 2px dashed color-mix(in srgb, var(--route) 60%, transparent);
+}
+
+.la-v1 .v1-stop {
+  position: absolute;
+  top: calc(50% - 6px);
+  width: 12px;
+  height: 12px;
+  margin-left: 18px;
+  border-radius: 3px;
+  background: var(--sheet);
+  box-shadow: inset 0 0 0 1.5px var(--blue-line);
+}
+
+/* машинка шириной во всю полосу: сдвиг в процентах ее ширины равен доле пути */
+.la-v1 .v1-car {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
+
+.la-v1 .v1-car svg {
+  position: absolute;
+  left: 0;
+  top: 2px;
+  overflow: visible;
+}
+
+.la-v1 .l-steps {
+  gap: var(--s-3);
+}
+
+.la-v1 .l-steps::before,
+.la-v1 .l-steps li::before {
+  display: none;
+}
+
+.la-v1 .l-steps li {
+  padding: 22px 22px 24px;
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--hair), var(--lift);
+  transition: box-shadow var(--slow) var(--ease);
+}
+
+.la-v1 .l-steps .l-n {
+  position: static;
+  display: block;
+  padding: 0;
+  margin-bottom: 6px;
+  background: none;
+}
+
+.la-v1 .v1-pic {
+  display: block;
+  margin-bottom: 14px;
+}
+
+.la-v1 .v1-pic svg {
+  display: block;
+  width: 56px;
+  height: 38px;
+}
+
+.la-v1 .l-steps h3 {
+  font-size: 19px;
+}
+
+.la-v1 .l-steps p {
+  font-size: 14.5px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .la-v1 .v1-car {
+    animation: v1-drive 15s var(--ease) infinite;
+  }
+
+  .la-v1 .l-steps li {
+    animation: v1-step 15s linear infinite;
+  }
+
+  .la-v1 .l-steps li:nth-child(2) {
+    animation-delay: 3s;
+  }
+
+  .la-v1 .l-steps li:nth-child(3) {
+    animation-delay: 6s;
+  }
+
+  .la-v1 .l-steps li:nth-child(4) {
+    animation-delay: 9s;
+  }
+
+  .la-v1 .l-steps li:nth-child(5) {
+    animation-delay: 12s;
+  }
+}
+
+/* Цикл 15 с: у каждого шага стоянка 2 с, переезд 1 с. Машинка шириной во всю полосу, поэтому
+   сдвиг в процентах ее ширины равен доле пути. После пятого шага гаснет и появляется у первого */
+@keyframes v1-drive {
+  0% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  2%,
+  13.3% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  20%,
+  33.3% {
+    transform: translateX(20%);
+  }
+  40%,
+  53.3% {
+    transform: translateX(40%);
+  }
+  60%,
+  73.3% {
+    transform: translateX(60%);
+  }
+  80%,
+  93.3% {
+    transform: translateX(80%);
+    opacity: 1;
+  }
+  97% {
+    transform: translateX(80%);
+    opacity: 0;
+  }
+  97.1%,
+  100% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+}
+
+@keyframes v1-step {
+  0%,
+  13.3% {
+    box-shadow:
+      var(--hair-blue),
+      0 18px 40px -22px color-mix(in srgb, var(--blue) 45%, transparent);
+  }
+  16%,
+  100% {
+    box-shadow:
+      var(--hair),
+      0 1px 2px color-mix(in srgb, var(--shadow) 4%, transparent),
+      0 24px 48px -34px color-mix(in srgb, var(--shadow) 30%, transparent);
+  }
+}
+
+/* Фон секции: "Что получите" лежит на светло-синей полосе во всю ширину, плиты на ней белые.
+   Остальные блоки на живом полу: одна полоса выделяет главный блок, а страница не рябит */
+.la-v1 #result {
+  position: relative;
+  isolation: isolate;
+}
+
+.la-v1 #result::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 64px;
+  bottom: -64px;
+  left: calc(50% - 50vw);
+  right: calc(50% - 50vw);
+  background:
+    linear-gradient(color-mix(in srgb, var(--blue) 5%, transparent) 1px, transparent 1px) 0 0 / 100% 24px,
+    linear-gradient(90deg, color-mix(in srgb, var(--blue) 5%, transparent) 1px, transparent 1px) 0 0 / 24px 100%,
+    color-mix(in srgb, var(--blue-tint) 75%, var(--sheet));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--blue) 12%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--blue) 12%, transparent);
+}
+
+/* Метка над заголовком блока с тем же синим квадратом, что у меток в плитах */
+.la-v1 .l-block-head .l-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.la-v1 .l-block-head .l-label::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--blue);
+}
+
+/* Тень плит мягче и длиннее: плиты лежат на полу, а не парят над ним */
+.la-v1 .l-panel,
+.la-v1 .l-steps li {
+  box-shadow:
+    var(--hair),
+    0 1px 2px color-mix(in srgb, var(--shadow) 4%, transparent),
+    0 24px 48px -34px color-mix(in srgb, var(--shadow) 30%, transparent);
+}
+
+/* Карточки: скругление на ступень меньше и метка с синим квадратом, как точка на плане */
+.la-v1 .l-panel {
+  border-radius: var(--r-lg);
+}
+
+.la-v1 .l-panel > .l-label:first-child,
+.la-v1 .l-panel .l-side > .l-label:first-child,
+.la-v1 .l-side > .l-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.la-v1 .l-panel > .l-label:first-child::before,
+.la-v1 .l-side > .l-label::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--blue);
+}
+
+@media (max-width: 999px) {
+  .la-v1 .la-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .la-v1 .v1-route {
+    display: none;
+  }
+
+  .la-v1 .l-steps {
+    padding-left: 0;
+  }
+
+  .la-v1 .l-steps li {
+    padding: 18px 18px 20px;
+  }
+
+  .la-v1 #result::before {
+    top: 40px;
+    bottom: -40px;
+  }
+}
+
+@media (max-width: 640px) {
+  .la-v1 .la-07 {
+    width: 90px;
+    left: -6px;
+    bottom: -14px;
+  }
+}
+
+/* ===================== Шапка и подвал ===================== */
+
+/* Кнопка в шапке: такая же синяя, но размером с "Войти" */
+.la-live .v-head-go {
+  padding: 9px 16px;
+  margin-right: 4px;
+  font-size: 14px;
+}
+
+/* Крупная кнопка в конце страницы */
+.la-live .l-foot .l-btn-light {
+  min-height: 56px;
+  padding-left: 26px;
+  font-size: 17px;
+}
+
+.la-live .l-foot .l-knob {
+  width: 40px;
+  height: 40px;
+}
+
+/* ---------- Склад собирается по прокрутке ---------- */
+
+.la-live .v2-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr);
+  gap: var(--s-5);
+  align-items: center;
+}
+
+.la-live .v2-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s-4);
+}
+
+.la-live .v2-step {
+  display: grid;
+  gap: 4px;
+  padding-left: 16px;
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--blue) 18%, transparent);
+}
+
+.la-live .v2-step b {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.la-live .v2-step > span:last-child {
+  font-size: 14.5px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.la-live .v2-step .l-n {
+  position: static;
+  padding: 0;
+  background: none;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--blue);
+}
+
+.la-live .v2-sheet {
+  padding: 16px;
+  background:
+    linear-gradient(color-mix(in srgb, var(--blue) 5%, transparent) 1px, transparent 1px) 0 0 / 100% 20px,
+    linear-gradient(90deg, color-mix(in srgb, var(--blue) 5%, transparent) 1px, transparent 1px) 0 0 / 20px 100%,
+    var(--paper);
+}
+
+.la-live .v2-sheet svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.la-live .v2-side {
+  display: grid;
+  gap: var(--s-5);
+}
+
+/* подсказка под шагами: видна, только пока сборка привязана к прокрутке (см. ниже) */
+.la-live .v2-hint {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--blue);
+}
+
+.la-live .v2-hint svg {
+  flex: none;
+}
+
+/* Сборка привязана к прокрутке: дорожка высотой в два с лишним экрана, сцена прилипает к верху,
+   и пока дорожка проходит, на чертеже по очереди проявляются стены, стеллажи, зарядка и роботы.
+   Пустого листа нет: контур рисуется, пока блок въезжает в окно, стеллажи с самого начала видны
+   бледным наброском, первый шаг подсвечен, под шагами подсказка листать дальше.
+   Браузер без привязки анимации к прокрутке показывает чертеж сразу собранным */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .la-live .v2-track {
+      height: 220vh;
+      view-timeline: --build block;
+    }
+
+    .la-live .v2-stage {
+      position: sticky;
+      top: 96px;
+      min-height: calc(100vh - 120px);
+    }
+
+    .la-live .v2-hint {
+      display: flex;
+    }
+
+    .la-live .v2-build :is(.v-walls rect, .v-docks, .v-racks rect, .v-charge, .v-routes, .v-bots, .v2-step, .v2-hint) {
+      animation-timeline: --build;
+      animation-fill-mode: both;
+      animation-timing-function: linear;
+    }
+
+    .la-live .v2-build .v-walls rect {
+      stroke-dasharray: 1;
+      animation-name: v2-draw;
+      animation-range: entry 30% entry 90%;
+    }
+
+    .la-live .v2-build .v-docks {
+      animation-name: v2-fade;
+      animation-range: entry 70% contain 2%;
+    }
+
+    .la-live .v2-build .v-racks rect {
+      animation-name: v2-ghost;
+    }
+
+    .la-live .v2-build .v-racks-a rect {
+      animation-range: contain 6% contain 26%;
+    }
+
+    .la-live .v2-build .v-racks-b rect {
+      animation-range: contain 16% contain 36%;
+    }
+
+    .la-live .v2-build .v-charge {
+      animation-name: v2-fade;
+      animation-range: contain 40% contain 50%;
+    }
+
+    .la-live .v2-build .v-routes {
+      animation-name: v2-fade-route;
+      animation-range: contain 54% contain 64%;
+    }
+
+    .la-live .v2-build .v-bots {
+      animation-name: v2-fade;
+      animation-range: contain 58% contain 72%;
+    }
+
+    .la-live .v2-build .v2-step {
+      animation-name: v2-step;
+    }
+
+    .la-live .v2-build .v2-step-1 {
+      animation-name: v2-step-first;
+      animation-range: contain 0% contain 8%;
+    }
+
+    .la-live .v2-build .v2-step-2 {
+      animation-range: contain 4% contain 40%;
+    }
+
+    .la-live .v2-build .v2-step-3 {
+      animation-range: contain 36% contain 54%;
+    }
+
+    .la-live .v2-build .v2-step-4 {
+      animation-name: v2-step-last;
+      animation-range: contain 52% contain 74%;
+    }
+
+    .la-live .v2-build .v2-hint {
+      animation-name: v2-hint;
+      animation-range: contain 30% contain 46%;
+    }
+  }
+}
+
+/* стеллажи стоят бледным наброском и проявляются в полную силу */
+@keyframes v2-ghost {
+  from {
+    opacity: 0.16;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* первый шаг горит сразу, как только блок появился */
+@keyframes v2-step-first {
+  0%,
+  70% {
+    opacity: 1;
+    box-shadow: inset 3px 0 0 var(--blue);
+  }
+  100% {
+    opacity: 0.4;
+    box-shadow: inset 2px 0 0 color-mix(in srgb, var(--blue) 18%, transparent);
+  }
+}
+
+@keyframes v2-hint {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes v2-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes v2-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes v2-fade-route {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.6;
+  }
+}
+
+@keyframes v2-step {
+  0% {
+    opacity: 0.4;
+    box-shadow: inset 2px 0 0 color-mix(in srgb, var(--blue) 18%, transparent);
+  }
+  15%,
+  85% {
+    opacity: 1;
+    box-shadow: inset 3px 0 0 var(--blue);
+  }
+  100% {
+    opacity: 0.4;
+    box-shadow: inset 2px 0 0 color-mix(in srgb, var(--blue) 18%, transparent);
+  }
+}
+
+@keyframes v2-step-last {
+  0% {
+    opacity: 0.4;
+  }
+  30%,
+  100% {
+    opacity: 1;
+    box-shadow: inset 3px 0 0 var(--blue);
+  }
+}
+
+@media (max-width: 999px) {
+  .la-live .v2-stage {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    gap: var(--s-4);
+  }
+
+  .la-live .v2-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-3);
+  }
+
+  .la-live .v2-step > span:last-child {
+    display: none;
+  }
+
+  .la-live .v2-step b {
+    font-size: 16px;
+  }
+}

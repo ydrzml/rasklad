@@ -88,7 +88,7 @@ def test_variant_copy_is_recalculated_with_the_change(db_client):
     made = made.json()
     assert made["name"] == "3 000 паллет"
     assert made["current"]["state"]["overrides"] == {VOLUME: 3000}
-    assert "3000 вместо 2000" in made["current"]["note"]
+    assert "3 000 вместо 2 000" in made["current"]["note"]
     # результат посчитан заново, а не взят у оригинала
     assert made["current"]["result"]["sizing"]["fleet"] != 9
     assert made["current"]["result"]["applied_overrides"][VOLUME] == 3000
@@ -130,6 +130,29 @@ def test_compare_marks_what_differs(db_client):
     assert results["purchase.payback"]["values"] == [1.3, "не окупается"]
     # "Вложения на старте" это деньги в год 0, а не все вложения за горизонт
     assert results["purchase.investment"]["values"] == [41e6, 41e6]
+
+
+def test_compare_shows_solution_saved_by_the_wizard_in_picks(db_client):
+    """Мастер хранит решения в picks, у смешанного парка с долями: строка "Решение" не должна быть пустой"""
+    sign_in(db_client, IVAN)
+    bare = {key: value for key, value in STATE.items() if key not in ("choices", "robotId")}
+    one = new_project(
+        db_client,
+        state={**bare, "picks": {"pallet_transport": [{"robotId": "ronavi-h1500", "share": 1}]}},
+        result=result(9, 118e6, 1.3),
+    )
+    mixed = [{"robotId": "ronavi-h1500", "share": 0.7}, {"robotId": "amr-800", "share": 0.3}]
+    two = new_project(db_client, state={**bare, "picks": {"pallet_transport": mixed}}, result=result(9, 118e6, 1.3))
+    old = new_project(db_client, state=STATE, result=result(9, 118e6, 1.3))
+    data = db_client.post(
+        "/api/projects/compare",
+        json={"items": [{"project_id": one["id"]}, {"project_id": two["id"]}, {"project_id": old["id"]}]},
+    ).json()
+    solution = {row["key"]: row for row in data["inputs"]}["solution.pallet_transport"]
+    names = solution["values"]
+    assert names[0] and names[0] == names[2]
+    assert names[1].startswith(f"{names[0]} 70% + ") and names[1].endswith(" 30%")
+    assert solution["differs"]
 
 
 def test_compare_names_tasks_taken_out_of_the_calculation(db_client):
@@ -256,8 +279,12 @@ def test_demo_profile_is_shared_and_cannot_change(db_client):
 def test_variant_can_change_people_in_staff(db_client):
     """Штат введен строками и под объем сам не растет: в варианте людей задают числом."""
     sign_in(db_client, IVAN)
-    project = new_project(db_client, state={**STATE, "plan": None}, result=result(9, 118e6, 1.3))
+    typed = {**STATE, "plan": None, "staffTouched": True}
+    project = new_project(db_client, state=typed, result=result(9, 118e6, 1.3))
     same = db_client.post(f"/api/projects/{project['id']}/copy", json={"changes": {VOLUME: 3000}}).json()
+    # штат вводили руками: без числа людей копия его не трогает и говорит об этом
+    assert same["current"]["state"]["staff"] == STATE["staff"]
+    assert "Штат прежний: его вводили руками" in same["current"]["note"]
     more = db_client.post(
         f"/api/projects/{project['id']}/copy", json={"changes": {VOLUME: 3000}, "people": 37.5}
     ).json()
@@ -276,6 +303,39 @@ def test_variant_can_change_people_in_staff(db_client):
     ).json()
     people = next(row for row in data["inputs"] if row["key"] == "staff.people")
     assert people["values"] == [25, 37.5] and people["differs"]
+
+
+def test_variant_copy_counts_like_the_wizard(db_client):
+    """Штат не трогали: копия с новым объемом ставит штат по умолчанию под этот объем, как мастер,
+    и считает то же, что мастер на тех же вводных. Было: копия на 3 000 паллет оставляла 25 водителей
+    и давала 1,6 года, а мастер ставил 38 мест и давал 1,0 года. Штат по умолчанию 25 водителей,
+    на 3 000 паллет 25 * 3 000 / 2 000 = 37,5, людей целыми 38"""
+    from app.schemas.staff import StaffLine
+    from app.services import calculation, staff
+    from app.services.projects import request_from
+
+    sign_in(db_client, IVAN)
+    default = [{**STATE["staff"][0], "headcount": 25, "filled": 25}]
+    project = new_project(db_client, state={**STATE, "plan": None, "staff": default}, result=result(9, 118e6, 1.3))
+    made = db_client.post(f"/api/projects/{project['id']}/copy", json={"changes": {VOLUME: 3000}}).json()
+    copied = made["current"]["result"]
+
+    # мастер: форма штата под объем 3 000 и расчет с этим штатом
+    form = staff.form("warehouse", ["pallet_transport"], {VOLUME: 3000})
+    lines = [StaffLine(**line.model_dump(include=set(StaffLine.model_fields))) for line in form.lines]
+    assert [line.headcount for line in lines] == [38]
+    request = request_from({**STATE, "plan": None, "overrides": {VOLUME: 3000}})
+    wizard = calculation.calculate(request.model_copy(update={"staff": lines})).model_dump(mode="json")
+
+    def purchase(result: dict) -> dict:
+        return next(s for s in result["scenarios"] if s["id"] == "purchase")
+
+    assert made["current"]["state"]["staff"][0]["headcount"] == 38
+    assert "Штат пересчитан под новый объем, как в мастере: 25 → 38 мест" in made["current"]["note"]
+
+    assert copied["sizing"]["fleet"] == wizard["sizing"]["fleet"]
+    assert purchase(copied)["payback_cumulative_years"] == purchase(wizard)["payback_cumulative_years"]
+    assert purchase(copied)["tco_rub"] == purchase(wizard)["tco_rub"]
 
 
 def test_request_from_reads_mixed_fleet_picks():

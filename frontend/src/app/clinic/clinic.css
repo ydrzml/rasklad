@@ -1,0 +1,597 @@
+/* Корпус медучреждения на листе: помещения по ролям, двери, шахты. Цвета из токенов набора,
+   толщина линий не растет с масштабом, как у склада (board.css) */
+
+.c-floors {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+
+.c-route-robot {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr);
+  align-items: start;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.c-route-robot .u-select {
+  width: 100%;
+  margin-top: 8px;
+}
+.c-route-robot p {
+  margin: 0 0 8px;
+}
+.c-route-robot .u-btn {
+  margin-top: 8px;
+}
+@media (max-width: 640px) {
+  .c-route-robot {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+}
+
+.c-customer {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.c-customer > *,
+.c-customer-summary > * {
+  min-width: 0;
+}
+.c-customer .u-frow {
+  align-items: start;
+}
+.c-customer .c-process-fields {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+}
+.c-customer .c-process-fields > .u-frow {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+.c-customer .c-process-fields > .u-frow > * {
+  grid-column: 1;
+  min-width: 0;
+}
+.c-customer > details {
+  min-width: 0;
+}
+.c-customer summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.c-customer-summary {
+  padding: 32px;
+  margin: 24px 0;
+}
+@media (max-width: 640px) {
+  .c-customer-summary {
+    padding: 24px 16px;
+  }
+}
+
+.c-floor-section {
+  fill: var(--paper);
+  stroke: var(--blue-line);
+}
+.c-loan-fields {
+  padding: var(--s-3) 0;
+}
+.c-medical-economics .u-chosen-cards[data-count="4"] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 1200px) {
+  .c-medical-economics .u-chosen-cards[data-count="4"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .c-medical-economics .u-chosen-cards[data-count="4"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.c-building-overview {
+  height: var(--sheet-h);
+  min-height: 400px;
+  padding: var(--s-3);
+  background: var(--sheet);
+  border-radius: var(--r-md);
+  overflow: auto;
+  padding-bottom: 60px;
+}
+.c-building-overview .u-schemes {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+.c-building-overview svg {
+  width: 100%;
+  height: 145px;
+}
+.c-building-overview .is-on {
+  box-shadow: var(--hair-blue);
+}
+.c-building-overview small {
+  color: var(--ink-soft);
+}
+.c-plan-start .u-scheme > span {
+  display: grid;
+  gap: 5px;
+}
+.c-plan-start .u-scheme small {
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.c-room {
+  stroke: var(--ink-soft);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.c-room.is-ward {
+  fill: var(--blue-tint);
+}
+
+.c-room.is-pharmacy {
+  fill: color-mix(in srgb, var(--go) 18%, transparent);
+}
+
+.c-room.is-supplies {
+  fill: color-mix(in srgb, var(--lvl-2) 60%, transparent);
+}
+
+.c-room.is-other {
+  fill: var(--paper-cool);
+}
+
+.c-label {
+  fill: var(--ink-soft);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+  font-family: var(--font);
+}
+
+.c-tag {
+  fill: var(--ink);
+  text-anchor: middle;
+  pointer-events: none;
+  font-family: var(--mono);
+}
+
+/* дверь вырезает стену: светлый проем с синей кромкой, ручная пунктиром */
+.c-door {
+  fill: color-mix(in srgb, var(--blue) 30%, var(--sheet));
+  stroke: var(--blue);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.c-door.is-manual {
+  stroke: var(--signal-text);
+  stroke-dasharray: 3 2;
+}
+
+.c-lift {
+  fill: color-mix(in srgb, var(--ink) 10%, var(--sheet));
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.c-lift-x {
+  stroke: var(--ink-faint);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.c-base {
+  stroke-dasharray: 4 2;
+}
+
+/* вещь, на которую указала проверка плана */
+.c-building .is-bad {
+  stroke: var(--stop);
+  stroke-width: 2.5;
+}
+
+.c-building .is-warn {
+  stroke: var(--signal-text);
+  stroke-width: 2.5;
+}
+
+.c-check {
+  display: grid;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.c-check:hover .u-checks-detail,
+.c-check:focus-visible .u-checks-detail {
+  color: var(--ink);
+}
+
+/* Смена на плане корпуса в итоге */
+.c-shift {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.c-shift-line {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.c-shift-board {
+  height: 420px;
+}
+
+.c-shift-board .u-board {
+  height: 100%;
+  min-height: 0;
+}
+
+.c-shift-board .u-board > svg {
+  height: 100%;
+}
+
+.c-shift-start {
+  color: var(--ink-faint);
+}
+
+.c-cabin {
+  fill: color-mix(in srgb, var(--ink) 55%, transparent);
+}
+
+.c-cabin-count {
+  fill: var(--on-ink);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  font-family: var(--mono);
+}
+
+.c-bot {
+  stroke: var(--sheet);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.c-bot.is-cleaner {
+  stroke: var(--ink);
+}
+
+.c-where {
+  order: 2;
+  color: var(--ink-soft);
+}
+
+.c-solutions .u-card,
+.c-solutions .u-lrow {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.c-compare {
+  overflow-x: auto;
+}
+
+.c-shift .u-shift-main {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .c-shift-board {
+    height: 340px;
+  }
+
+  .c-solutions .u-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.c-plan-start .u-start-card {
+  min-width: 0;
+}
+
+.c-templates {
+  display: grid;
+  gap: var(--s-2);
+}
+
+.c-template {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--s-2);
+  text-align: left;
+  padding: 12px;
+  min-width: 0;
+}
+
+.c-template > span {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.c-template small {
+  color: var(--ink-soft);
+  line-height: 1.45;
+}
+
+.c-template-sketch {
+  width: 90px;
+  flex: none;
+  stroke: var(--blue);
+  stroke-width: 1;
+}
+
+.c-sketch-lift {
+  fill: var(--blue-tint);
+}
+
+.c-dimension {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 100px;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.c-dimension input {
+  width: 100%;
+  min-width: 0;
+}
+
+.c-underlay-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+
+.c-underlay-name {
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.c-building.has-underlay .c-room {
+  fill-opacity: 0.22;
+}
+
+.c-building.has-underlay .c-label {
+  paint-order: stroke;
+  stroke: var(--sheet);
+  stroke-width: 0.25;
+}
+
+.c-underlay-controls {
+  display: grid;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  border-top: 1px solid var(--line);
+  padding-top: var(--s-3);
+}
+
+.c-underlay-controls .c-dimension {
+  grid-template-columns: minmax(0, 1fr) 80px;
+}
+
+.c-dxf {
+  width: min(850px, 94vw);
+}
+
+.c-dxf-grid {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(0, 2fr);
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+}
+
+.c-dxf-layers {
+  max-height: 300px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+
+.c-dxf-grid img {
+  width: 100%;
+  max-height: 350px;
+  object-fit: contain;
+  background: #fff;
+}
+
+@media (max-width: 640px) {
+  .c-template-sketch {
+    width: 72px;
+  }
+
+  .c-dxf-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.c-optimize {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  overflow-wrap: anywhere;
+}
+
+.c-optimize > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.c-optimize > .u-check {
+  display: flex;
+  white-space: normal;
+  align-items: flex-start;
+}
+.c-optimize > .u-check > span:last-child {
+  min-width: 0;
+}
+.c-optimize > .u-modes {
+  display: flex;
+  flex-wrap: wrap;
+}
+.c-optimize > .u-modes button {
+  flex: 1 1 140px;
+  min-width: 0;
+  white-space: normal;
+}
+.c-opt-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 16px;
+}
+.c-opt-card {
+  border: 1px solid var(--line, #dfe3e8);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.c-opt-card h3,
+.c-opt-card p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.c-opt-card dl {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+.c-opt-card dd {
+  margin: 4px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.c-processes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  min-width: 0;
+  margin-top: 24px;
+  overflow-wrap: anywhere;
+}
+.c-processes > *,
+.c-process-card > *,
+.c-process-fields > * {
+  min-width: 0;
+}
+.c-processes p {
+  margin: 0;
+}
+.c-process-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.c-process-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+  gap: 18px;
+  align-items: start;
+}
+.c-process-card,
+.c-workload {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  padding: var(--s-5);
+}
+.c-process-card h3 {
+  margin: 0;
+}
+.c-process-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 14px;
+}
+.c-processes label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.c-processes label:has(input[type="checkbox"]) {
+  display: flex;
+}
+.c-processes input[type="checkbox"] {
+  width: auto;
+}
+.c-processes details {
+  display: grid;
+  gap: 14px;
+}
+.c-processes summary {
+  cursor: pointer;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+.c-hour-weights {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (max-width: 900px) {
+  .c-hour-weights {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .c-process-card,
+  .c-workload {
+    padding: 24px var(--s-3);
+  }
+  .c-hour-weights {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.c-process-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+.c-workload table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.c-workload th,
+.c-workload td {
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  padding: 8px 4px;
+}
+.c-floors > .u-modes {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.c-floors > .u-modes button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  min-width: max-content;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -5,6 +5,15 @@ import "./notfound.css";
 // Страница, которой нет. Та же раскладка, что у пустого кабинета: объяснение и два выхода.
 // Справа крупно 404, перед цифрами разведчик 04 стоит у оборванного маршрута.
 
+// Адрес по-русски браузер отдает в процентах (%D0%BD...), показываем буквами
+function shownPath(): string {
+  try {
+    return decodeURIComponent(window.location.pathname);
+  } catch {
+    return window.location.pathname;
+  }
+}
+
 export function NotFound() {
   return (
     <div className="u-page">
@@ -19,11 +28,7 @@ export function NotFound() {
         }
       />
       <main className="u-main u-wrap">
-        <Hero
-          compact
-          title="Такой страницы нет"
-          lead={`По адресу ${window.location.pathname} у нас ничего не лежит.`}
-        />
+        <Hero compact title="Такой страницы нет" lead={`По адресу ${shownPath()} у нас ничего не лежит.`} />
         <EmptyState
           apart
           robot={

@@ -9,6 +9,9 @@ from app.services import catalog_import, catalog_uses, selection
 BASE = "/api/admin/catalog"
 H1500 = "5760e938-9a43-45a7-b8e8-f4f2e6383930"  # Ronavi H1500, перевозка паллет, есть в расчетной модели
 
+# цены каталога с НДС, в расчете без НДС 22% (docs/decisions.md, «Цены без НДС»)
+VAT = 1.22
+
 
 def session():
     return next(app.dependency_overrides[get_session]())
@@ -72,14 +75,14 @@ def test_price_edit_goes_to_selection_and_economics(admin):
     а в "Откуда цифры" видно, кто и когда ее поправил."""
     before = preview(admin)
     fleet = before["sizing"]["fleet"]
-    assert before["scenarios"][1]["capex_rub"]["hardware"] == fleet * 2_700_000
+    assert before["scenarios"][1]["capex_rub"]["hardware"] == pytest.approx(fleet * 2_700_000 / VAT)
 
     assert admin.patch(f"{BASE}/{H1500}", json={"price_rub": "3100000"}).status_code == 200
 
     card = pick(admin, H1500)
     assert card["price_rub"] == 3_100_000 and card["can_calculate"] and card["calc_note"] == ""
     after = preview(admin)
-    assert after["scenarios"][1]["capex_rub"]["hardware"] == after["sizing"]["fleet"] * 3_100_000
+    assert after["scenarios"][1]["capex_rub"]["hardware"] == pytest.approx(after["sizing"]["fleet"] * 3_100_000 / VAT)
     price = next(s for s in after["sources"] if s["path"] == "robots.ronavi-h1500.price_rub")
     assert price["value"] == 3_100_000
     assert price["source"].startswith("Цена из каталога, правил администратор") and price["date"]
@@ -128,4 +131,11 @@ def test_zero_price_in_catalog_does_not_make_robots_free(admin):
     """Ноль в цене каталога значит "цена не указана", а не "роботы бесплатно": расчет берет цену модели."""
     assert admin.patch(f"{BASE}/{H1500}", json={"price_rub": "0"}).status_code == 200
     after = preview(admin)
-    assert after["scenarios"][1]["capex_rub"]["hardware"] == after["sizing"]["fleet"] * 2_700_000
+    assert after["scenarios"][1]["capex_rub"]["hardware"] == pytest.approx(after["sizing"]["fleet"] * 2_700_000 / VAT)
+
+
+def test_other_facility_counts_whole_catalog_like_admin(admin):
+    """Карточка "Другое" на первом шаге и строка "решений в каталоге" в админке показывают одно число."""
+    facilities = {f["id"]: f for f in admin.get("/api/catalog/facilities").json()}
+    total = admin.get(BASE, params={"limit": 1}).json()["total"]
+    assert facilities["other"]["catalog"]["count"] == total == session().query(catalog_import.Solution).count()

@@ -49,7 +49,7 @@ def test_excel_round_trip_reports_every_row():
     messages = {(row["field"], row["status"]): row["message"] for row in result["rows"]}
     assert "в сутках 24" in messages[("Смен в сутки", "error")]
     assert "нет в расчете" in messages[("Высота потолка в попугаях", "error")]
-    assert "«м2»" in messages[("Площадь зоны работы роботов", "error")]
+    assert '"м2"' in messages[("Площадь зоны работы роботов", "error")]
     assert "справочнике" in messages[("Космонавт", "error")]
     assert result["staff"] and all(line["role"] != "Космонавт" for line in result["staff"])
     assert result["errors"] >= 4

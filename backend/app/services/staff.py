@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import math
 from functools import lru_cache
 
 from app.engine.economics import staff as engine
@@ -22,7 +23,7 @@ from app.schemas.staff import (
     StaffReview,
     StaffReviewRequest,
 )
-from app.services.calculation import apply_staff, model_with_overrides
+from app.services.calculation import MANUAL_CHOICE, apply_staff, model_with_overrides
 from app.settings import settings
 
 GROUP_NAMES = {"floor": "Линейный персонал", "support": "Учет и обслуживание"}
@@ -78,20 +79,24 @@ def form(facility_id: str, operation_ids: list[str], overrides: dict[str, float]
     не трогал, строки пересчитываются под его объем пропорционально: та же выработка на человека,
     те же роли и оклады. Иначе клиент с 15 000 строк получал бы 100 отборщиков склада датасета.
     """
-    model, provenance = model_with_overrides({})
+    # как сейчас делают работу (уборка машиной или вручную) меняет роль и штат по умолчанию
+    choice = manual_choices(overrides or {})
+    model, provenance = model_with_overrides(choice)
     facility = by_id(model["facilities"], facility_id)
     names = {role_id: role["name"] for role_id, role in model["roles"].items()}
     operations = engine.selected_operations(facility, operation_ids)
     at_work = engine.roles_at_work(operations)
     factors, changed = _volume_factors(facility_id, operations, overrides or {})
+    sources = facility.get("_staff_sources", {})
     lines = []
     for role_id in at_work:
         for line in engine.lines_of_role(facility, role_id):
-            source = provenance[f"facilities.{facility_id}.staff.{line.id}.headcount"]
+            source = provenance[sources.get(line.id) or f"facilities.{facility_id}.staff.{line.id}.headcount"]
             parts = factors.get(line.role)
             factor = sum(parts) / len(parts) if parts else 1.0
-            headcount = _people(line.headcount * factor) if abs(factor - 1) > 1e-6 else line.headcount
-            filled = min(headcount, _people(line.filled * factor)) if abs(factor - 1) > 1e-6 else line.filled
+            count = _posts if line.contractor else _people
+            headcount = count(line.headcount * factor) if abs(factor - 1) > 1e-6 else line.headcount
+            filled = min(headcount, count(line.filled * factor)) if abs(factor - 1) > 1e-6 else line.filled
             lines.append(
                 DefaultStaffLine(
                     id=line.id,
@@ -110,11 +115,11 @@ def form(facility_id: str, operation_ids: list[str], overrides: dict[str, float]
     )
     if changed:
         note = (
-            f"Численность склада из данных организатора ({volumes}) пересчитана под ваш объем при той же "
+            f"Численность типового склада ({volumes}) пересчитана под ваш объем при той же "
             "выработке на человека. Введите свою, если она другая"
         )
     else:
-        note = f"Это численность склада из данных организатора на {volumes}. Введите свою"
+        note = f"Это численность типового склада на {volumes}. Введите свою"
     return StaffForm(roles=roles(), lines=lines, note=note)
 
 
@@ -127,7 +132,7 @@ def _volume_factors(
         return {}, False
     model, _ = model_with_overrides(overrides)
     facility = by_id(model["facilities"], facility_id)
-    base_model, _ = model_with_overrides({})
+    base_model, _ = model_with_overrides(manual_choices(overrides))
     base = by_id(base_model["facilities"], facility_id)
     days = facility["schedule"]["days_per_year"] / base["schedule"]["days_per_year"]
     factors: dict[str, list[float]] = {}
@@ -140,6 +145,11 @@ def _volume_factors(
         for role_id in operation.get("performed_by", []):
             factors.setdefault(role_id, []).append(ratio)
     return factors, changed
+
+
+def manual_choices(overrides: dict[str, float]) -> dict[str, float]:
+    """Из правок только выбор "как сейчас делают работу": машиной или вручную (calculation.MANUAL_CHOICE)."""
+    return {path: value for path, value in overrides.items() if path.endswith(f".{MANUAL_CHOICE}")}
 
 
 def review(request: StaffReviewRequest) -> StaffReview:
@@ -155,7 +165,7 @@ def review(request: StaffReviewRequest) -> StaffReview:
     operations = engine.selected_operations(facility, request.operation_ids)
     lines = engine.staff_lines(facility)
     return StaffReview(
-        notes=[_note(item, roles_by_id, operations) for item in found],
+        notes=[_note(item, roles_by_id, operations, facility, hours) for item in found],
         roles=_role_summaries(facility, roles_by_id, operations, hours),
         headcount_total=sum(line.headcount for line in lines),
         filled_total=sum(line.filled for line in lines),
@@ -190,7 +200,7 @@ def _rescale(facility: dict, operations: list[dict], request: StaffReviewRequest
             continue
         ratios[operation["id"]] = ratio
         unit = str(operation.get("unit", "")).split("/")[0].strip()
-        what = f"объем задачи «{operation['name']}»" if len(operations) > 1 else "объем"
+        what = f'объем задачи "{operation["name"]}"' if len(operations) > 1 else "объем"
         if abs(operation["volume_per_day"] - basis[key]) > 1e-9:
             where = f"{_fmt(basis[key])} -> {_fmt(operation['volume_per_day'])} {unit} в сутки"
         else:
@@ -213,8 +223,9 @@ def _rescale(facility: dict, operations: list[dict], request: StaffReviewRequest
         if abs(factor - 1) < 1e-6:
             scaled.append(line)
             continue
-        headcount = _people(line.headcount * factor)
-        filled = min(headcount, _people(line.filled * factor))
+        count = _posts if line.contractor else _people
+        headcount = count(line.headcount * factor)
+        filled = min(headcount, count(line.filled * factor))
         before += line.headcount
         after += headcount
         filled_before += line.filled
@@ -236,6 +247,11 @@ def _people(value: float) -> float:
     return float(int(value + 0.5))
 
 
+def _posts(value: float) -> float:
+    """Посты подрядчика дробные, он берет деньги за часы: 7,9 * 2 = 15,8 поста, а не 16"""
+    return round(value, 2)
+
+
 def _role_summaries(facility: dict, roles_by_id: dict, operations: list[dict], hours: float) -> list[RoleSummary]:
     """Сколько ставок роли нужно по объему и выработке. Рядом со строкой это и есть объяснение предупреждения."""
     summaries = []
@@ -244,12 +260,23 @@ def _role_summaries(facility: dict, roles_by_id: dict, operations: list[dict], h
         if not lines:
             continue
         normative = engine.role_total_normative(facility, roles_by_id, role_id, hours)
+        # выработка выбранной задачи этой роли: на разборе Восток-Сервиса 30 строк в час, а не 80 справочника
+        used = next(
+            (
+                productivity
+                for operation in operations
+                if role_id in operation.get("performed_by", [])
+                and (productivity := engine.role_productivity(roles_by_id, role_id, operation))
+            ),
+            None,
+        )
         summaries.append(
             RoleSummary(
                 role=role_id,
                 role_name=roles_by_id[role_id]["name"],
                 headcount=sum(line.headcount for line in lines),
                 normative_fte=normative or None,
+                productivity=used,
             )
         )
     return summaries
@@ -266,18 +293,37 @@ def _fmt(value: float | None, digits: int = 0) -> str:
     return f"{value:,.{digits}f}".replace(",", " ").replace(".", ",")
 
 
-def _note(item: engine.Mismatch, roles_by_id: dict, operations: list[dict]) -> StaffNote:
+def _norm_basis(facility: dict, roles_by_id: dict, role_id: str, hours: float) -> str:
+    """Из чего сложилась норма роли: объем и выработка каждой ее задачи, дни, фонд часов и потери.
+    Те же числа, что берет engine.role_total_normative, поэтому норму можно пересчитать руками."""
+    tasks = []
+    for operation in facility["operations"]:
+        productivity = engine.role_productivity(roles_by_id, role_id, operation)
+        if role_id not in operation.get("performed_by", []) or not productivity:
+            continue
+        unit = str(operation.get("unit", "")).split("/")[0].strip()
+        tasks.append(
+            f"{_fmt(operation['volume_per_day'])} {unit} в сутки при выработке {_fmt(productivity)} {unit} в час"
+        )
+    return (
+        f"Норма: {'; '.join(tasks)}, {_fmt(facility['schedule']['days_per_year'])} дней в году, "
+        f"{_fmt(hours)} рабочих часов на ставку и {_fmt(facility['staff_loss_share'] * 100)}% на отпуска и болезни."
+    )
+
+
+def _note(item: engine.Mismatch, roles_by_id: dict, operations: list[dict], facility: dict, hours: float) -> StaffNote:
     role = roles_by_id.get(item.role or "", {})
     name = role.get("name", item.role)
     texts = {
         "norm_gap": lambda: (
-            f"По объему и выработке роль «{name}» должна занимать {_fmt(item.expected, 1)} человека, "
-            f"а мест в штате {_fmt(item.actual, 1)}. Считаем по вашим числам, но расхождение стоит проверить: "
-            "или объем другой, или выработка."
+            f'По объему и выработке роль "{name}" должна занимать {_fmt(math.ceil((item.expected or 0) - 1e-9))} '
+            f"человек ({_fmt(item.expected, 1)} ставки), "
+            f"а мест в штате {_fmt(item.actual, 1)}. {_norm_basis(facility, roles_by_id, item.role or '', hours)} "
+            "Считаем по вашим числам, но расхождение стоит проверить: или объем другой, или выработка."
         ),
         "no_productivity": lambda: f"{_no_productivity_note(role)} Роботы у нее ничего не заберут.",
         "no_staff": lambda: (
-            f"Задача «{_operation_name(operations, item.operation_id)}» выбрана, а людей, которые ее делают, "
+            f'Задача "{_operation_name(operations, item.operation_id)}" выбрана, а людей, которые ее делают, '
             f"в штате нет: {_performers(operations, item.operation_id, roles_by_id)}. "
             "Экономии по этой задаче не будет, забирать нечего."
         ),
@@ -290,7 +336,7 @@ def _note(item: engine.Mismatch, roles_by_id: dict, operations: list[dict]) -> S
             "этих людей и так нет."
         ),
         "salary_out_of_range": lambda: (
-            f"Рынок по роли «{name}» дает {_fmt(item.low)}-{_fmt(item.high)} рублей в месяц, "
+            f'Рынок по роли "{name}" дает {_fmt(item.low)}-{_fmt(item.high)} рублей в месяц, '
             f"а введено {_fmt(item.actual)}. Считаем по вашему числу."
         ),
         "idle_line": lambda: "Выбранные задачи работу этой роли не трогают: строка идет только в фонд оплаты.",

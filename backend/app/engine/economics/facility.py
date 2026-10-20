@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 import copy
-import math
 from dataclasses import dataclass, field
 
 from app.engine.economics import financing
@@ -28,13 +27,21 @@ from app.engine.economics.scenarios import (
     Scenario,
     Year,
     by_id,
+    communications,
     evaluate,
     finish,
+    fixed_scale,
     growth,
     implementation_costs,
     subsidy_grant,
+    vat_factor,
 )
 from app.engine.economics.staff import fte_per_post
+
+ZERO_FLEET_NOTE = (
+    "Роботов 0: вложений и затрат на роботов нет, люди работают как раньше. "
+    "Покупка и аренда совпадают с вариантом без роботов"
+)
 
 
 @dataclass(frozen=True)
@@ -69,7 +76,7 @@ class Shared:
     scenarios       блок общего по сценариям: вложения, связь и дежурные по годам
     """
 
-    posts: int = 0
+    posts: float = 0.0
     operators_fte: float = 0.0
     retrained_fte: float = 0.0
     operators_short_fte: float = 0.0
@@ -84,7 +91,7 @@ class Shared:
 @dataclass
 class FacilityResult:
     feasible: bool
-    operator_posts: int = 0
+    operator_posts: float = 0.0
     # каждая задача сама по себе: ее роботы и люди, без общего на объект
     tasks: dict[str, Comparison] = field(default_factory=dict)
     shared: Shared = field(default_factory=Shared)
@@ -100,14 +107,14 @@ class FacilityResult:
         return self.tasks
 
 
-def operator_posts_for_facility(model: dict, facility: dict, fleets: dict[str, tuple[dict, int]]) -> int:
-    """Сколько дежурных нужно на объекте одновременно, с учетом всего парка сразу.
+def operator_posts_for_facility(model: dict, facility: dict, fleets: dict[str, tuple[dict, int]]) -> float:
+    """Присмотр за всем парком объекта в постах, доля человека в смену, без округления вверх.
 
     Нагрузка складывается по всем задачам: каждый робот требует своих минут внимания в час.
     Минимум дежурных по объекту применяется один раз, а не к каждой задаче.
     """
     load_minutes = sum(robot["operator_attention_min_per_hour"] * fleet for robot, fleet in fleets.values())
-    return max(facility["min_operator_posts"], math.ceil(load_minutes / 60))
+    return max(facility["min_operator_posts"], load_minutes / 60)
 
 
 def software_per_vendor(robots: list[dict]) -> float:
@@ -178,7 +185,7 @@ def evaluate_facility(
                 failed_operation_id=task.operation_id,
                 failed_robot_id=task.robot_id,
                 message=(
-                    f"Задача «{operation['name']}»: парк не покрывает пиковый спрос "
+                    f'Задача "{operation["name"]}": парк не покрывает пиковый спрос '
                     f"{comparison.peak_demand:.0f} операций в час"
                 ),
             )
@@ -195,19 +202,27 @@ def evaluate_facility(
     freed = sum(s.people_freed_fte for s in sizes.values())
     retrained = min(operators, freed)
     impls = [implementation_costs(facility, by_id(facility["operations"], task.operation_id)) for task in tasks]
+    # постоянные статьи от размера проекта по всему парку объекта и без НДС, как у одной задачи
+    scale = fixed_scale(facility, sum(weights))
     shared = Shared(
         posts=posts,
         operators_fte=operators,
         retrained_fte=retrained,
         operators_short_fte=operators - retrained,
         operator_cost=_weighted([sizes[task.key].operator_cost for task in tasks], weights),
-        integration=max(impl["integration_rub"] for impl in impls),
-        infrastructure=max(impl["infrastructure_rub"] for impl in impls),
+        integration=max(impl["integration_rub"] for impl in impls) * scale * vat_factor(model, "integration"),
+        infrastructure=max(impl["infrastructure_rub"] for impl in impls) * scale * vat_factor(model, "infrastructure"),
         retraining_rub=retrained * max(impl["retraining_rub_per_person"] for impl in impls),
-        software=software_per_vendor(list(robots.values())),
+        software=software_per_vendor(list(robots.values())) * scale * vat_factor(model, "software"),
     )
+    if not any(weights):
+        # Роботов ноль на всем объекте: внедрять, переучивать и дежурить некому (docs/decisions.md, "Ноль роботов")
+        shared = Shared()
+        posts = 0
 
     result = FacilityResult(feasible=True, operator_posts=posts, tasks=results, shared=shared)
+    if not any(weights):
+        result.notes.append(ZERO_FLEET_NOTE)
     available = _available(results, result.notes)
     horizon = econ["horizon_years"]
     for scenario_id in available:
@@ -230,7 +245,7 @@ def _available(results: dict[str, Comparison], notes: list[str]) -> list[str]:
         if scenario_id not in available:
             missing = [name for name, c in results.items() if scenario_id not in c.scenarios]
             notes.append(
-                f"Сценарий «{scenario_id}» по объекту не считаем: его нет у задач {', '.join(missing)}. "
+                f'Сценарий "{scenario_id}" по объекту не считаем: его нет у задач {", ".join(missing)}. '
                 "Для этих решений нет публичной цены аренды"
             )
     return [scenario_id for scenario_id in (BASELINE, PURCHASE, RAAS) if scenario_id in available]
@@ -265,7 +280,7 @@ def _shared_scenario(
     scenario.capex_total = sum(items.values())
 
     # Срок списания у объекта из разных роботов: средневзвешенно по парку, как и стоимость дежурного
-    life = _weighted([robot["service_life_years"] for robot in robots], weights)
+    life = _weighted([robot["amortization_years"] for robot in robots], weights)
     terms = [(robot.get("raas") or {}).get("contract_months", 0) // 12 for robot in robots]
     term = _weighted(terms, weights)
     for t in range(1, horizon + 1):
@@ -281,7 +296,9 @@ def _shared_scenario(
             operator_share = 1.0
             amortization = scenario.capex_total / life if life > 0 and t <= life else 0.0
         opex = {
-            "communications": facility["implementation"]["communications_rub_year"] * growth(econ["inflation"], t),
+            "communications": communications(facility, sum(weights))
+            * growth(econ["inflation"], t)
+            * vat_factor(model, "communications"),
             "operators": shared.operators_fte * shared.operator_cost * growth(econ["wage_growth"], t) * operator_share,
         }
         effect = -sum(opex.values())

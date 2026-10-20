@@ -141,7 +141,7 @@ class RouteMap(BaseModel):
     rows: list[str] = Field(
         default_factory=list,
         description=(
-            "Строки участка с юга на север, символ на клетку: цифра это ступень цвета, «!» это проезжая "
+            'Строки участка с юга на север, символ на клетку: цифра это ступень цвета, "!" это проезжая '
             "клетка, до которой не доехать, точка это стеллаж, стена или улица"
         ),
     )
@@ -181,7 +181,7 @@ class Measures(BaseModel):
     unreachable: list[list[int]] = Field(
         default_factory=list, description="Клетки мест у стеллажей, до которых не доехать: столбец и строка"
     )
-    route_map: RouteMap = Field(default_factory=RouteMap, description="Слой «далеко от ворот» для плана")
+    route_map: RouteMap = Field(default_factory=RouteMap, description='Слой "далеко от ворот" для плана')
     checks: list[PlanCheck] = Field(default_factory=list, description="Проверки плана списком с галочками")
     warnings: list[str] = Field(default_factory=list)
 
@@ -205,11 +205,11 @@ class CustomLayout(BaseModel):
 class GenerateRequest(BaseModel):
     facility_id: str = "warehouse"
     operation_ids: list[str] = Field(default_factory=lambda: ["pallet_transport"])
-    template_id: str = Field(default="one_side", description="Схема потока или «custom»: план по анкете")
+    template_id: str = Field(default="one_side", description='Схема потока или "custom": план по анкете')
     width_m: float | None = Field(default=None, gt=0, le=MAX_SIDE_M)
     length_m: float | None = Field(default=None, gt=0, le=MAX_SIDE_M)
     overrides: dict[str, float] = Field(default_factory=dict)
-    custom: CustomLayout | None = Field(default=None, description="Анкета для шаблона «custom»")
+    custom: CustomLayout | None = Field(default=None, description='Анкета для шаблона "custom"')
 
 
 class GeneratedPlan(BaseModel):

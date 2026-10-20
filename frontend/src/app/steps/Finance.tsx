@@ -74,51 +74,6 @@ function methodOf(result: CalculationResult, purchase: ScenarioResult, overrides
 
 const percentText = (share: number) => `${(share * 100).toFixed(1).replace(".", ",")}%`;
 
-/* Чем платить за покупку, строкой над главным ответом, как в калькуляторах банков. Кредит или
-   лизинг сразу открывают панель условий: без ставки и срока выбор ничего не говорит */
-export function PayRow({
-  result,
-  purchase,
-  overrides,
-  onChange,
-  readOnly,
-  onOpen,
-}: Omit<Props, "readOnly"> & { readOnly?: boolean; onOpen: () => void }) {
-  const plan = purchase.financing;
-  if (!plan) return null;
-  const method = methodOf(result, purchase, overrides);
-  const own = method.id === "own";
-  return (
-    <div className="u-pay-row">
-      <span className="u-pay-row-label">Чем платить</span>
-      {readOnly ? (
-        <span>{method.name}</span>
-      ) : (
-        <span className="u-pay-row-pills" role="group" aria-label="Чем платить за покупку">
-          {METHODS.map((one) => (
-            <Pill
-              key={one.id}
-              active={one.id === method.id}
-              onClick={() => {
-                if (one.id !== method.id) onChange("financing.method", one.value === 0 ? null : one.value);
-                if (one.id !== "own") onOpen();
-              }}
-            >
-              {one.name}
-            </Pill>
-          ))}
-        </span>
-      )}
-      <span className="u-pay-row-note">
-        {own ? "все вложения на старте" : `ставка ${percentText(plan.rate)}, ${plan.term_months} мес`}
-      </span>
-      <Button kind="ghost" arrow onClick={onOpen}>
-        Условия и господдержка
-      </Button>
-    </div>
-  );
-}
-
 /* Как платить за покупку и какие меры господдержки отмечены. Выбор уходит правкой значений
    (financing.method, subsidies.*.chosen), поэтому сохраняется в проекте вместе с остальными правками.
    Все суммы считает сервер (docs/calculation.md, "Кредит, лизинг и господдержка"), здесь только раскладка */

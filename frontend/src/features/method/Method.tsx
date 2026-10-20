@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 
-import { api, type CalculationRequest, type CalculationResult } from "../../api/client";
+import { api, type CalculationResult } from "../../api/client";
 import { mln, term } from "../../app/format";
 import { BlockHead, CostChart, Fold, Formula, Header, Hero, Panel, Waiting } from "../../ui";
+import { DEMO, demoRequest } from "../economics/data";
 import "./method.css";
 
 // Как мы считаем, вторая версия: меньше текста, больше картинок. Формулы те же, что в
-// docs/calculation.md. Числа на графиках не нарисованы руками: страница берет с сервера расчет
-// эталона склада (перевозка паллет, 10 000 м², Ronavi H1500, по формуле), тот же, что по умолчанию
-// в мастере. Подробности словами лежат под "подробнее".
+// docs/calculation.md. Числа на графиках не нарисованы руками: страница берет с сервера демо-расчет
+// (перевозка паллет, 10 000 м², Ronavi H1500, типовой план, прогон смены), тот же, что на странице
+// экономики, в разборе паллет и в README. Подробности словами лежат под "подробнее".
 
 const PATH = [
   { name: "Объект и задачи", note: "склад и что заберут роботы" },
@@ -24,7 +25,7 @@ const TRUST: { level: string; name: string; count: number; tone: string }[] = [
   { level: "A", name: "проверено", count: 8, tone: "strong" },
   { level: "B", name: "два источника", count: 19, tone: "good" },
   { level: "C", name: "один источник", count: 94, tone: "mid" },
-  { level: "D", name: "только организатор", count: 232, tone: "weak" },
+  { level: "D", name: "только каталог", count: 232, tone: "weak" },
   { level: "E", name: "источники расходятся", count: 22, tone: "bad" },
   { level: "F", name: "наше допущение", count: 159, tone: "bad" },
 ];
@@ -38,7 +39,13 @@ export function Method() {
   useEffect(() => {
     const abort = new AbortController();
     api
-      .preview({} as CalculationRequest, abort.signal)
+      .planGenerate({
+        facility_id: DEMO.facility_id,
+        operation_ids: [DEMO.operation_id],
+        template_id: DEMO.template_id,
+        overrides: {},
+      })
+      .then((built) => api.preview(demoRequest(built.plan), abort.signal))
       .then(setResult)
       .catch(() => !abort.signal.aborted && setFailed(true));
     return () => abort.abort();
@@ -160,7 +167,8 @@ export function Method() {
                     <p>
                       Без роботов: зарплаты людей на операции с ростом каждый год. Покупка: вложения на старте, дальше
                       обслуживание, электроэнергия, лицензии, операторы и обновление парка. Аренда: плата за робота в
-                      месяц, в ней ТО и ремонт, в конце договора выкуп по остаточной стоимости.
+                      месяц, в ней ТО и ремонт, роботы не ваши, по окончании договора аренда продлевается. Выкуп по
+                      остаточной стоимости показан отдельно: сколько стоит, когда окупится и дешевле ли он аренды.
                     </p>
                   </Fold>
                 </div>
@@ -186,6 +194,10 @@ export function Method() {
                       <small>окупится за</small>
                       <b className="mono">{term(purchase.payback_simple_years)}</b>
                     </span>
+                  </p>
+                  <p>
+                    Как читать окупаемость, стоимость владения, NPV и на каких допущениях они стоят, подробно на
+                    странице <a href="/economics">Как читается экономика</a>.
                   </p>
                   <Fold title="подробнее: ROI, стоимость владения, NPV">
                     <Formula

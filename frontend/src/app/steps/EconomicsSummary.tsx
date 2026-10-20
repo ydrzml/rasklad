@@ -1,9 +1,20 @@
 import type { ReactNode } from "react";
 
 import type { CalculationResult, ScenarioResult } from "../../api/client";
-import { Alert, Answer, BlockHead, Ledger, LedgerColumn, MoreLink, Pill, TextButton } from "../../ui";
-import { mln, term } from "../format";
-import { CAPEX_NAMES, mln2, OPEX_NAMES, overBudget, plural, scenarioWord, TCO_NAMES } from "./economicsNames";
+import { Alert, Answer, BlockHead, Fold, Ledger, LedgerColumn, MoreLink, Pill, TextButton } from "../../ui";
+import { aboutYears, laterNote, mln, term } from "../format";
+import { heads, peopleWord, watchWords } from "../heads";
+import { Plausibility, PlausibilitySources } from "./Plausibility";
+import {
+  buyoutText,
+  CAPEX_NAMES,
+  mln2,
+  OPEX_NAMES,
+  overBudget,
+  plural,
+  scenarioWord,
+  TCO_NAMES,
+} from "./economicsNames";
 
 type Props = {
   result: CalculationResult;
@@ -18,14 +29,27 @@ type Props = {
      кредит ставит способ оплаты «Кредит». Без onLoan (расчет по ссылке) ссылки на кредит нет */
   onRent?: () => void;
   onLoan?: () => void;
-  /* строка «Чем платить» над ответом, только у покупки */
-  payRow?: ReactNode;
+  /* служебные строки под ответом (отбор по робозоне), уходят в свернутые оговорки */
+  aside?: ReactNode;
+  /* подробности под карточкой итога: карточка и есть выбор, заголовок и бюджет у итога */
+  inline?: boolean;
 };
 
 /* Коротко наверху шага: один главный ответ, окупится ли и насколько дешевле, и строка из четырех
    чисел со ссылками вниз, к статьям. Переключатель покупка или аренда меняет ответ.
    Все суммы посчитал сервер, здесь только раскладываем их по местам */
-export function EconomicsSummary({ result, robotName, pick, choices, onPick, budget, onRent, onLoan, payRow }: Props) {
+export function EconomicsSummary({
+  result,
+  robotName,
+  pick,
+  choices,
+  onPick,
+  budget,
+  onRent,
+  onLoan,
+  aside,
+  inline = false,
+}: Props) {
   const sizing = result.sizing;
   const baseline = (result.scenarios ?? []).find((one) => one.id === "baseline");
   if (!sizing || !baseline) return null;
@@ -36,32 +60,40 @@ export function EconomicsSummary({ result, robotName, pick, choices, onPick, bud
   const parts = (result.tasks ?? []).length > 1 ? (result.tasks ?? []) : [];
   const lineup = parts.map((task) => task.sizing.fleet).join(" + ");
   const taskCount = new Set(parts.map((task) => task.operation_id)).size;
+  const pickingOnly = parts.length
+    ? parts.every((task) => task.operation_id === "piece_picking")
+    : result.operation_id === "piece_picking";
   const financed = pick.financing != null && pick.financing.method !== "own";
   // открыта покупка, и она не влезает в бюджет: говорим строкой над ответом, куда повернуть
-  const over = budget != null && pick.id === "purchase" && overBudget(pick, budget);
+  const over = !inline && budget != null && pick.id === "purchase" && overBudget(pick, budget);
   // за горизонт не окупается: сервер досчитал на более долгий срок, говорим, на каком году вернутся вложения
   const later = pick.payback_cumulative_years == null ? result.later_horizon_years : null;
+  // упаковщики у станций отбора одни и те же до роботов и после: пишем рядом, в разницу не входят
+  const packers = sizing.packing_per_shift ?? 0;
+  const needs = pick.id === "purchase" && pick.payback_cumulative_years == null ? (result.payback_needs ?? []) : [];
 
   return (
-    <section id="summary" className="u-summary" style={{ marginTop: "var(--s-6)" }}>
-      <BlockHead
-        title="Коротко"
-        note={
-          parts.length
-            ? `${scenarioWord(pick)}, ${taskCount > 1 ? `${taskCount} задачи` : "смешанный парк"}: ${sizing.fleet} ${fleetWord} (${lineup}), ${rented ? "в конце договора выкуп" : "дальше обслуживание и операторы"}`
-            : rented
-              ? `Аренда: ${sizing.fleet} ${fleetWord} ${robotName} за плату в месяц, в конце договора выкуп`
-              : `${scenarioWord(pick)}: ${sizing.fleet} ${fleetWord} ${robotName} ваши, дальше обслуживание и операторы`
-        }
-        aside={
-          choices.length > 1 &&
-          choices.map((one) => (
-            <Pill key={one.id} active={one.id === pick.id} onClick={() => onPick(one.id)}>
-              {one.id === "raas" ? "Аренда" : "Покупка"}
-            </Pill>
-          ))
-        }
-      />
+    <section id="summary" className={inline ? "u-summary is-inline" : "u-summary"}>
+      {!inline && (
+        <BlockHead
+          title={"Ответ"}
+          note={
+            parts.length
+              ? `${scenarioWord(pick)}, ${taskCount > 1 ? `${taskCount} задачи` : "смешанный парк"}: ${sizing.fleet} ${fleetWord} (${lineup}), ${rented ? "платеж в месяц, роботы не ваши" : "дальше обслуживание и операторы"}`
+              : rented
+                ? `Аренда: ${sizing.fleet} ${fleetWord} ${robotName} за плату в месяц, роботы не ваши, выкуп по желанию`
+                : `${scenarioWord(pick)}: ${sizing.fleet} ${fleetWord} ${robotName} ваши, дальше обслуживание и операторы`
+          }
+          aside={
+            choices.length > 1 &&
+            choices.map((one) => (
+              <Pill key={one.id} active={one.id === pick.id} onClick={() => onPick(one.id)}>
+                {one.id === "raas" ? "Аренда" : "Покупка"}
+              </Pill>
+            ))
+          }
+        />
+      )}
       {over && (
         <div className="u-summary-over">
           <Alert>
@@ -78,12 +110,16 @@ export function EconomicsSummary({ result, robotName, pick, choices, onPick, bud
         </div>
       )}
       <Answer
-        heading
+        heading={!inline}
         title={
-          pick.payback_cumulative_years == null ? (
+          inline ? undefined : rented ? (
+            rentTitle(pick)
+          ) : pick.payback_cumulative_years == null && pick.payback_later_years != null ? (
             <>
-              {scenarioWord(pick)} не окупается за {horizon} лет
+              {scenarioWord(pick)} окупится примерно за <b>{aboutYears(pick.payback_later_years, horizon)}</b>
             </>
+          ) : pick.payback_cumulative_years == null ? (
+            <>{scenarioWord(pick)} не окупается</>
           ) : (
             <>
               {scenarioWord(pick)} окупится за <b>{term(pick.payback_cumulative_years)}</b>
@@ -92,16 +128,33 @@ export function EconomicsSummary({ result, robotName, pick, choices, onPick, bud
         }
         note={
           <>
-            За {horizon} лет {(pick.saving_rub ?? 0) >= 0 ? "дешевле" : "дороже"}, чем без роботов, на{" "}
-            <b>{mln(Math.abs(pick.saving_rub ?? 0))} млн ₽</b>
-            {budget && !over
+            {rented &&
+              (pick.annual_effect_year1_rub ?? 0) > 0 &&
+              `Экономия ${mln(pick.annual_effect_year1_rub ?? 0)} млн ₽ в год после платежей` +
+                (pick.payback_cumulative_years != null && pick.investment_year0_rub > 0
+                  ? `, внедрение ${mln(pick.investment_year0_rub)} млн ₽ вернется за ${term(pick.payback_cumulative_years)}. `
+                  : ". ")}
+            {/* под карточкой итога разница с людьми уже стоит на самой карточке */}
+            {!inline && (
+              <>
+                За {horizon} лет {(pick.saving_rub ?? 0) >= 0 ? "дешевле" : "дороже"}, чем без роботов, на{" "}
+                <b>{mln(Math.abs(pick.saving_rub ?? 0))} млн ₽</b>
+              </>
+            )}
+            {budget && !over && !inline
               ? pick.investment_year0_rub <= budget
                 ? financed
                   ? `, свои деньги на старте в бюджет ${mln(budget)} млн ₽ укладываются`
                   : `, в бюджет ${mln(budget)} млн ₽ укладывается`
                 : `, вложения больше бюджета ${mln(budget)} млн ₽`
               : ""}
-            {later && laterText(later, pick.payback_later_years)}
+            {/* под карточкой фраза начинается с него: без точки в начале */}
+            {later &&
+              (inline
+                ? laterText(later, pick.payback_later_years, horizon).slice(2)
+                : pick.payback_later_years != null
+                  ? `. Это ${laterNote(horizon)}`
+                  : laterText(later, pick.payback_later_years, horizon))}
           </>
         }
         facts={[
@@ -112,47 +165,81 @@ export function EconomicsSummary({ result, robotName, pick, choices, onPick, bud
             more: { href: "#fleet", text: "как подобран парк" },
           },
           {
-            label: pick.financing && pick.financing.method !== "own" ? "Свои деньги на старте" : "Вложения на старте",
+            label: rented
+              ? "Внедрение на старте"
+              : pick.financing && pick.financing.method !== "own"
+                ? "Свои деньги на старте"
+                : "Вложения на старте",
             value: mln(pick.investment_year0_rub),
             unit: "млн ₽",
             more: { href: "#capex", text: "как посчитано" },
           },
           {
-            label: "Экономия в год",
-            value: mln(pick.annual_effect_year1_rub ?? 0),
+            // экономия в минусе: "-0,2" не пишем, говорим, на сколько расходы с роботами выше
+            label:
+              (pick.annual_effect_year1_rub ?? 0) < 0
+                ? "Экономии нет, расходы выше в год"
+                : rented
+                  ? "Экономия в год после платежей"
+                  : "Экономия в год",
+            value: mln(Math.abs(pick.annual_effect_year1_rub ?? 0)),
             unit: "млн ₽",
             more: { href: "#opex", text: "как посчитано" },
           },
           {
-            label: "Людей в смену",
-            value: `${heads(sizing.people_per_shift_before)} → ${heads(sizing.people_per_shift_after)}`,
-            unit: plural(heads(sizing.people_per_shift_after), "человек", "человека", "человек"),
+            // у отбора считаем только ходьбу отборщика к полкам: штат склада больше, это нужно сказать
+            label: pickingOnly ? "Людей в смену на ходьбе к полкам" : "Людей в смену",
+            // на операции людей целыми, присмотр за роботами словами: 9 роботов это 0,2 человека в смену,
+            // часть работы начальника смены, а не отдельный дежурный (docs/calculation.md, раздел 2.2)
+            value: `${heads(sizing.people_per_shift_before)} → ${heads(sizing.people_per_shift_after - sizing.operator_posts)}`,
+            unit: `${peopleWord(heads(sizing.people_per_shift_after - sizing.operator_posts))}, присмотр за роботами: ${watchWords(sizing.operator_posts)}${packers ? `, на упаковке ${heads(packers)} до и после` : ""}`,
             more: { href: "#tco", text: "что это дает" },
           },
         ]}
       />
-      {pick.id === "purchase" && payRow}
-      {/* оговорка рядом с ответом, к которому относится, а не крупно в подвале */}
-      <p className="u-summary-note">
-        Это оценка, а не коммерческое предложение: для проекта нужны замеры на объекте и предложения поставщиков.{" "}
-        <a href="/method">Как мы считаем</a>
-      </p>
+      {/* отбор не окупается за горизонт: сервер нашел, при какой одной цифре покупка выйдет в плюс */}
+      {needs.length > 0 && (
+        <p className="u-summary-note">
+          Чтобы покупка окупилась за {horizon} лет, хватит одного из условий: {needs.map((one) => one.text).join("; ")}.
+        </p>
+      )}
+      {/* склад работает не круглосуточно: сколько было бы при работе в 3 смены 365 дней. Это вывод,
+          он стоит открыто; сверка одной строкой, служебные оговорки свернуты ниже */}
+      {result.round_the_clock && <p className="u-summary-note">{result.round_the_clock.text}.</p>}
+      <Plausibility checks={result.plausibility ?? []} scenario={pick.id} />
+      <div className="u-summary-more">
+        <Fold thin title="Оговорки и источники сверки">
+          {rented && pick.buyout && <p className="u-summary-note">{buyoutText(pick.buyout)}</p>}
+          {aside}
+          <PlausibilitySources checks={result.plausibility ?? []} scenario={pick.id} />
+          <p className="u-summary-note">
+            Это оценка, а не коммерческое предложение: для проекта нужны замеры на объекте и предложения поставщиков.{" "}
+            <a href="/method">Как мы считаем</a>
+          </p>
+        </Fold>
+      </div>
     </section>
   );
 }
 
-/* Людей в смену на экране целыми, с округлением вверх: полчеловека в смену не выйдет.
-   Расчет ведется в ставках, 7,5 ставки это 8 человек на смене */
-function heads(people: number): number {
-  return Math.ceil(people - 1e-9);
+/* Аренда как найм: главный вопрос не "когда окупится", а "выгоднее ли людей с первого года".
+   Окупается тут только внедрение на старте, роботы не наши, платим каждый год */
+function rentTitle(pick: ScenarioResult): ReactNode {
+  const first = pick.annual_effect_year1_rub ?? 0;
+  if (first <= 0) return <>Аренда дороже людей на {mln(-first)} млн ₽ в год</>;
+  return (
+    <>
+      Аренда выгоднее людей <b>с первого года</b>
+    </>
+  );
 }
 
-/* Окупаемость за горизонтом: номер года, в котором накопленная экономия покрыла вложения.
-   8,0 года это конец 8-го года, 8,3 уже 9-й год */
-function laterText(years: number, payback: number | null | undefined) {
+/* Окупаемость за горизонтом (format.paybackPhrase): дольше горизонта пометка мелко, а если и досчет
+   до years лет с заменой роботов по сроку службы не окупается, так и говорим */
+function laterText(years: number, payback: number | null | undefined, horizon: number) {
   return payback == null
-    ? `. Если считать ${years} лет с заменой изношенных роботов, тоже не окупается`
-    : `. Если считать ${years} лет с заменой изношенных роботов, окупится на ${Math.ceil(payback - 1e-9)}-м году`;
+    ? `. Не окупается и за ${years} лет с заменой роботов по сроку службы`
+    : `. Окупится примерно за ${aboutYears(payback, horizon)}, ${laterNote(horizon)}`;
 }
 
 /* Куда уходят деньги: статьи на старте, в год и за горизонт. Стоит под сменой на плане,
@@ -184,8 +271,8 @@ export function EconomicsLedger({
       <Ledger>
         <LedgerColumn
           id="capex"
-          title="На старте, CAPEX"
-          note="капитальные затраты: разово, до запуска"
+          title={"Разово на старте"}
+          note={"платите один раз до запуска, в экономике это CAPEX"}
           rows={[
             ...capex.map(([item, value]) => ({
               key: item,
@@ -196,7 +283,7 @@ export function EconomicsLedger({
             ...(pick.grant_rub > 0 ? [{ key: "grant", name: "Господдержка", value: `-${mln2(pick.grant_rub)}` }] : []),
           ]}
           total={{
-            name: "Вложения на старте (CAPEX), млн ₽",
+            name: "Всего на старте, млн ₽",
             value: mln2(pick.capex_after_grant_rub ?? pick.investment_year0_rub),
           }}
           after={
@@ -214,8 +301,8 @@ export function EconomicsLedger({
         />
         <LedgerColumn
           id="opex"
-          title="Каждый год, OPEX"
-          note="операционные затраты за первый год, дальше растут вместе с зарплатами и ценами"
+          title={"Каждый год"}
+          note={"первый год, дальше растут вместе с зарплатами и ценами. В экономике это OPEX"}
           rows={opex.map(([item, value]) => ({
             key: item,
             name: OPEX_NAMES[item] ?? item,
@@ -223,7 +310,10 @@ export function EconomicsLedger({
             // расходники по легенде организатора это замена АКБ, у нее своя строка
             hint: item === "maintenance" ? "сервис производителя и запчасти, замена АКБ отдельной строкой" : undefined,
           }))}
-          total={{ name: "Затраты на роботов в год (OPEX), млн ₽", value: mln2(first?.opex_total_rub ?? 0) }}
+          total={{
+            name: "Расходы на роботов в год, млн ₽",
+            value: mln2(first?.opex_total_rub ?? 0),
+          }}
           after={[
             ...((first?.staff_cost_rub ?? 0) - (first?.ramp_rub ?? 0) > 0.5
               ? [
@@ -284,7 +374,10 @@ export function EconomicsLedger({
                 : (TCO_NAMES[part.id] ?? OPEX_NAMES[part.id] ?? part.id),
             value: mln2(part.rub),
           }))}
-          total={{ name: "Стоимость владения, млн ₽", value: mln2(pick.tco_rub) }}
+          total={{
+            name: `Все расходы за ${horizon} лет, млн ₽`,
+            value: mln2(pick.tco_rub),
+          }}
           after={[
             {
               key: "baseline",

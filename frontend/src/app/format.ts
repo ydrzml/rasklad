@@ -1,5 +1,8 @@
 import { groupDigits, unitText } from "../ui/digits";
+import { aboutYears, laterNote } from "./paybackWords";
 import { plural } from "./steps/economicsNames";
+
+export { aboutYears, laterNote };
 
 const ru = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 });
 
@@ -24,6 +27,18 @@ export function term(value: number | null | undefined): string {
   return `${shown} ${word}`;
 }
 
+/* Окупаемость одной фразой, везде одинаково: до горизонта "окупится за 2,9 года", дольше горизонта
+   в пределах досчета "окупится примерно за 7 лет" и мелко пометка, дальше или никогда "не окупается" */
+export function paybackPhrase(
+  within: number | null | undefined,
+  later: number | null | undefined,
+  horizon: number,
+): { text: string; note: string | null } {
+  if (within != null) return { text: `окупится за ${term(within)}`, note: null };
+  if (later != null) return { text: `окупится примерно за ${aboutYears(later, horizon)}`, note: laterNote(horizon) };
+  return { text: "не окупается", note: null };
+}
+
 export function number(value: number | null | undefined, digits = 1): string {
   if (value === null || value === undefined) return "—";
   return value.toLocaleString("ru-RU", { maximumFractionDigits: digits });
@@ -40,7 +55,7 @@ export const TRUST_TITLES: Record<string, string> = {
   A: "производитель и независимая проверка",
   B: "сходятся два типа источников",
   C: "один источник",
-  D: "только организатор или СМИ",
+  D: "только каталог ФЦ БАС или СМИ",
   E: "источники расходятся",
   F: "источника нет, наше допущение",
 };

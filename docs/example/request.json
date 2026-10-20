@@ -1561,7 +1561,7 @@
       }
     ]
   },
-  "raas_buyout": true,
+  "raas_buyout": false,
   "use_simulation": true,
   "budget_rub": null
 }

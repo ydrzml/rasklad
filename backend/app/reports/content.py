@@ -5,11 +5,12 @@
 дата, версия модели и пометка «предварительная оценка».
 """
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from app.reports import names
+from app.reports.words import about_years
 from app.schemas.catalog import Facility, Operation, Parameter, Solution
 from app.schemas.economics import (
     CalculationRequest,
@@ -28,6 +29,7 @@ from app.services import plan as plan_service
 from app.services import selection as selection_service
 from app.services import sensitivity as sensitivity_service
 from app.services import staff as staff_service
+from app.services.versions import readable_note
 
 NAMES = {"baseline": "Без роботов", "purchase": "Покупка", "raas": "Аренда"}
 
@@ -56,6 +58,19 @@ OPEX_NAMES = {
 }
 
 MARK = "Предварительная оценка, не коммерческое предложение"
+MOSCOW = ZoneInfo("Europe/Moscow")
+# начало риска про план, которого человек не чертил (services/calculation.py, _verdict)
+NOT_DRAWN = "План объекта вы не чертили"
+
+
+@dataclass(frozen=True)
+class Saved:
+    """Сохраненная версия проекта, по которой собран отчет: цифры из нее, без пересчета (ТЗ, п. 3.1.5)"""
+
+    project: str
+    number: int
+    saved_at: datetime
+    same_data: bool
 
 
 @dataclass
@@ -131,6 +146,13 @@ class Report:
     staff_names: dict[str, str] = field(default_factory=dict)
     # что подготовить на складе до роботов: тот же список, что на экране, отдельным разделом
     readiness: ReadinessResult | None = None
+    # на каких данных посчитано: отпечаток для сверки (в конце отчета) и словами, без служебных номеров
+    data_version: str = ""
+    data_note: str = ""
+    # отчет по сохраненной версии из кабинета или по ссылке, а не по свежему расчету
+    saved: Saved | None = None
+    # отчет по готовому разбору (/cases): pallets, picking или cleaning
+    case_id: str | None = None
 
     @property
     def scenarios(self) -> list[ScenarioResult]:
@@ -150,6 +172,9 @@ class Report:
         seen: list[str] = []
         for s in self.scenarios:
             for risk in s.verdict.risks if s.verdict else []:
+                # в разборе план типовой у всех, гость его и не должен был чертить: страница разбора этот пункт тоже не пишет
+                if self.case_id and risk.startswith(NOT_DRAWN):
+                    continue
                 if risk not in seen:
                     seen.append(risk)
         return seen
@@ -173,18 +198,73 @@ class Report:
 
     @property
     def file_stem(self) -> str:
-        return f"otsenka-{self.request.facility_id}-{self.created:%Y-%m-%d}"
+        if self.case_id:
+            return f"razbor-{self.case_id}-{self.created:%Y-%m-%d}"
+        version = f"-v{self.saved.number}" if self.saved else ""
+        return f"otsenka-{self.request.facility_id}{version}-{self.created:%Y-%m-%d}"
+
+    @property
+    def stamp(self) -> str:
+        """Когда и на чем посчитано, одной строкой для шапки листа. Отпечаток данных сюда не ставим:
+        это служебный номер, он стоит один раз в конце отчета"""
+        version = f"версия {self.saved.number} · " if self.saved else ""
+        return f"{version}расчет от {self.created:%d.%m.%Y %H:%M} мск · модель {self.result.model_version}"
+
+    @property
+    def skipped(self) -> str | None:
+        """Почему в отчете по старой версии нет чувствительности, смены и подготовки склада"""
+        if self.saved is None or self.saved.same_data:
+            return None
+        return (
+            "Нормативы обновились после расчета. Цифры отчета такие, какими их сохранили. Что будет, если, "
+            "смена на плане и подготовка склада считаются по текущим нормативам, поэтому здесь их нет. "
+            "Посчитать на текущих можно в кабинете: Пересчитать как новую версию."
+        )
 
 
 class NotFeasible(Exception):
     """Расчет не сошелся: отчет по нему не собрать, причину отдаем как есть"""
 
 
-def build(request: CalculationRequest) -> Report:
+def build(request: CalculationRequest, case_id: str | None = None) -> Report:
+    """Отчет по свежему расчету: мастер, гость, ссылка без сохраненного результата, готовый разбор"""
+    from app.services import versions
+
     result = calculation.calculate(request)
     if not result.feasible or not result.sizing:
         raise NotFeasible(result.message or "Расчет не сошелся")
+    report = _assemble(
+        request,
+        result,
+        created=datetime.now(MOSCOW),
+        data=(versions.data_version(), versions.data_note()),
+        saved=None,
+    )
+    return replace(report, case_id=case_id) if case_id else report
 
+
+def build_saved(
+    request: CalculationRequest, result: CalculationResult, saved: Saved, data_version: str, data_note: str
+) -> Report:
+    """Отчет по сохраненной версии: цифры из сохраненного результата, расчет не повторяем.
+    Чувствительность, смену и подготовку склада сохранение не хранит, их считаем заново, только
+    пока нормативы те же: иначе в одном отчете сошлись бы цифры на разных данных."""
+    if not result.feasible or not result.sizing:
+        raise NotFeasible(result.message or "Расчет в этой версии не сошелся")
+    return _assemble(
+        request, result, created=saved.saved_at.astimezone(MOSCOW), data=(data_version, data_note), saved=saved
+    )
+
+
+def _assemble(
+    request: CalculationRequest,
+    result: CalculationResult,
+    created: datetime,
+    data: tuple[str, str],
+    saved: Saved | None,
+) -> Report:
+    # сохраненная версия на других нормативах: досчитывать к ней разделы по текущим нельзя
+    extras = saved is None or saved.same_data
     facility = next(f for f in catalog_service.facilities() if f.id == request.facility_id)
     choices = request.choices()
     operation_ids = list(dict.fromkeys(choice.operation_id for choice in choices))
@@ -211,14 +291,21 @@ def build(request: CalculationRequest) -> Report:
                 operation=next(o for o in facility.operations if o.id == choice.operation_id),
                 robot=next((s for s in solutions if s.robot_id == choice.robot_id), None),
                 part=part,
-                shift=_shift(request, choice.operation_id, choice.robot_id, part.sizing.fleet, choice.share),
+                shift=_shift(request, choice.operation_id, choice.robot_id, part.sizing.fleet, choice.share)
+                if extras
+                else None,
             )
         )
 
     parameters = catalog_service.parameters(request.facility_id, operation_ids)
+    # у сохраненной версии значения и источники берем из ее результата: каталог мог с тех пор поменяться
+    used = {one.path: one for one in result.sources} if saved else {}
     for one in parameters:
         if one.path in request.overrides:
             one.value = request.overrides[one.path]
+        elif isinstance(getattr(used.get(one.path), "value", None), int | float):
+            source = used[one.path]
+            one.value, one.source, one.trust = float(source.value), source.source, source.trust
 
     roles = {role.id: role.name for role in staff_service.roles()}
     lines = request.staff
@@ -236,9 +323,9 @@ def build(request: CalculationRequest) -> Report:
     ]
 
     return Report(
-        sensitivity=sensitivity_service.sensitivity(request),
-        sensitivity_all=sensitivity_service.sensitivity_all(request),
-        created=datetime.now(ZoneInfo("Europe/Moscow")),
+        sensitivity=sensitivity_service.sensitivity(request) if extras else None,
+        sensitivity_all=sensitivity_service.sensitivity_all(request) if extras else None,
+        created=created,
         request=request,
         result=result,
         facility=facility,
@@ -248,7 +335,10 @@ def build(request: CalculationRequest) -> Report:
         measures=measures,
         labels={one.path: one.label for one in parameters},
         staff_names={line["id"]: roles.get(line["role"], line["role"]) for line in _config_staff(request.facility_id)},
-        readiness=_readiness(request, result),
+        readiness=_readiness(request, result) if extras else None,
+        data_version=data[0],
+        data_note=readable_note(data[1]),
+        saved=saved,
     )
 
 
@@ -341,12 +431,26 @@ def rub(value: float | None) -> str:
     return f"{grouped(value)}\u00a0₽"
 
 
+def unit_price(value: float) -> str:
+    """Цена одной операции: до ста рублей с копейками, дальше целыми"""
+    return f"{grouped(value, 1 if abs(value) < 100 else 0)} ₽"
+
+
 def mln(value: float) -> str:
     return f"{value / 1_000_000:,.1f}".replace(",", "\u00a0").replace(".", ",")
 
 
 def grouped(value: float, digits: int = 0) -> str:
     return f"{value:,.{digits}f}".replace(",", "\u00a0").replace(".", ",")
+
+
+def buyout_cell(scenario) -> str:
+    """Выкуп в конце договора аренды одной ячейкой: цена, год и через сколько окупится."""
+    buyout = getattr(scenario, "buyout", None)
+    if buyout is None:
+        return "—"
+    payback = "не окупается" if buyout.payback_years is None else f"окупится за {term(buyout.payback_years)}"
+    return f"{rub(buyout.price_rub)} в конце {buyout.year} года, {payback}"
 
 
 def term(value: float | None) -> str:
@@ -360,8 +464,26 @@ def term(value: float | None) -> str:
     return f"{shown} {'год' if whole == 1 else 'года' if 2 <= whole <= 4 else 'лет'}"
 
 
+def payback_words(scenario, horizon: int) -> str:
+    """Окупаемость одной строкой, одинаково в PDF, Excel и сравнении (docs/decisions.md, "Срок службы
+    и амортизация"): до горизонта срок как есть; дольше горизонта, но в пределах досчета до
+    economics.later_payback_years, примерно в целых годах с пометкой; дальше "не окупается"."""
+    within = scenario.payback_cumulative_years
+    if within is not None:
+        return term(within)
+    later = getattr(scenario, "payback_later_years", None)
+    if later is None:
+        return "не окупается"
+    return f"примерно {about_years(later, horizon)}, дольше горизонта расчета в {horizon} лет"
+
+
 def percent(value: float | None) -> str:
     return "—" if value is None else f"{round(value * 100)}%"
+
+
+def times(value: float | None) -> str:
+    """Во сколько раз экономия за горизонт больше вложений: 3,9 раза. Не процентами, чтобы не путать с ROI."""
+    return "—" if value is None else f"{value:.1f} раза".replace(".", ",")
 
 
 def scenario_name(scenario) -> str:

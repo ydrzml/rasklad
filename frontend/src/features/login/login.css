@@ -217,6 +217,79 @@
   font-size: 14px;
 }
 
+/* "Забыли пароль?" под полем пароля и "войти" под кнопкой: тихая ссылка, а не вторая кнопка */
+.g-forgot {
+  align-self: flex-start;
+  margin: 8px 0 0;
+  padding: 4px 0;
+  font: inherit;
+  font-size: 14px;
+  border: none;
+  background: none;
+  color: var(--blue);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.g-forgot:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+.g-back {
+  align-self: center;
+  margin-top: 12px;
+}
+
+/* Письмо попросили: что делать дальше */
+.g-sent p {
+  margin: 0 0 8px;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.g-sent .g-submit {
+  width: 100%;
+}
+
+/* Шаг регистрации с кодом: почта, на которую ушел код, крупное поле для 6 цифр, две тихие ссылки в ряд */
+.g-email {
+  color: var(--ink);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.g-panel input.g-code {
+  font-size: 28px;
+  letter-spacing: 0.4em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  padding: 12px 14px;
+}
+
+.g-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin-top: 8px;
+}
+
+.g-forgot:disabled {
+  color: var(--ink-soft);
+  text-decoration: none;
+  cursor: default;
+}
+
+.g-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 .g-submit {
   margin-top: 18px;
   font: inherit;

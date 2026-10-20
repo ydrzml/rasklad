@@ -59,6 +59,11 @@ export function zoneShare(
   return overrides[`facilities.${facility.id}.picking_zone_share`] ?? facility.picking_zone_share;
 }
 
+/* Наименьшая типовая робозона, где между воротами и станциями встают стеллажи. Считает сервер
+   (backend/app/services/plan.py, zone_minimum_m2), тест test_zone_minimum_is_the_same_on_front_and_server
+   следит, чтобы число здесь с ним сходилось */
+export const ZONE_MIN_M2 = 609;
+
 export function pickingZoneM2(
   facility: { id: string; active_area_m2?: number | null; picking_zone_share?: number | null } | undefined,
   overrides: Record<string, number>,
@@ -66,7 +71,7 @@ export function pickingZoneM2(
   const share = zoneShare(facility, overrides);
   const area = facility ? (overrides[`facilities.${facility.id}.active_area_m2`] ?? facility.active_area_m2) : null;
   if (share === null || !area) return null;
-  return Math.round(area * Math.min(1, share));
+  return Math.round(Math.min(area, Math.max(area * Math.min(1, share), ZONE_MIN_M2)));
 }
 
 /* «2 800 м²»: площадь робозоны в строках шагов плана и экономики */

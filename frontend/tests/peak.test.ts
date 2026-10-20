@@ -29,6 +29,10 @@ test("площадь робозоны под отбор: доля склада �
   assert.equal(pickingZoneM2(facility, { "facilities.warehouse.picking_zone_share": 0.5 }), 5000);
   assert.equal(pickingZoneM2(facility, { "facilities.warehouse.active_area_m2": 20000 }), 5600);
   assert.equal(pickingZoneM2({ id: "airport" }, {}), null);
+  // даркстор: 10% от 1 500 м2 мало, робозона не меньше той, где встают стеллажи; не больше склада
+  const small = { id: "warehouse", active_area_m2: 1500, picking_zone_share: 0.1 };
+  assert.equal(pickingZoneM2(small, {}), 609);
+  assert.equal(pickingZoneM2({ ...small, active_area_m2: 400 }, {}), 400);
   assert.equal(zoneArea(2800), "2\u00a0800 м²");
 });
 

@@ -194,6 +194,78 @@
   font-size: 13px;
 }
 
+/* Номер версии в истории: нажатием версия открывается подробно под таблицей */
+.c-pick {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--blue);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.c-pick[aria-pressed="true"] {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.c-pick:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+
+/* Выбранная версия: когда и на чем посчитана, отчет и пересчет */
+.c-version {
+  margin-top: var(--s-4);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--sheet);
+}
+
+.c-version .u-alert {
+  margin-bottom: var(--s-2);
+}
+
+.c-stamp {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--s-1) var(--s-3);
+  margin: 0 0 var(--s-3);
+  font-size: 14px;
+}
+
+.c-stamp dt {
+  color: var(--ink-faint);
+}
+
+.c-stamp dd {
+  margin: 0;
+}
+
+.c-note {
+  display: block;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+/* На телефоне подпись над значением, а строка ссылки или файла переносится целиком, не по буквам */
+@media (max-width: 560px) {
+  .c-stamp {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .c-stamp dd + dt {
+    margin-top: var(--s-2);
+  }
+
+  .c-files li {
+    flex-wrap: wrap;
+  }
+}
+
 @media (max-width: 1080px) {
   .c-cols {
     grid-template-columns: 1fr;
@@ -210,11 +282,12 @@
   }
 
   /* В строке проекта остаются галочка, название со строкой объекта и кнопка «Подробнее».
-     Только у строк самого списка: история сохранений внутри подробностей тоже таблица */
-  .c-list > .u-sheet > .u-sheet-row > .u-cell:nth-child(3),
-  .c-list > .u-sheet > .u-sheet-row > .u-cell:nth-child(4),
-  .c-list > .u-sheet > .u-sheet-row > .u-cell:nth-child(5),
-  .c-list > .u-sheet > .u-sheet-row > .u-cell:nth-child(6) {
+     Только у строк самого списка: история сохранений внутри подробностей тоже таблица.
+     Считаем только ячейки: у строки, которую можно перетащить, первой стоит ручка u-grip */
+  .c-list > .u-sheet > .u-sheet-row > .u-cell:nth-child(3 of .u-cell),
+  .c-list > .u-sheet > .u-sheet-row > .u-cell:nth-child(4 of .u-cell),
+  .c-list > .u-sheet > .u-sheet-row > .u-cell:nth-child(5 of .u-cell),
+  .c-list > .u-sheet > .u-sheet-row > .u-cell:nth-child(6 of .u-cell) {
     display: none;
   }
 
@@ -560,6 +633,14 @@
 
 .c-variant-fields .u-frow {
   grid-template-columns: minmax(0, 1fr) 180px;
+}
+
+/* На телефоне подпись над полем, поле во всю ширину: вторая колонка в 180 точек оставалась пустой,
+   а поле жалось в узкую первую, и "10 000" обрезалось до "10 00" */
+@media (max-width: 640px) {
+  .c-variant-fields .u-frow {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .c-variant-staff {

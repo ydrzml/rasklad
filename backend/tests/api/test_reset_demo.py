@@ -6,7 +6,7 @@ from app.db import get_session
 from app.main import app
 from app.services.catalog_import import organizer_file
 from app.storage.models import CatalogChange, Project, Role, Solution, User
-from scripts.reset_demo import reset
+from scripts.reset_demo import EXAMPLES, reset
 from tests.api.test_projects import IVAN, new_project, sign_in
 
 
@@ -41,11 +41,13 @@ def test_reset_returns_demo_projects_and_catalog(db_client):
 
     done = reset(db)
     db.expire_all()
-    assert done["projects"] == 1
+    # демо-проект эксперта и три примера, положенные первым возвратом
+    assert done["projects"] == 1 + len(EXAMPLES)
     assert count(db, Solution) == CATALOG
     assert db.get(Solution, first) is not None
     # журнал очищен, остались только записи о новом заполнении
     assert "delete" not in set(db.scalars(select(CatalogChange.action)))
     names = set(db.scalars(select(Project.name)))
-    assert names == {"Проект Ивана"}
+    # у демо-пользователя снова три примера с разными названиями
+    assert names == {"Проект Ивана", *EXAMPLES.values()}
     assert db.scalar(select(User.role).where(User.email == "admin@example.com")) == Role.admin

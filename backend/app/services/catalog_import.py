@@ -75,9 +75,9 @@ def parse_price(raw: str) -> Decimal | None:
     try:
         price = Decimal(text)
     except InvalidOperation as error:
-        raise ValueError(f"цена «{raw}» не число") from error
+        raise ValueError(f'цена "{raw}" не число') from error
     if price < 0:
-        raise ValueError(f"цена «{raw}» меньше нуля")
+        raise ValueError(f'цена "{raw}" меньше нуля')
     return price
 
 
@@ -86,7 +86,7 @@ def parse_trl(raw: str) -> int | None:
     if not text:
         return None
     if not text.isdigit() or not 1 <= int(text) <= 9:
-        raise ValueError(f"УГТ «{raw}» должен быть числом от 1 до 9")
+        raise ValueError(f'УГТ "{raw}" должен быть числом от 1 до 9')
     return int(text)
 
 
@@ -101,7 +101,7 @@ def read_organizer_file(content: bytes) -> tuple[list[dict[str, str]], int]:
     missing = [column for column in ORGANIZER_COLUMNS if column not in (reader.fieldnames or [])]
     if missing:
         raise ImportRejected(
-            "В файле нет колонок: " + ", ".join(missing) + ". Нужна выгрузка каталога с разделителем «;»"
+            "В файле нет колонок: " + ", ".join(missing) + '. Нужна выгрузка каталога с разделителем ";"'
         )
     rows = list(reader)
     return rows, len(rows)
@@ -123,14 +123,14 @@ def _row_values(row: dict[str, str], ours_file: bool = False) -> dict[str, objec
         else:
             values[attr] = raw
     if not UUID.match(str(values["id"])):
-        raise ValueError(f"идентификатор «{values['id']}» не похож на идентификатор каталога")
+        raise ValueError(f'идентификатор "{values["id"]}" не похож на идентификатор каталога')
     if not values["name"]:
         raise ValueError("нет названия")
     # в нашей выгрузке бывают решения, добавленные вручную без типа и статуса
     if values["kind"] not in KINDS and not (ours_file and not values["kind"]):
-        raise ValueError(f"тип «{values['kind']}» не из списка: brs, bas, software")
+        raise ValueError(f'тип "{values["kind"]}" не из списка: brs, bas, software')
     if values["status"] not in STATUSES and not (ours_file and not values["status"]):
-        raise ValueError(f"статус «{values['status']}» не из списка: operation, piloting, rnd")
+        raise ValueError(f'статус "{values["status"]}" не из списка: operation, piloting, rnd')
     return values
 
 
@@ -279,10 +279,10 @@ def organizer_file() -> Path:
 
 
 def seed_organizer_catalog(session: Session) -> int:
-    """Первый запуск, после нашего каталога: каталог организатора загружается администратором в админке
-    той же загрузкой, что кнопка "Загрузить выгрузку". Наши решения склеиваются с ней по номеру, остальные
-    получают предложения объектов и задач и ждут администратора. Если выгрузку уже загружали (в журнале
-    есть загрузка) или файла нет, ничего не делаем. Возвращает, сколько позиций добавилось."""
+    """Первый запуск, после нашего каталога: выгрузка организатора из data/organizer той же загрузкой,
+    что кнопка в админке. Наши решения склеиваются с ней по номеру, остальные получают предложения
+    объектов и задач и ждут администратора. Если выгрузку уже загружали (в журнале есть загрузка)
+    или файла нет, ничего не делаем. Возвращает, сколько позиций добавилось."""
     path = organizer_file()
     if not path.exists():
         return 0

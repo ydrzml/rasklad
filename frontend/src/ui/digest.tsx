@@ -28,7 +28,8 @@ export function Digest({
   facts?: DigestFact[];
   line?: ReactNode;
   open: boolean;
-  onToggle: () => void;
+  /* без onToggle блок не сворачивается: кнопки нет, он всегда раскрыт (смена на плане) */
+  onToggle?: () => void;
   /* полный блок: встает под строкой, когда она раскрыта */
   children: ReactNode;
 }) {
@@ -52,18 +53,20 @@ export function Digest({
             ))}
           </dl>
         )}
-        <button
-          type="button"
-          className="u-digest-more"
-          aria-expanded={open}
-          aria-controls={`more-${id}`}
-          onClick={onToggle}
-        >
-          {open ? "Свернуть" : "Подробнее"}
-          <span className="u-chev" aria-hidden="true">
-            <Arrow />
-          </span>
-        </button>
+        {onToggle && (
+          <button
+            type="button"
+            className="u-digest-more"
+            aria-expanded={open}
+            aria-controls={`more-${id}`}
+            onClick={onToggle}
+          >
+            {open ? "Свернуть" : "Подробнее"}
+            <span className="u-chev" aria-hidden="true">
+              <Arrow />
+            </span>
+          </button>
+        )}
       </div>
       <div id={`more-${id}`} className="u-digest-body" hidden={!open}>
         {children}

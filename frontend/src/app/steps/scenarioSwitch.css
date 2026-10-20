@@ -1,0 +1,236 @@
+/* Переключатель сценария шага 5: полоса липнет к верху экрана, пока листаешь шаг.
+   Цвета сценариев из набора (--sc-*), выбранное как у карточек: заливка тоном и рамка */
+.u-switch {
+  position: sticky;
+  top: var(--s-2);
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1) var(--s-2);
+  margin-top: var(--s-4);
+  padding: 6px;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  box-shadow:
+    var(--hair),
+    0 8px 24px -16px rgb(16 24 40 / 0.35);
+}
+
+.u-switch-label {
+  padding: 0 var(--s-1) 0 var(--s-2);
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.u-switch-opt,
+.u-switch-way {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 14px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.u-switch-opt:hover,
+.u-switch-way:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--tone) 8%, var(--paper));
+}
+
+.u-switch-opt:focus-visible,
+.u-switch-way:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.u-switch-opt i,
+.u-switch-name i {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  background: var(--tone);
+}
+
+.u-switch-opt.is-now {
+  --tone: var(--sc-now);
+}
+
+.u-switch-opt.is-rent {
+  --tone: var(--sc-rent);
+}
+
+.u-switch-group {
+  --tone: var(--sc-buy);
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 2px 2px 12px;
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.u-switch-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 6px;
+  font-size: 15px;
+}
+
+.u-switch-way {
+  min-height: 32px;
+  padding: 4px 12px;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.u-switch-way:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+/* выбранное: заливка тоном сценария и рамка, жирнее. У покупки рамка на всей группе */
+.u-switch-opt.is-on,
+.u-switch-way.is-on {
+  background: color-mix(in srgb, var(--tone) 12%, var(--paper));
+  box-shadow: inset 0 0 0 2px var(--tone);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.u-switch-group.is-on {
+  background: color-mix(in srgb, var(--tone) 5%, var(--paper));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 45%, transparent);
+}
+
+.u-switch-group.is-on .u-switch-name {
+  font-weight: 600;
+}
+
+/* способ оплаты, которым посчитана покупка, когда показана не она: подчеркнут */
+.u-switch-group:not(.is-on) .u-switch-way.is-current {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* Под переключателем, когда показана покупка: способы оплаты одной строкой и условия */
+.u-payline {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 var(--s-3);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.u-payline p {
+  max-width: 95ch;
+  margin: 0;
+}
+
+.u-payline-terms {
+  color: var(--ink-soft);
+}
+
+/* Как посчитаны карточки: формулы каждой рядом, тем же цветом, что карточка */
+.u-cards-how-note {
+  max-width: 95ch;
+  margin: 0 0 var(--s-3);
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.u-cards-how {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
+  margin-bottom: var(--s-3);
+}
+
+.u-cards-how-col h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 var(--s-1);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.u-cards-how-col h3 i {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  background: var(--tone);
+}
+
+.u-cards-how-col.is-now {
+  --tone: var(--sc-now);
+}
+
+.u-cards-how-col.is-buy {
+  --tone: var(--sc-buy);
+}
+
+.u-cards-how-col.is-rent {
+  --tone: var(--sc-rent);
+}
+
+@media (max-width: 900px) {
+  .u-cards-how {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* На телефоне в одну строку не помещается, а листать вбок значит прятать кредит и аренду.
+   Две строки: без роботов и аренда сверху, покупка со способами оплаты под ними */
+@media (max-width: 640px) {
+  .u-switch {
+    gap: 4px;
+    padding: 4px;
+    border-radius: var(--r-lg);
+  }
+
+  .u-switch-label {
+    display: none;
+  }
+
+  .u-switch-opt {
+    flex: 1;
+    justify-content: center;
+    min-height: 32px;
+    padding: 4px 8px;
+    font-size: 14px;
+  }
+
+  .u-switch-group {
+    order: 3;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    width: 100%;
+    padding-left: 10px;
+    border-radius: var(--r-md);
+  }
+
+  .u-switch-name {
+    margin-right: 0;
+    font-size: 14px;
+  }
+
+  .u-switch-way {
+    padding: 4px 8px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+}
